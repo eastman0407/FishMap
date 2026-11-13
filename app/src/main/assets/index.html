@@ -105,7 +105,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
     </div>
     <span class="samplebadge">흐름: 샘플 데이터</span>
     <span class="windchip" id="windChip"></span>
-    <div class="legend">유속 (노트)<div class="bar" id="legendBar"></div><div class="ticks"><span>0</span><span>0.7</span><span>1.8</span><span>2.5+</span></div></div>
+    <div class="legend"><span id="legendTitle">유속 (노트)</span><div class="bar" id="legendBar"></div><div class="ticks" id="legendTicks"><span>0</span><span>0.7</span><span>1.8</span><span>2.5+</span></div></div>
     <div class="toast" id="toast"></div>
   </div>
 
@@ -380,7 +380,7 @@ function requestReal(){
       setRealData(js,L.latLngBounds([js.bounds.s,js.bounds.w],[js.bounds.n,js.bounds.e]));
       RD.empty=!RD.pts.length;
       if(sel){computeEvents();updateUI();}
-      if(SIM.on){SIM.wantT=-1;SIM.pendingAt=0;simCache.clear();simTimeChanged(!SIM.u);} resetParticles();
+      if(SIM.on){SIM.wantT=-1;SIM.pendingAt=0;simCache.clear();simTimeChanged(!SIM.u);} resetParticles(); computeViewScale();
     }catch(e){ if(id===RD.reqId)toast('실제 조류를 못 불러왔어요: '+e.message,5000); }
     finally{ if(id===RD.reqId){RD.loading=false;updateBadge();} }
   },350);
@@ -484,8 +484,38 @@ const bearing=(e,n)=>(Math.atan2(e,n)*180/Math.PI+360)%360;
 const dirName=d=>DIRS[Math.round(d/22.5)%16];
 const stateOf=s=>Math.abs(s)<0.12?['정조','s']:(s>0?['창조','f']:['낙조','e']);
 const COLORS=['#3b6ea8','#3fa7c9','#4fd1c5','#9be15d','#f6c445','#f2734b'], BREAKS=[0.3,0.7,1.2,1.8,2.5];
-const bucket=v=>{for(let k=0;k<5;k++)if(v<BREAKS[k])return k;return 5;};
+// 화면에 보이는 유속에 맞춰 색 단계·이동 속도를 자동 조절 (약한 흐름도 구분되게)
+const VIEW={breaks:BREAKS.slice(),G:1,fine:false};
+const bucket=v=>{const B=VIEW.breaks;for(let k=0;k<5;k++)if(v<B[k])return k;return 5;};
 $('#legendBar').innerHTML=COLORS.map(c=>`<span style="background:${c}"></span>`).join('');
+const fmtKn=v=>v>=1?v.toFixed(1).replace(/\.0$/,''):v>=0.1?v.toFixed(1):v.toFixed(2);
+function drawLegend(){
+  const B=VIEW.breaks;
+  $('#legendTicks').innerHTML=`<span>0</span><span>${fmtKn(B[1])}</span><span>${fmtKn(B[3])}</span><span>${fmtKn(B[4])}+</span>`;
+  $('#legendTitle').textContent=VIEW.fine?'유속 (노트) · 약한 흐름 확대':'유속 (노트)';
+}
+let viewScaleTimer=null;
+function computeViewScale(){
+  clearTimeout(viewScaleTimer);
+  viewScaleTimer=setTimeout(()=>{
+    const th=tH(), sp=[];
+    for(let yy=0;yy<14;yy++)for(let xx=0;xx<22;xx++){
+      const ll=map.containerPointToLatLng([(xx+0.5)*W/22,(yy+0.5)*H/14]);
+      const v=flowAt(ll.lat,ll.lng,th);
+      if(v)sp.push(Math.hypot(v.vE,v.vN));
+    }
+    if(sp.length<10)return;
+    sp.sort((a,b)=>a-b);
+    const p90=Math.max(0.03,sp[Math.floor(sp.length*0.9)]);
+    const fine=p90<1.1;
+    const top=fine?Math.max(0.1,p90*1.15):2.5;
+    const nb=fine?[top*0.15,top*0.3,top*0.5,top*0.72,top]:BREAKS.slice();
+    // 25% 이상 달라질 때만 바꿔서 깜빡임 방지
+    if(Math.abs(nb[4]-VIEW.breaks[4])/VIEW.breaks[4]>0.25||fine!==VIEW.fine){
+      VIEW.breaks=nb; VIEW.fine=fine; VIEW.G=fine?Math.min(5,0.5/p90):1; drawLegend();
+    }
+  },400);
+}
 
 // ================= 시간 =================
 const t0=new Date(); t0.setHours(0,0,0,0);
@@ -696,8 +726,8 @@ function stepFlow(){
     let v; if(useSim){v=simAtPx(p.x,p.y);} if(!useSim||v===undefined){const ll=map.containerPointToLatLng([p.x,p.y]);v=baseAt(ll.lat,ll.lng,th);}
     if(!v){spawn(p);continue;}
     const sp=Math.hypot(v.vE,v.vN);
-    // 항내 추정 모드: 아주 약한 흐름도 움직임이 보이도록 이동 거리만 키움 (색은 실제 세기 그대로)
-    const g=useSim&&sp>1e-6?1.2*Math.sqrt(sp)/sp:1;
+    // 약한 흐름도 움직임이 보이도록 이동 거리만 키움 (색은 실제 세기 그대로)
+    const g=useSim&&sp>1e-6?1.2*Math.sqrt(sp)/sp:VIEW.G;
     const nx=p.x+v.vE*K*g, ny=p.y-v.vN*K*g;
     const pa=paths[bucket(sp)]; pa.moveTo(p.x,p.y); pa.lineTo(nx+0.01,ny); p.x=nx; p.y=ny;
     if(nx<0||ny<0||nx>W||ny>H)p.age=1e9;
@@ -705,7 +735,7 @@ function stepFlow(){
   xF.lineWidth=1.5; xF.lineCap='round'; paths.forEach((pa,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(pa);});
 }
 map.on('movestart zoomstart',()=>{moving=true;xF.clearRect(0,0,W,H);});
-map.on('moveend',()=>{moving=false;buildMask();requestReal();windRequest();drawRocks();tideEnsure();});
+map.on('moveend',()=>{moving=false;buildMask();requestReal();windRequest();drawRocks();tideEnsure();computeViewScale();});
 map.on('resize',()=>{resizeFlow();buildMask();});
 $('#flowBtn').onclick=e=>{showFlow=!showFlow;$('#flowBtn').classList.toggle('on',showFlow);if(!showFlow)xF.clearRect(0,0,W,H);};
 
@@ -916,7 +946,7 @@ function updateUI(){
 
 // ================= 시간 컨트롤 =================
 let playing=false, frame=0;
-const setT=m=>{tMin=Math.max(0,Math.min(2880,m));updateUI();};
+const setT=m=>{tMin=Math.max(0,Math.min(2880,m));updateUI();computeViewScale();};
 $('#slider').addEventListener('input',e=>setT(+e.target.value));
 $('#nowBtn').onclick=()=>setT(nowMin());
 $('#play').onclick=()=>{playing=!playing;$('#play').textContent=playing?'❚❚':'▶';if(playing&&tMin>=2880)setT(0);};
