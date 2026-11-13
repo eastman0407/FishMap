@@ -148,8 +148,11 @@ public class MainActivity extends Activity {
                         }
                     }
                 } catch (Exception e) {
-                    code = -1;
-                    body = String.valueOf(e.getMessage());
+                    // 인터넷이 안 될 때(갯바위 등): 오래됐더라도 저장된 자료가 있으면 그걸 사용
+                    String stale = null;
+                    try { if (cache.exists()) stale = read(new FileInputStream(cache)); } catch (Exception ignored) {}
+                    if (stale != null) { code = 200; body = stale; }
+                    else { code = -1; body = String.valueOf(e.getMessage()); }
                 }
                 final String js = "window.__nativeCb(" + JSONObject.quote(cbId) + "," + code + "," + JSONObject.quote(body) + ")";
                 web.post(() -> web.evaluateJavascript(js, null));

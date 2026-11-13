@@ -4,8 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>물흐름 지도</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link rel="stylesheet" href="lib/leaflet.min.css" onerror="this.onerror=null;this.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'">
+<script src="lib/leaflet.min.js"></script>
+<script>if(!window.L)document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>');</script>
 <style>
 :root{--bg:#0a1520;--panel:#112131;--panel2:#0d1c2a;--line:#1e3347;--text:#e8f0f7;--muted:#8ba4b9;--accent:#4fd1c5;--flood:#5fb4ff;--ebb:#ffad5c}
 *{box-sizing:border-box}
@@ -811,12 +812,14 @@ const ymd=d=>`${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}`;
 async function tideStations(){
   if(TIDE.st)return TIDE.st;
   try{const c=JSON.parse(pref('tideStations','null'));if(c&&c.length){TIDE.st=c;return c;}}catch(e){}
-  if(TIDE.scan)return null; TIDE.scan=true;
-  // 지점 코드 목록이 공개 안 돼 있어서, DT_0001~DT_0070을 한 번만 훑어서 있는 지점을 찾아 저장
-  const codes=[];for(let i=1;i<=70;i++)codes.push('DT_'+String(i).padStart(4,'0'));
+  if(TIDE.scan)return null;
+  if(Date.now()-(+pref('tideScanFailAt','0'))<30*60000)return null; // 실패 후 30분은 재시도 안 함
+  TIDE.scan=true;
+  // 지점 코드 목록이 공개 안 돼 있어서, DT_0001~DT_0099를 한 번만 훑어서 있는 지점을 찾아 저장
+  const codes=[];for(let i=1;i<=99;i++)codes.push('DT_'+String(i).padStart(4,'0'));
   const found=[],today=ymd(new Date());let idx=0,auth=0;
   async function w(){while(idx<codes.length){const c=codes[idx++];
-    try{const r=await nget(`${TIDE_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=2&obsCode=${c}&reqDate=${today}&min=60`,10080);
+    try{const r=await nget(`${TIDE_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=2&obsCode=${c}&reqDate=${today}&min=60`,0);
       if(/NOT_REGISTERED|SERVICE ERROR/i.test(r.text))auth++;
       const js=JSON.parse(r.text);const it=ROMS.findItems(js);if(!it||!it.length)continue;
       const f=it[0],ks=Object.keys(f);
@@ -826,8 +829,8 @@ async function tideStations(){
     }catch(e){}}}
   await Promise.all([w(),w(),w(),w()]);
   TIDE.scan=false;
-  if(found.length){TIDE.st=found;setPref('tideStations',JSON.stringify(found));}
-  else{TIDE.err=auth>30?'조석예보(시계열) 활용신청이 필요해요':'조석예보 지점을 못 찾았어요';
+  if(found.length){TIDE.st=found;setPref('tideStations',JSON.stringify(found));setPref('tideScanFailAt','0');}
+  else{setPref('tideScanFailAt',String(Date.now()));TIDE.err=auth>30?'조석예보(시계열) 활용신청이 필요해요':'조석예보 지점을 못 찾았어요';
     if(!TIDE.warned){TIDE.warned=true;toast('바위 잠김 표시엔 공공데이터포털에서 "조석예보(시계열)" 활용신청이 필요해요',4500);}}
   return TIDE.st;
 }
@@ -838,9 +841,10 @@ async function tideSeries(code){
   const out={at:Date.now(),t:[],h:[]};
   for(let day=0;day<3;day++){
     const rd=ymd(new Date(t0.getTime()+day*86400e3));
-    const r=await nget(`${TIDE_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=300&obsCode=${code}&reqDate=${rd}&min=10`,180);
-    let js;try{js=JSON.parse(r.text);}catch(e){continue;}
-    const items=ROMS.findItems(js)||[]; if(!items.length)continue;
+    const turl=`${TIDE_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=300&obsCode=${code}&reqDate=${rd}&min=10`;
+    const r=await nget(turl,180);
+    let js;try{js=JSON.parse(r.text);}catch(e){if(NATIVE)NATIVE.dropCache(turl);continue;}
+    const items=ROMS.findItems(js)||[]; if(!items.length){if(NATIVE)NATIVE.dropCache(turl);continue;}
     const ks=Object.keys(items[0]);
     const tks=ks.filter(k=>/(dt|date|ymd|tm|time|hour)/i.test(k));
     const cand=ks.filter(k=>!tks.includes(k)&&!/(lat|lot|lon|name|nm|code|obs|no)/i.test(k));
@@ -1053,7 +1057,7 @@ function saveSettings(){
   if(vw0!==$('#vwIn').value.trim())rebuildLayers();
   setPref('dataKey',$('#keyIn').value.trim()); setPref('romsUrl',$('#urlIn').value.trim()===ROMS.DEF_URL?'':$('#urlIn').value.trim());
   setPref('field_dir',$('#f_dir').value.trim()); setPref('field_speed',$('#f_speed').value.trim()); setPref('dirIsFrom',$('#dirFrom').checked?'true':'false');
-  ROMS.mem.clear(); if(NATIVE)NATIVE.clearCache();
+  ROMS.mem.clear(); if(NATIVE)NATIVE.clearCache(); setPref('tideScanFailAt','0'); TIDE.err='';
   CONF.realData=!!ROMS.key(); RD.box=null; RD.pts=[]; RD.times=[];
   $('#slackLbl').textContent=CONF.realData?'물 약해짐':'다음 정조'; updateBadge(); requestReal(); if(sel){computeEvents();updateUI();}
 }

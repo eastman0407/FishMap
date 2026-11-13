@@ -17,6 +17,15 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
+      - name: Leaflet 내장 (인터넷 약한 곳에서도 앱 화면이 뜨게)
+        run: |
+          mkdir -p app/src/main/assets/lib/images
+          curl -fsSL -o app/src/main/assets/lib/leaflet.min.js https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js
+          curl -fsSL -o app/src/main/assets/lib/leaflet.min.css https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css
+          for f in layers.png layers-2x.png marker-icon.png marker-icon-2x.png marker-shadow.png; do
+            curl -fsSL -o app/src/main/assets/lib/images/$f https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/$f
+          done
+          ls -la app/src/main/assets/lib
       - name: Build
         run: gradle assembleDebug --no-daemon --stacktrace
       - name: Rename
