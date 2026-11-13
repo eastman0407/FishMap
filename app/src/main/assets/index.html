@@ -154,6 +154,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
     <div class="namebox" style="margin-top:12px">
       <button class="btn" id="keySave" style="flex:1;background:var(--accent);color:#06221f;border:none;font-weight:700">저장</button>
       <button class="btn" id="keyTest" style="flex:1">연결 시험</button>
+      <button class="btn" id="diagBtn" style="flex:1">🔍 진단 보내기</button>
     </div>
     <details style="margin-top:12px;background:var(--panel2)"><summary style="font-size:13px">고급 (자료가 이상할 때)</summary>
       <div class="empty" style="padding:6px 0 2px">칸 이름 직접 지정 (비우면 자동)</div>
@@ -295,13 +296,14 @@ const ROMS={
     if(code!=null&&code!==0){if(NATIVE)NATIVE.dropCache(url);throw new Error('공공데이터포털 오류 '+code+' ('+({20:'권한 없음',22:'호출 한도 초과',30:'등록 안 된 키',31:'기한 만료 키'}[code]||'')+')');}
     return {items:ROMS.findItems(js)||[],total:ROMS.findNum(js,/^totalCount$/i),raw:js};
   },
-  mem:new Map(),
+  mem:new Map(), stat:{},
   async tile(tx,ty,maxPages){
     const k=tx+'_'+ty+'_'+maxPages, c=ROMS.mem.get(k); if(c&&Date.now()-c.at<ROMS.CACHE_MIN*60000)return c.items;
     const T=ROMS.TILE, b={w:+(tx*T).toFixed(4),s:+(ty*T).toFixed(4)}; b.e=+(b.w+T).toFixed(4); b.n=+(b.s+T).toFixed(4);
-    let all=[],total=null;
-    for(let p=1;p<=maxPages;p++){const r=await ROMS.page(b,p,ROMS.CACHE_MIN);if(r.total!=null)total=r.total;all=all.concat(r.items);
+    let all=[],total=null,pages=0;
+    for(let p=1;p<=maxPages;p++){const r=await ROMS.page(b,p,ROMS.CACHE_MIN);pages++;if(r.total!=null)total=r.total;all=all.concat(r.items);
       if(!r.items.length||(total!=null&&all.length>=total)||r.items.length<300)break;}
+    ROMS.stat[tx+'_'+ty]={got:all.length,total,pages,cut:total!=null&&all.length<total};
     ROMS.mem.set(k,{at:Date.now(),items:all}); return all;
   },
   async load(b){
@@ -568,7 +570,7 @@ function tileImg(url){
   tileImgs.set(url,pr); if(tileImgs.size>300)tileImgs.delete(tileImgs.keys().next().value);
   return pr;
 }
-let maskTimer=null;
+let maskTimer=null, MASKSTAT={};
 function buildMask(){ clearTimeout(maskTimer); maskTimer=setTimeout(buildMaskNow,150); }
 function buildMaskNow(){
   const id=++maskId; maskState='loading'; mask=null;
@@ -585,6 +587,7 @@ function buildMaskNow(){
   }
   Promise.all(jobs).then(ok=>{
     if(id!==maskId)return;
+    MASKSTAT={z,ok:ok.filter(Boolean).length,total:ok.length};
     if(!ok.some(Boolean)){maskState='fail';return;}
     let d; try{d=cx.getImageData(0,0,cw,ch).data;}catch(e){maskState='fail';return;}
     const m=new Uint8Array(cw*ch); let water=0;
@@ -905,6 +908,56 @@ function rockNextChange(d){
   }
   return null;
 }
+
+
+// ================= 진단 (실제 데이터 모양 측정 → 공유) =================
+async function runDiag(){
+  const o=[], c=map.getCenter(), z=map.getZoom(), th=tH();
+  o.push(`[물흐름지도 진단] build-17 ${new Date().toLocaleString('ko-KR')}`);
+  o.push(`화면: 확대 ${z.toFixed(1)}, 중심 ${c.lat.toFixed(4)},${c.lng.toFixed(4)}, 크기 ${W}x${H}`);
+  // 1) 바다/육지 판별
+  let wpct='-';
+  if(mask){let w=0;for(let i=0;i<mask.length;i++)w+=mask[i];wpct=(w/mask.length*100).toFixed(0)+'%';}
+  o.push(`바다판별: 상태=${maskState}, 물비율=${wpct}, OSM타일 ${MASKSTAT.ok??'-'}/${MASKSTAT.total??'-'} 성공(z${MASKSTAT.z??'-'})`);
+  // 화면 9곳 색 샘플
+  try{
+    const z0=Math.max(5,Math.min(17,Math.round(z))), pts=[[.2,.2],[.5,.2],[.8,.2],[.2,.5],[.5,.5],[.8,.5],[.2,.8],[.5,.8],[.8,.8]], cols=[];
+    for(const [fx,fy] of pts){const ll=map.containerPointToLatLng([fx*W,fy*H]),pp=map.project(ll,z0),tx=Math.floor(pp.x/256),ty=Math.floor(pp.y/256);
+      const im=await tileImg(`https://tile.openstreetmap.org/${z0}/${tx}/${ty}.png`);
+      if(!im){cols.push('X');continue;} const cv=document.createElement('canvas');cv.width=cv.height=1;const cx=cv.getContext('2d');
+      cx.drawImage(im,-(pp.x-tx*256),-(pp.y-ty*256));let d;try{d=cx.getImageData(0,0,1,1).data;}catch(e){cols.push('보안차단');continue;}
+      cols.push(`${d[0]},${d[1]},${d[2]}${isWaterRGB(d[0],d[1],d[2])?'(물)':''}`);}
+    o.push('OSM색 9곳: '+cols.join(' | '));
+  }catch(e){o.push('OSM색 측정 실패: '+e.message);}
+  // 2) 지금 받아둔 조류 자료
+  o.push(`조류자료: 지점 ${RD.pts.length}, 시각 ${RD.times.length}, 보간반경 ${RD.R.toFixed(4)}°, 저장예보 ${RD.staleMin||0}분`);
+  if(RD.times.length>1)o.push(`  시각범위 ${new Date(RD.times[0]).toLocaleString('ko-KR')} ~ ${new Date(RD.times[RD.times.length-1]).toLocaleString('ko-KR')}, 간격 ${Math.round((RD.times[1]-RD.times[0])/60000)}분`);
+  const st=Object.entries(ROMS.stat); const cut=st.filter(([k,v])=>v.cut);
+  o.push(`타일 ${st.length}개 중 잘림 ${cut.length}개`+(st.length?': '+st.slice(0,8).map(([k,v])=>`${k}=${v.got}/${v.total}(${v.pages}p)`).join(' '):''));
+  // 화면 격자 25곳 중 흐름값 있는 곳
+  let has=0,tot=0;for(let yy=0;yy<5;yy++)for(let xx=0;xx<5;xx++){const ll=map.containerPointToLatLng([(xx+.5)*W/5,(yy+.5)*H/5]);tot++;if(isWater((xx+.5)*W/5,(yy+.5)*H/5)&&baseAt(ll.lat,ll.lng,th))has++;}
+  o.push(`화면 25곳 중 '바다+흐름값' ${has}곳`);
+  // 3) 실제 API 직접 측정 (작은 구역 2개, 저장 안 함)
+  for(const half of [0.01,0.05]){
+    const b={s:+(c.lat-half).toFixed(4),n:+(c.lat+half).toFixed(4),w:+(c.lng-half).toFixed(4),e:+(c.lng+half).toFixed(4)};
+    try{
+      const r=await ROMS.page(b,1,0), it=r.items;
+      const F=it[0]?ROMS.fields(it[0]):null;
+      const pts=new Set(it.map(x=>F?x[F.lat]+','+x[F.lon]:'')), tms=new Set(it.map(x=>F?ROMS.time(x,F.time):0));
+      let order='-'; if(it.length>2&&F){const a=it[0],b2=it[1];order=(a[F.lat]===b2[F.lat]&&a[F.lon]===b2[F.lon])?'같은지점 연속(지점순)':'다른지점 연속(시간순)';}
+      o.push(`API ±${half}°: 전체 ${r.total}건, 1쪽 ${it.length}건, 지점 ${pts.size}개, 시각 ${tms.size}개, 순서=${order}`);
+      if(it[0])o.push(`  첫줄: ${JSON.stringify(it[0]).slice(0,220)}`);
+      if(it[1])o.push(`  둘째: ${JSON.stringify(it[1]).slice(0,220)}`);
+    }catch(e){o.push(`API ±${half}°: 오류 ${e.message}`);}
+  }
+  return o.join('\n');
+}
+$('#diagBtn').onclick=async()=>{
+  const out=$('#testOut'); out.textContent='진단 중… (10초쯤)';
+  const txt=await runDiag(); out.textContent=txt;
+  if(NATIVE&&NATIVE.shareText)NATIVE.shareText(txt);
+  else{try{await navigator.clipboard.writeText(txt);toast('진단 내용을 복사했어요');}catch(e){}}
+};
 
 // ================= 물때 (음력 기준, 서해 7물때식 / 남·동해 8물때식) =================
 // 신월(삭) 시각: Meeus 천문 알고리즘 (오차 수 분)
