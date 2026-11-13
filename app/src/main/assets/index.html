@@ -386,9 +386,9 @@ const WD=['일','월','화','수','목','금','토'];
 const dayTag=m=>['오늘','내일','모레'][Math.floor(m/1440)]||'';
 
 // ================= 바다/육지 마스크 (흐름선을 바다에만 그리기) =================
-// 지도와 같은 범위의 CARTO 무라벨 지도를 몰래 그려서 물 색깔인 칸만 '바다'로 표시
+// 지도와 같은 범위의 OpenStreetMap 지도를 몰래 그려서, 물 색깔(#aad3df)인 칸만 '바다'로 표시
 const MS=3; let mask=null, mW=0, mH=0, maskState='loading', maskId=0;
-const isWaterRGB=(r,g,b)=>{const br=(r+g+b)/3;return b>=r+3&&b>=g-3&&br>150&&br<242;};
+const isWaterRGB=(r,g,b)=>Math.abs(r-170)<=16&&Math.abs(g-211)<=14&&Math.abs(b-223)<=14;
 function buildMask(){
   const id=++maskId; maskState='loading'; mask=null;
   const size=map.getSize(), zf=map.getZoom(), z=Math.max(5,Math.min(13,Math.round(zf)));
@@ -402,7 +402,7 @@ function buildMask(){
     jobs.push(new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';
       im.onload=()=>{cx.drawImage(im,(tx*256-nw.x)*f/MS,(ty*256-nw.y)*f/MS,256*f/MS+0.5,256*f/MS+0.5);res(1);};
       im.onerror=()=>res(0);
-      im.src=`https://${'abcd'[(tx+ty)&3]}.basemaps.cartocdn.com/light_nolabels/${z}/${((tx%n)+n)%n}/${ty}.png`;}));
+      im.src=`https://tile.openstreetmap.org/${z}/${((tx%n)+n)%n}/${ty}.png`;}));
   }
   Promise.all(jobs).then(ok=>{
     if(id!==maskId)return;
@@ -642,7 +642,7 @@ resizeFlow(); drawFavPins(); updateUI(); loop();
   CONF.realData=!!ROMS.key();
   setupLayers(); updateBadge(); buildMask(); requestReal();
   if(CONF.realData)$('#slackLbl').textContent='물 약해짐';
-  if(CONF.realData)toast('지도를 확대하면 국립해양조사원 실제 조류 예보가 보여요',3500);
+  toast(CONF.realData?'지도를 확대하면 국립해양조사원 실제 조류 예보가 보여요':'지금은 샘플 흐름이에요. ⚙ 설정에 공공데이터 키를 넣으면 실제 조류로 바뀌어요',4000);
 })();
 })();
 </script>
