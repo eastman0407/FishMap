@@ -145,6 +145,8 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
     <div class="namebox"><input id="keyIn" placeholder="공공데이터 인증키"></div>
     <div class="empty" style="padding:10px 0 4px">요청 주소 (활용신청 화면의 주소와 다르면 수정)</div>
     <div class="namebox"><input id="urlIn"></div>
+    <div class="empty" style="padding:10px 0 4px">브이월드 지도 키 (선택 — 비우면 Esri 위성지도)</div>
+    <div class="namebox"><input id="vwIn" placeholder="브이월드 인증키"></div>
     <div class="namebox" style="margin-top:12px">
       <button class="btn" id="keySave" style="flex:1;background:var(--accent);color:#06221f;border:none;font-weight:700">저장</button>
       <button class="btn" id="keyTest" style="flex:1">연결 시험</button>
@@ -693,7 +695,7 @@ function stepFlow(){
   xF.lineWidth=1.5; xF.lineCap='round'; paths.forEach((pa,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(pa);});
 }
 map.on('movestart zoomstart',()=>{moving=true;xF.clearRect(0,0,W,H);});
-map.on('moveend',()=>{moving=false;buildMask();requestReal();windRequest();drawRocks();});
+map.on('moveend',()=>{moving=false;buildMask();requestReal();windRequest();drawRocks();tideEnsure();});
 map.on('resize',()=>{resizeFlow();buildMask();});
 $('#flowBtn').onclick=e=>{showFlow=!showFlow;$('#flowBtn').classList.toggle('on',showFlow);if(!showFlow)xF.clearRect(0,0,W,H);};
 
@@ -721,14 +723,25 @@ async function drawRocks(){
   for(const r of ROCK.data){
     if(r[0]<b.getSouth()||r[0]>b.getNorth()||r[1]<b.getWest()||r[1]>b.getEast())continue;
     if(++n>1500)break;
-    const gan=r[2]===1;
-    L.circleMarker([r[0],r[1]],{renderer:rockRenderer,pane:'rocks',radius:gan?5:4,color:gan?'#ffad5c':'#e8f0f7',weight:1.5,fillColor:gan?'#b36b1f':'#8ba4b9',fillOpacity:.85})
+    const gan=r[2]===1, tide=gan?tideNow():null, exp=gan?(r[3]!=null&&r[3]>0?false:(r[3]!=null?rockExposed(r[3],tide):null)):null;
+    const col=!gan?'#e8f0f7':exp===false?'#5fb4ff':'#ffad5c', fill=!gan?'#8ba4b9':exp===false?'#1d4e7a':'#b36b1f';
+    L.circleMarker([r[0],r[1]],{renderer:rockRenderer,pane:'rocks',radius:gan?5:4,color:col,weight:1.5,fillColor:fill,fillOpacity:exp===false?.6:.85})
       .on('click',ev=>{L.DomEvent.stopPropagation(ev);
         let msg;
         if(!gan)msg='노출암 — 항상 드러나 있는 갯바위예요';
         else if(r[3]==null)msg='간출암 — 썰물 때만 드러나는 바위예요. 밀물 때 잠기니 조심!';
-        else if(r[3]<0)msg=`간출암 — 물이 다 빠지면 약 ${(-r[3]).toFixed(1)}m 드러나요. 밀물 때 잠기니 조심!`;
-        else msg=`수중여 — 물이 가장 빠져도 약 ${r[3].toFixed(1)}m 물속에 있어요`;
+        else if(r[3]>0)msg=`수중여 — 물이 가장 빠져도 약 ${r[3].toFixed(1)}m 물속에 있어요`;
+        else{
+          msg=`간출암 — 물이 다 빠지면 약 ${(-r[3]).toFixed(1)}m 드러나요.`;
+          const tide=tideNow(), e=rockExposed(r[3],tide);
+          if(e!=null){
+            const nx=rockNextChange(r[3]);
+            msg+=` 지금은 ${e?'드러나 있어요':'잠겨 있어요'}`;
+            if(nx)msg+=`, ${dayTag(Math.round((nx.ms-t0.getTime())/60000))} ${fmt(Math.round((nx.ms-t0.getTime())/60000))}쯤 ${nx.toExposed?'드러나요':'잠겨요'}`;
+            msg+=` (조위 ${tide.toFixed(1)}m · ${TIDE.cur.st.n} 기준 추정)`;
+          }
+          toast(msg,5000);return;
+        }
         toast(msg,3500);})
       .addTo(rockLayer);
   }
@@ -738,6 +751,85 @@ $('#rockBtn').onclick=async()=>{
   if(ROCK.on)toast(map.getZoom()<ROCK_ZOOM?'바위 표시 켬 — 지도를 더 확대하면 보여요':'주황=간출암(썰물 때만 드러남), 흰색=노출암',3500);
   drawRocks();
 };
+
+
+// ================= 조위 (국립해양조사원 조석예보 시계열) =================
+// 간출암의 '드러나는 높이'와 조위를 비교해서 지금 잠겼는지/드러났는지 표시
+const TIDE={st:null,scan:false,series:new Map(),cur:null,err:'',warned:false};
+const TIDE_URL='https://apis.data.go.kr/1192136/tideFcstTime';
+const pad2=n=>String(n).padStart(2,'0');
+const ymd=d=>`${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}`;
+async function tideStations(){
+  if(TIDE.st)return TIDE.st;
+  try{const c=JSON.parse(pref('tideStations','null'));if(c&&c.length){TIDE.st=c;return c;}}catch(e){}
+  if(TIDE.scan)return null; TIDE.scan=true;
+  // 지점 코드 목록이 공개 안 돼 있어서, DT_0001~DT_0070을 한 번만 훑어서 있는 지점을 찾아 저장
+  const codes=[];for(let i=1;i<=70;i++)codes.push('DT_'+String(i).padStart(4,'0'));
+  const found=[],today=ymd(new Date());let idx=0,auth=0;
+  async function w(){while(idx<codes.length){const c=codes[idx++];
+    try{const r=await nget(`${TIDE_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=2&obsCode=${c}&reqDate=${today}&min=60`,10080);
+      if(/NOT_REGISTERED|SERVICE ERROR/i.test(r.text))auth++;
+      const js=JSON.parse(r.text);const it=ROMS.findItems(js);if(!it||!it.length)continue;
+      const f=it[0],ks=Object.keys(f);
+      const la=+f[ks.find(k=>/^(lat|la)$/i.test(k))], lo=+f[ks.find(k=>/^(lot|lon|lo)$/i.test(k))];
+      const nk=ks.find(k=>/(name|nm)/i.test(k));
+      if(isFinite(la)&&isFinite(lo))found.push({c,la,lo,n:nk?String(f[nk]):c});
+    }catch(e){}}}
+  await Promise.all([w(),w(),w(),w()]);
+  TIDE.scan=false;
+  if(found.length){TIDE.st=found;setPref('tideStations',JSON.stringify(found));}
+  else{TIDE.err=auth>30?'조석예보(시계열) 활용신청이 필요해요':'조석예보 지점을 못 찾았어요';
+    if(!TIDE.warned){TIDE.warned=true;toast('바위 잠김 표시엔 공공데이터포털에서 "조석예보(시계열)" 활용신청이 필요해요',4500);}}
+  return TIDE.st;
+}
+function nearestStation(la,lo){let b=null,bd=1e9;for(const s of TIDE.st||[]){const d=(s.la-la)**2+((s.lo-lo)*0.82)**2;if(d<bd){bd=d;b=s;}}
+  return b?{...b,km:Math.sqrt(bd)*111}:null;}
+async function tideSeries(code){
+  const c=TIDE.series.get(code); if(c&&Date.now()-c.at<6*3600e3)return c;
+  const out={at:Date.now(),t:[],h:[]};
+  for(let day=0;day<3;day++){
+    const rd=ymd(new Date(t0.getTime()+day*86400e3));
+    const r=await nget(`${TIDE_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=300&obsCode=${code}&reqDate=${rd}&min=10`,180);
+    let js;try{js=JSON.parse(r.text);}catch(e){continue;}
+    const items=ROMS.findItems(js)||[]; if(!items.length)continue;
+    const ks=Object.keys(items[0]);
+    const tks=ks.filter(k=>/(dt|date|ymd|tm|time|hour)/i.test(k));
+    const cand=ks.filter(k=>!tks.includes(k)&&!/(lat|lot|lon|name|nm|code|obs|no)/i.test(k));
+    const hk=cand.find(k=>/(tide|level|height|wl|pre)/i.test(k))||cand.find(k=>items[0][k]!==''&&!isNaN(+items[0][k]));
+    for(const it of items){const t=ROMS.time(it,tks),h=+it[hk];if(t!=null&&isFinite(h)){out.t.push(t);out.h.push(h);}}
+  }
+  if(out.h.length){const mx=Math.max(...out.h.map(Math.abs));out.unit=mx>30?0.01:1;TIDE.series.set(code,out);}
+  return out.h.length?out:null;
+}
+function tideAtMs(ser,ms){const T=ser.t;if(!T||!T.length||ms<T[0]||ms>T[T.length-1])return null;
+  let lo=0,hi=T.length-1;while(hi-lo>1){const m=(lo+hi)>>1;T[m]<=ms?lo=m:hi=m;}
+  const f=(ms-T[lo])/(T[hi]-T[lo]);return (ser.h[lo]+(ser.h[hi]-ser.h[lo])*f)*ser.unit;}
+let tideBusy=false;
+async function tideEnsure(){
+  if(!CONF.realData||tideBusy)return;
+  tideBusy=true;
+  try{
+    if(!(await tideStations()))return;
+    const c=map.getCenter(),st=nearestStation(c.lat,c.lng); if(!st)return;
+    if(!TIDE.cur||TIDE.cur.st.c!==st.c||Date.now()-TIDE.cur.ser.at>6*3600e3){
+      const ser=await tideSeries(st.c); if(ser){TIDE.cur={st,ser};drawRocks();if(sel)updateUI();}
+    }
+  }catch(e){}finally{tideBusy=false;}
+}
+// 지금(슬라이더 시각) 조위(m, 약최저저조면 기준). 없으면 null
+function tideNow(){return TIDE.cur?tideAtMs(TIDE.cur.ser,t0.getTime()+tMin*60000):null;}
+// 바위 상태: d(간출암측정수심)와 조위 비교. true=드러남
+function rockExposed(d,tide){return tide!=null&&d<0?tide<-d:null;}
+function rockNextChange(d){
+  if(!TIDE.cur||d>=0)return null;
+  const ser=TIDE.cur.ser,now=t0.getTime()+tMin*60000,cur=rockExposed(d,tideAtMs(ser,now));
+  if(cur==null)return null;
+  for(let ms=now+600000;ms<=now+36*3600e3;ms+=600000){
+    const e=rockExposed(d,tideAtMs(ser,ms)); if(e==null)break;
+    if(e!==cur)return {ms,toExposed:e};
+  }
+  return null;
+}
 
 // ================= 선택 지점 정보 =================
 let sel=null, selMarker=null;
@@ -794,6 +886,7 @@ function updateUI(){
   $('#timeLabel').textContent=`${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]}) ${fmt(tMin)}`;
   $('#slider').value=tMin;
   drawWindChip();
+  if(ROCK.on&&TIDE.cur&&!updateUI._rt){updateUI._rt=1;setTimeout(()=>{updateUI._rt=0;drawRocks();},800);}
   if(!sel)return;
   $('#iname').textContent=sel.name;
   { const w=WIND.on&&WIND.data?windAt(tH()):null;
@@ -898,11 +991,17 @@ function renderFavList(){
     :'<div class="empty">아직 즐겨찾기가 없어요.<br>지도를 누르거나 검색한 뒤 <b>☆ 저장</b>을 누르면 여기에 모여요.</div>';
 }
 $('#favBtn').onclick=()=>{renderFavList();$('#favPanel').classList.add('show');};
-$('#setBtn').onclick=()=>{$('#keyIn').value=ROMS.key();$('#urlIn').value=ROMS.url();$('#f_dir').value=pref('field_dir','');$('#f_speed').value=pref('field_speed','');
+$('#setBtn').onclick=()=>{$('#keyIn').value=ROMS.key();$('#urlIn').value=ROMS.url();$('#vwIn').value=pref('vworldKey','');$('#f_dir').value=pref('field_dir','');$('#f_speed').value=pref('field_speed','');
   $('#dirFrom').checked=pref('dirIsFrom','false')==='true';$('#testOut').textContent='';$('#setPanel').classList.add('show');};
 $('#setClose').onclick=()=>$('#setPanel').classList.remove('show');
 $('#setPanel').addEventListener('click',e=>{if(e.target.id==='setPanel')$('#setPanel').classList.remove('show');});
+function rebuildLayers(){
+  [sat,satLabel,street].forEach(l=>{try{map.removeLayer(l);}catch(e){}});
+  CONF.vworldKey=pref('vworldKey',''); mode='sat'; $('#layerBtn').innerHTML='<span>🛰</span>'; setupLayers();
+}
 function saveSettings(){
+  const vw0=pref('vworldKey',''); setPref('vworldKey',$('#vwIn').value.trim());
+  if(vw0!==$('#vwIn').value.trim())rebuildLayers();
   setPref('dataKey',$('#keyIn').value.trim()); setPref('romsUrl',$('#urlIn').value.trim()===ROMS.DEF_URL?'':$('#urlIn').value.trim());
   setPref('field_dir',$('#f_dir').value.trim()); setPref('field_speed',$('#f_speed').value.trim()); setPref('dirIsFrom',$('#dirFrom').checked?'true':'false');
   ROMS.mem.clear(); if(NATIVE)NATIVE.clearCache();
@@ -934,10 +1033,10 @@ function loop(){frame++;
 window.addEventListener('resize',()=>map.invalidateSize());
 resizeFlow(); drawFavPins(); updateUI(); loop();
 (async()=>{
-  CONF.realData=!!ROMS.key();
+  CONF.realData=!!ROMS.key(); CONF.vworldKey=pref('vworldKey','');
   setupLayers(); updateBadge(); buildMask(); requestReal();
   WIND.on=pref('windOn','0')==='1'; drawWindChip(); windRequest();
-  ROCK.on=pref('rockOn','0')==='1'; $('#rockBtn').classList.toggle('on',ROCK.on); drawRocks();
+  ROCK.on=pref('rockOn','0')==='1'; $('#rockBtn').classList.toggle('on',ROCK.on); drawRocks(); tideEnsure();
   if(CONF.realData)$('#slackLbl').textContent='물 약해짐';
   toast(CONF.realData?'지도를 확대하면 국립해양조사원 실제 조류 예보가 보여요':'지금은 샘플 흐름이에요. ⚙ 설정에 공공데이터 키를 넣으면 실제 조류로 바뀌어요',4000);
 })();
