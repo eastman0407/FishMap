@@ -724,7 +724,12 @@ async function drawRocks(){
     const gan=r[2]===1;
     L.circleMarker([r[0],r[1]],{renderer:rockRenderer,pane:'rocks',radius:gan?5:4,color:gan?'#ffad5c':'#e8f0f7',weight:1.5,fillColor:gan?'#b36b1f':'#8ba4b9',fillOpacity:.85})
       .on('click',ev=>{L.DomEvent.stopPropagation(ev);
-        toast(gan?'간출암 — 썰물 때만 드러나는 바위예요. 밀물 때 잠기니 조심!':'노출암 — 항상 드러나 있는 갯바위예요',3000);})
+        let msg;
+        if(!gan)msg='노출암 — 항상 드러나 있는 갯바위예요';
+        else if(r[3]==null)msg='간출암 — 썰물 때만 드러나는 바위예요. 밀물 때 잠기니 조심!';
+        else if(r[3]<0)msg=`간출암 — 물이 다 빠지면 약 ${(-r[3]).toFixed(1)}m 드러나요. 밀물 때 잠기니 조심!`;
+        else msg=`수중여 — 물이 가장 빠져도 약 ${r[3].toFixed(1)}m 물속에 있어요`;
+        toast(msg,3500);})
       .addTo(rockLayer);
   }
 }
