@@ -100,6 +100,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
       <button class="ibtn" id="layerBtn" title="지도 종류"><span>🛰</span></button>
       <button class="ibtn on" id="flowBtn" title="흐름선"><span>〰</span></button>
       <button class="ibtn" id="windBtn" title="바람 영향"><span>🌬</span></button>
+      <button class="ibtn" id="rockBtn" title="갯바위·간출암"><span>🪨</span></button>
       <button class="ibtn" id="setBtn" title="설정"><span>⚙</span></button>
     </div>
     <span class="samplebadge">흐름: 샘플 데이터</span>
@@ -692,9 +693,46 @@ function stepFlow(){
   xF.lineWidth=1.5; xF.lineCap='round'; paths.forEach((pa,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(pa);});
 }
 map.on('movestart zoomstart',()=>{moving=true;xF.clearRect(0,0,W,H);});
-map.on('moveend',()=>{moving=false;buildMask();requestReal();windRequest();});
+map.on('moveend',()=>{moving=false;buildMask();requestReal();windRequest();drawRocks();});
 map.on('resize',()=>{resizeFlow();buildMask();});
 $('#flowBtn').onclick=e=>{showFlow=!showFlow;$('#flowBtn').classList.toggle('on',showFlow);if(!showFlow)xF.clearRect(0,0,W,H);};
+
+
+// ================= 간출암·노출암 (국립해양조사원 전자해도 자료, 앱에 내장) =================
+// 간출암(주황): 썰물 때만 드러나는 바위 — 포인트이자 밀물 때 위험. 노출암(흰색): 항상 드러난 바위.
+const ROCK={on:false,data:null,loading:false};
+const rockPane=map.createPane('rocks'); rockPane.style.zIndex=430;
+const rockRenderer=L.canvas({padding:0.3,pane:'rocks'});
+const rockLayer=L.layerGroup().addTo(map);
+const ROCK_ZOOM=12;
+async function rockEnsure(){
+  if(ROCK.data||ROCK.loading)return;
+  ROCK.loading=true;
+  try{const r=await fetch('rocks.json');ROCK.data=await r.json();}
+  catch(e){toast('바위 자료를 못 읽었어요');ROCK.on=false;$('#rockBtn').classList.remove('on');}
+  finally{ROCK.loading=false;}
+}
+async function drawRocks(){
+  rockLayer.clearLayers();
+  if(!ROCK.on)return;
+  await rockEnsure(); if(!ROCK.data||!ROCK.on)return;
+  if(map.getZoom()<ROCK_ZOOM)return;
+  const b=map.getBounds().pad(0.2); let n=0;
+  for(const r of ROCK.data){
+    if(r[0]<b.getSouth()||r[0]>b.getNorth()||r[1]<b.getWest()||r[1]>b.getEast())continue;
+    if(++n>1500)break;
+    const gan=r[2]===1;
+    L.circleMarker([r[0],r[1]],{renderer:rockRenderer,pane:'rocks',radius:gan?5:4,color:gan?'#ffad5c':'#e8f0f7',weight:1.5,fillColor:gan?'#b36b1f':'#8ba4b9',fillOpacity:.85})
+      .on('click',ev=>{L.DomEvent.stopPropagation(ev);
+        toast(gan?'간출암 — 썰물 때만 드러나는 바위예요. 밀물 때 잠기니 조심!':'노출암 — 항상 드러나 있는 갯바위예요',3000);})
+      .addTo(rockLayer);
+  }
+}
+$('#rockBtn').onclick=async()=>{
+  ROCK.on=!ROCK.on; setPref('rockOn',ROCK.on?'1':'0'); $('#rockBtn').classList.toggle('on',ROCK.on);
+  if(ROCK.on)toast(map.getZoom()<ROCK_ZOOM?'바위 표시 켬 — 지도를 더 확대하면 보여요':'주황=간출암(썰물 때만 드러남), 흰색=노출암',3500);
+  drawRocks();
+};
 
 // ================= 선택 지점 정보 =================
 let sel=null, selMarker=null;
@@ -894,6 +932,7 @@ resizeFlow(); drawFavPins(); updateUI(); loop();
   CONF.realData=!!ROMS.key();
   setupLayers(); updateBadge(); buildMask(); requestReal();
   WIND.on=pref('windOn','0')==='1'; drawWindChip(); windRequest();
+  ROCK.on=pref('rockOn','0')==='1'; $('#rockBtn').classList.toggle('on',ROCK.on); drawRocks();
   if(CONF.realData)$('#slackLbl').textContent='물 약해짐';
   toast(CONF.realData?'지도를 확대하면 국립해양조사원 실제 조류 예보가 보여요':'지금은 샘플 흐름이에요. ⚙ 설정에 공공데이터 키를 넣으면 실제 조류로 바뀌어요',4000);
 })();
