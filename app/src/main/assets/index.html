@@ -277,7 +277,8 @@ const ROMS={
     for(let y=Math.floor(b.s/T);y<=Math.floor(b.n/T);y++)ys.push(y);
     if(xs.length*ys.length>16)throw new Error('범위가 너무 넓어요. 더 확대하세요');
     const lists=await Promise.all(xs.flatMap(x=>ys.map(y=>ROMS.tile(x,y))));
-    return ROMS.normalize(lists.flat(),b);
+    const tb={w:xs[0]*T,e:(xs[xs.length-1]+1)*T,s:ys[0]*T,n:(ys[ys.length-1]+1)*T};
+    const out=ROMS.normalize(lists.flat(),tb); out.bounds=tb; return out;
   },
   normalize(items,b){
     if(!items.length)return {times:[],points:[]};
@@ -360,24 +361,29 @@ function requestReal(){
     try{
       const js=await ROMS.load({s:box.getSouth(),n:box.getNorth(),w:box.getWest(),e:box.getEast()});
       if(id!==RD.reqId)return;
-      setRealData(js,box);
-      if(!RD.pts.length)toast('이 범위에는 조류 예측 자료가 없어요');
+      setRealData(js,L.latLngBounds([js.bounds.s,js.bounds.w],[js.bounds.n,js.bounds.e]));
+      RD.empty=!RD.pts.length;
       if(sel){computeEvents();updateUI();}
-      resetParticles();
+      simUpdateBC(true); resetParticles();
     }catch(e){ if(id===RD.reqId)toast('실제 조류를 못 불러왔어요: '+e.message,5000); }
     finally{ if(id===RD.reqId){RD.loading=false;updateBadge();} }
   },350);
 }
 function updateBadge(){
   const el=$('.samplebadge');
-  if(!CONF.realData){el.textContent='흐름: 샘플 데이터';el.style.cssText='';return;}
+  if(!CONF.realData){el.textContent=SIM.on?'샘플 + 항내 추정':'흐름: 샘플 데이터';el.style.cssText='';return;}
   el.style.cssText='background:#0f3a2e;color:#7ee0a1;border-color:#1f6b52';
-  el.textContent=map.getZoom()<REAL_MIN_ZOOM?'확대하면 실제 조류가 보여요':(RD.loading?'조류 불러오는 중…':'실제 예보 · 국립해양조사원');
+  el.textContent=map.getZoom()<REAL_MIN_ZOOM?'확대하면 실제 조류가 보여요':RD.loading?'조류 불러오는 중…':RD.empty?'이 구역은 예보 자료 없음':
+    (SIM.on?'실제 예보 + 항내 추정':'실제 예보 · 국립해양조사원');
 }
 // 공통: 지금 모드에 맞는 흐름 값 (실제 모드에서 자료 없으면 null)
+function baseAt(lat,lon,th){ return CONF.realData?realAt(lat,lon,th):sampleAt(lat,lon,th); }
 function flowAt(lat,lon,th){
-  if(CONF.realData) return realAt(lat,lon,th);
-  return sampleAt(lat,lon,th);
+  if(SIM.on&&SIM.steps>150&&Math.abs(th-tH())<1e-6){
+    const pt=map.latLngToContainerPoint([lat,lon]); const v=simAtPx(pt.x,pt.y);
+    if(v!==undefined) return v; // null(육지) 또는 추정값
+  }
+  return baseAt(lat,lon,th);
 }
 const tideAt=(m,th)=>m.tamp*sn(th)*Math.cos(OMEGA*th-PH-m.lag);
 const DIRS=['북','북북동','북동','동북동','동','동남동','남동','남남동','남','남남서','남서','서남서','서','서북서','북서','북북서'];
@@ -400,9 +406,18 @@ const dayTag=m=>['오늘','내일','모레'][Math.floor(m/1440)]||'';
 // 지도와 같은 범위의 OpenStreetMap 지도를 몰래 그려서, 물 색깔(#aad3df)인 칸만 '바다'로 표시
 const MS=3; let mask=null, mW=0, mH=0, maskState='loading', maskId=0;
 const isWaterRGB=(r,g,b)=>Math.abs(r-170)<=16&&Math.abs(g-211)<=14&&Math.abs(b-223)<=14;
-function buildMask(){
+const tileImgs=new Map();
+function tileImg(url){
+  if(tileImgs.has(url))return tileImgs.get(url);
+  const pr=new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>res(im);im.onerror=()=>{tileImgs.delete(url);res(null);};im.src=url;});
+  tileImgs.set(url,pr); if(tileImgs.size>300)tileImgs.delete(tileImgs.keys().next().value);
+  return pr;
+}
+let maskTimer=null;
+function buildMask(){ clearTimeout(maskTimer); SIM.on=false; maskTimer=setTimeout(buildMaskNow,150); }
+function buildMaskNow(){
   const id=++maskId; maskState='loading'; mask=null;
-  const size=map.getSize(), zf=map.getZoom(), z=Math.max(5,Math.min(13,Math.round(zf)));
+  const size=map.getSize(), zf=map.getZoom(), z=Math.max(5,Math.min(17,Math.round(zf)));
   const f=map.getZoomScale(zf,z);
   const nw=map.project(map.containerPointToLatLng([0,0]),z), se=map.project(map.containerPointToLatLng([size.x,size.y]),z);
   const cw=Math.ceil(size.x/MS), ch=Math.ceil(size.y/MS);
@@ -410,10 +425,8 @@ function buildMask(){
   const n=1<<z, jobs=[];
   for(let tx=Math.floor(nw.x/256);tx<=Math.floor(se.x/256);tx++)for(let ty=Math.floor(nw.y/256);ty<=Math.floor(se.y/256);ty++){
     if(ty<0||ty>=n)continue;
-    jobs.push(new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';
-      im.onload=()=>{cx.drawImage(im,(tx*256-nw.x)*f/MS,(ty*256-nw.y)*f/MS,256*f/MS+0.5,256*f/MS+0.5);res(1);};
-      im.onerror=()=>res(0);
-      im.src=`https://tile.openstreetmap.org/${z}/${((tx%n)+n)%n}/${ty}.png`;}));
+    jobs.push(tileImg(`https://tile.openstreetmap.org/${z}/${((tx%n)+n)%n}/${ty}.png`).then(im=>{
+      if(!im)return 0; cx.drawImage(im,(tx*256-nw.x)*f/MS,(ty*256-nw.y)*f/MS,256*f/MS+0.5,256*f/MS+0.5); return 1;}));
   }
   Promise.all(jobs).then(ok=>{
     if(id!==maskId)return;
@@ -421,13 +434,88 @@ function buildMask(){
     let d; try{d=cx.getImageData(0,0,cw,ch).data;}catch(e){maskState='fail';return;}
     const m=new Uint8Array(cw*ch); let water=0;
     for(let i=0;i<cw*ch;i++){if(isWaterRGB(d[i*4],d[i*4+1],d[i*4+2])){m[i]=1;water++;}}
-    mask=m; mW=cw; mH=ch; maskState='ready'; resetParticles();
+    mask=m; mW=cw; mH=ch; maskState='ready'; simBuild(); resetParticles(); updateBadge();
   });
 }
 function isWater(x,y){
   if(maskState==='fail')return true;
   if(!mask)return false;
   const i=Math.floor(y/MS)*mW+Math.floor(x/MS); return mask[i]===1;
+}
+
+
+// ================= 항내·연안 추정 흐름 (격자 볼츠만 유체 계산) =================
+// 방파제·해안선 모양(지도에서 딴 것) 안에서, 화면 가장자리의 실제(또는 샘플) 흐름을 경계로 넣고
+// 물리 법칙(유체 방정식)대로 물이 어떻게 돌아 흐르는지 계산. 숫자는 '추정'.
+const SIM_ZOOM=14;
+const SIM={on:false,C:6,gx:0,gy:0,N:0,solid:null,f:null,f2:null,ux:null,uy:null,bcIdx:null,bcU:null,bcV:null,scale:1,steps:0,tau:0.58,lastT:-1};
+const EX=[0,1,0,-1,0,1,-1,-1,1], EY=[0,0,1,0,-1,1,1,-1,-1], WT=[4/9,1/9,1/9,1/9,1/9,1/36,1/36,1/36,1/36], OPP=[0,3,4,1,2,7,8,5,6];
+function feqSet(f,i,rho,ux,uy){const u2=1.5*(ux*ux+uy*uy),o=i*9;for(let q=0;q<9;q++){const eu=3*(EX[q]*ux+EY[q]*uy);f[o+q]=WT[q]*rho*(1+eu+0.5*eu*eu-u2);}}
+function simBuild(){
+  SIM.on=false;
+  if(map.getZoom()<SIM_ZOOM||maskState!=='ready'||!mask)return;
+  const C=SIM.C, gx=Math.ceil(W/C), gy=Math.ceil(H/C), N=gx*gy, k=C/MS, solid=new Uint8Array(N);
+  for(let y=0;y<gy;y++)for(let x=0;x<gx;x++){let s=0;
+    for(let yy=Math.floor(y*k);yy<Math.ceil((y+1)*k)&&yy<mH;yy++)for(let xx=Math.floor(x*k);xx<Math.ceil((x+1)*k)&&xx<mW;xx++)if(!mask[yy*mW+xx])s=1;
+    solid[y*gx+x]=s;}
+  // 물 위의 글자(지명) 같은 작은 점은 장애물이 아니므로 지움 (방파제처럼 육지에 붙었거나 긴 것만 남김)
+  const seen=new Uint8Array(N), st=[];
+  for(let i=0;i<N;i++){if(!solid[i]||seen[i])continue;const comp=[];let edge=false;st.push(i);seen[i]=1;
+    while(st.length){const c=st.pop();comp.push(c);const cx=c%gx,cy=(c/gx)|0;if(cx===0||cy===0||cx===gx-1||cy===gy-1)edge=true;
+      if(cx>0){const j=c-1;if(solid[j]&&!seen[j]){seen[j]=1;st.push(j);}} if(cx<gx-1){const j=c+1;if(solid[j]&&!seen[j]){seen[j]=1;st.push(j);}}
+      if(cy>0){const j=c-gx;if(solid[j]&&!seen[j]){seen[j]=1;st.push(j);}} if(cy<gy-1){const j=c+gx;if(solid[j]&&!seen[j]){seen[j]=1;st.push(j);}}}
+    if(!edge&&comp.length<10)for(const c of comp)solid[c]=0;}
+  let water=0; for(let i=0;i<N;i++)if(!solid[i])water++;
+  if(water<N*0.05||water===N)return; // 물이 거의 없거나, 육지가 하나도 없으면(먼바다) 계산할 필요 없음
+  const bc=[]; for(let i=0;i<N;i++){if(solid[i])continue;const x=i%gx,y=(i/gx)|0;if(x===0||y===0||x===gx-1||y===gy-1)bc.push(i);}
+  if(!bc.length)return;
+  Object.assign(SIM,{gx,gy,N,solid,f:new Float32Array(N*9),f2:new Float32Array(N*9),ux:new Float32Array(N),uy:new Float32Array(N),
+    bcIdx:Int32Array.from(bc),bcU:new Float32Array(bc.length),bcV:new Float32Array(bc.length),steps:0,lastT:-1});
+  if(!simUpdateBC(true))return;
+  let mu=0,mv=0; for(let q=0;q<bc.length;q++){mu+=SIM.bcU[q];mv+=SIM.bcV[q];} mu/=bc.length; mv/=bc.length;
+  for(let i=0;i<N;i++)if(!solid[i])feqSet(SIM.f,i,1,mu*0.5,mv*0.5);
+  SIM.on=true;
+}
+// 화면 가장자리 물 칸에 바깥 흐름(실제 예보/샘플)을 넣음
+function simUpdateBC(force){
+  if(!SIM.bcIdx)return false;
+  if(!force&&SIM.lastT===tMin)return true;
+  SIM.lastT=tMin; const th=tH(), C=SIM.C, n=SIM.bcIdx.length, vE=new Float32Array(n), vN=new Float32Array(n);
+  let mx=0.3, got=0, sE=0, sN=0;
+  for(let q=0;q<n;q++){const i=SIM.bcIdx[q], x=i%SIM.gx, y=(i/SIM.gx)|0;
+    const ll=map.containerPointToLatLng([(x+0.5)*C,(y+0.5)*C]); const v=baseAt(ll.lat,ll.lng,th);
+    if(v){vE[q]=v.vE;vN[q]=v.vN;got++;sE+=v.vE;sN+=v.vN;mx=Math.max(mx,Math.hypot(v.vE,v.vN));}else{vE[q]=NaN;}}
+  if(!got){SIM.on=false;return false;}
+  for(let q=0;q<n;q++)if(isNaN(vE[q])){vE[q]=sE/got;vN[q]=sN/got;}
+  SIM.scale=0.07/mx;
+  for(let q=0;q<n;q++){SIM.bcU[q]=vE[q]*SIM.scale;SIM.bcV[q]=-vN[q]*SIM.scale;}
+  return true;
+}
+function simStep(){
+  const {gx,gy,N,solid,ux,uy}=SIM; let f=SIM.f, f2=SIM.f2; const inv=1/SIM.tau;
+  for(let q=0;q<SIM.bcIdx.length;q++)feqSet(f,SIM.bcIdx[q],1,SIM.bcU[q],SIM.bcV[q]);
+  for(let i=0;i<N;i++){ if(solid[i])continue; const o=i*9; let r=0,mx=0,my=0;
+    for(let q=0;q<9;q++){const v=f[o+q];r+=v;mx+=v*EX[q];my+=v*EY[q];}
+    if(!(r>0.2)){feqSet(f,i,1,0,0);r=1;mx=0;my=0;}
+    let u=mx/r, v=my/r; const sp=u*u+v*v; if(sp>0.03){const s=Math.sqrt(0.03/sp);u*=s;v*=s;}
+    ux[i]=u; uy[i]=v; const u2=1.5*(u*u+v*v);
+    for(let q=0;q<9;q++){const eu=3*(EX[q]*u+EY[q]*v);f[o+q]+=(WT[q]*r*(1+eu+0.5*eu*eu-u2)-f[o+q])*inv;}
+  }
+  for(let y=0;y<gy;y++)for(let x=0;x<gx;x++){const i=y*gx+x; if(solid[i])continue; const o=i*9;
+    for(let q=0;q<9;q++){const nx=x+EX[q], ny=y+EY[q]; if(nx<0||ny<0||nx>=gx||ny>=gy)continue; const j=ny*gx+nx;
+      if(solid[j])f2[o+OPP[q]]=f[o+q]; else f2[j*9+q]=f[o+q];}}
+  SIM.f=f2; SIM.f2=f; SIM.steps++;
+}
+function simRun(budgetMs){
+  if(!SIM.on)return; simUpdateBC(false);
+  const t=performance.now(); let n=0;
+  do{simStep();n++;}while(performance.now()-t<budgetMs&&n<60);
+}
+// 화면 좌표(px)의 추정 흐름(노트). undefined=계산 범위 밖, null=육지
+function simAtPx(x,y){
+  const gx=Math.floor(x/SIM.C), gy=Math.floor(y/SIM.C); if(gx<0||gy<0||gx>=SIM.gx||gy>=SIM.gy)return undefined;
+  const i=gy*SIM.gx+gx; if(SIM.solid[i])return null;
+  return {vE:SIM.ux[i]/SIM.scale, vN:-SIM.uy[i]/SIM.scale, real:CONF.realData, est:true};
 }
 
 // ================= 흐름선 애니메이션 =================
@@ -440,21 +528,26 @@ function resetParticles(){const NP=Math.round(Math.min(2200,W*H/180));parts=[];f
 const PXK=0.55;
 function stepFlow(){
   xF.globalCompositeOperation='destination-in';xF.fillStyle='rgba(0,0,0,0.9)';xF.fillRect(0,0,W,H);xF.globalCompositeOperation='source-over';
-  if(!showFlow||moving||maskState==='loading')return;
-  const th=tH(), paths=COLORS.map(()=>new Path2D());
+  if(moving||maskState==='loading')return;
+  if(SIM.on)simRun(7);
+  if(!showFlow)return;
+  const th=tH(), paths=COLORS.map(()=>new Path2D()), useSim=SIM.on&&SIM.steps>150, K=useSim?PXK*3:PXK;
   for(const p of parts){
     p.age++;
     if(p.age>p.max||!isWater(p.x,p.y)){spawn(p);continue;}
-    const ll=map.containerPointToLatLng([p.x,p.y]); const v=flowAt(ll.lat,ll.lng,th);
+    let v; if(useSim){v=simAtPx(p.x,p.y);} if(!useSim||v===undefined){const ll=map.containerPointToLatLng([p.x,p.y]);v=baseAt(ll.lat,ll.lng,th);}
     if(!v){spawn(p);continue;}
-    const nx=p.x+v.vE*PXK, ny=p.y-v.vN*PXK; const sp=Math.hypot(v.vE,v.vN);
+    const sp=Math.hypot(v.vE,v.vN);
+    // 항내 추정 모드: 아주 약한 흐름도 움직임이 보이도록 이동 거리만 키움 (색은 실제 세기 그대로)
+    const g=useSim&&sp>1e-6?1.2*Math.sqrt(sp)/sp:1;
+    const nx=p.x+v.vE*K*g, ny=p.y-v.vN*K*g;
     const pa=paths[bucket(sp)]; pa.moveTo(p.x,p.y); pa.lineTo(nx+0.01,ny); p.x=nx; p.y=ny;
     if(nx<0||ny<0||nx>W||ny>H)p.age=1e9;
   }
   xF.lineWidth=1.5; xF.lineCap='round'; paths.forEach((pa,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(pa);});
 }
-map.on('movestart zoomstart',()=>{moving=true;xF.clearRect(0,0,W,H);});
-map.on('moveend zoomend',()=>{moving=false;buildMask();requestReal();});
+map.on('movestart zoomstart',()=>{moving=true;SIM.on=false;xF.clearRect(0,0,W,H);});
+map.on('moveend',()=>{moving=false;buildMask();requestReal();});
 map.on('resize',()=>{resizeFlow();buildMask();});
 $('#flowBtn').onclick=e=>{showFlow=!showFlow;$('#flowBtn').classList.toggle('on',showFlow);if(!showFlow)xF.clearRect(0,0,W,H);};
 
@@ -518,8 +611,8 @@ function updateUI(){
   if(!v){['#iSpeed','#iDir','#iState','#iSlack'].forEach(q=>$(q).textContent='-');
     $('#iState').textContent=CONF.realData?'자료 없음':'-'; drawTide(); return;}
   const sp=Math.hypot(v.vE,v.vN), deg=bearing(v.vE,v.vN);
-  let [st,cls]=v.real?(sp<EV.max*0.25?['약함','s']:sp>EV.max*0.66?['강함','e']:['보통','f']):stateOf(v.s);
-  $('#iSpeed').textContent=sp.toFixed(1)+' kn';
+  let [st,cls]=v.est?['항내 추정','s']:v.real?(sp<EV.max*0.25?['약함','s']:sp>EV.max*0.66?['강함','e']:['보통','f']):stateOf(v.s);
+  $('#iSpeed').textContent=(v.est?'약 ':'')+sp.toFixed(sp<1?2:1)+' kn';
   $('#iDir').textContent=dirName(deg)+'쪽';
   $('#iState').innerHTML=`<span class="tag ${cls}">${st}</span>`;
   const ns=EV.slack.find(x=>x>tMin); $('#iSlack').textContent=ns!=null?(Math.floor(ns/1440)!==Math.floor(tMin/1440)?dayTag(ns)+' ':'')+fmt(ns):'-';
