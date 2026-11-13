@@ -176,7 +176,7 @@ const KOREA=L.latLngBounds([32.0,123.0],[39.6,132.5]);
 const map=L.map('map',{zoomControl:false,minZoom:6,maxBounds:KOREA.pad(0.15),maxBoundsViscosity:0.8,worldCopyJump:false}).setView([35.5,127.6],7);
 // 서버 설정 (서버 없이 파일로 열면 기본값: Esri 위성 + 샘플 흐름)
 let CONF={vworldKey:'',realData:false};
-let sat,satLabel,street,mode='sat';
+let sat,satLabel,street,esriSat,esriLbl,mode='sat';
 function setupLayers(){
   const k=CONF.vworldKey;
   if(k){
@@ -190,12 +190,20 @@ function setupLayers(){
     satLabel=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:18});
     street=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap 기여자'});
   }
+  esriSat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:18,attribution:'위성영상 © Esri'});
+  esriLbl=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,maxNativeZoom:18});
   sat.addTo(map); satLabel.addTo(map);
   if(CONF.realData) map.attributionControl.addAttribution('해양예보 © 국립해양조사원');
 }
+function clearBase(){[sat,satLabel,street,esriSat,esriLbl].forEach(l=>{try{if(l)map.removeLayer(l);}catch(e){}});}
 $('#layerBtn').onclick=()=>{
-  if(mode==='sat'){map.removeLayer(sat);map.removeLayer(satLabel);street.addTo(map);mode='street';$('#layerBtn').innerHTML='<span>🗺</span>';}
-  else{map.removeLayer(street);sat.addTo(map);satLabel.addTo(map);mode='sat';$('#layerBtn').innerHTML='<span>🛰</span>';}
+  clearBase();
+  // 브이월드 키가 있으면: 브이월드 위성 → Esri 위성(빈 구역 없음) → 일반지도 순환
+  const order=CONF.vworldKey?['sat','esri','street']:['sat','street'];
+  mode=order[(order.indexOf(mode)+1)%order.length];
+  if(mode==='sat'){sat.addTo(map);satLabel.addTo(map);$('#layerBtn').innerHTML='<span>🛰</span>';}
+  else if(mode==='esri'){esriSat.addTo(map);esriLbl.addTo(map);$('#layerBtn').innerHTML='<span>🌐</span>';toast('Esri 위성 (브이월드 사진이 빈 구역용)',2000);}
+  else{street.addTo(map);$('#layerBtn').innerHTML='<span>🗺</span>';}
 };
 function toast(msg,ms){const t=$('#toast');t.textContent=msg;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',ms||2600);}
 
@@ -488,7 +496,7 @@ const COLORS=['#3b6ea8','#3fa7c9','#4fd1c5','#9be15d','#f6c445','#f2734b'], BREA
 const VIEW={breaks:BREAKS.slice(),G:1,fine:false};
 const bucket=v=>{const B=VIEW.breaks;for(let k=0;k<5;k++)if(v<B[k])return k;return 5;};
 $('#legendBar').innerHTML=COLORS.map(c=>`<span style="background:${c}"></span>`).join('');
-const fmtKn=v=>v>=1?v.toFixed(1).replace(/\.0$/,''):v>=0.1?v.toFixed(1):v.toFixed(2);
+const fmtKn=v=>v>=1?v.toFixed(1).replace(/\.0$/,''):(+v.toFixed(2)).toString();
 function drawLegend(){
   const B=VIEW.breaks;
   $('#legendTicks').innerHTML=`<span>0</span><span>${fmtKn(B[1])}</span><span>${fmtKn(B[3])}</span><span>${fmtKn(B[4])}+</span>`;
@@ -506,13 +514,14 @@ function computeViewScale(){
     }
     if(sp.length<10)return;
     sp.sort((a,b)=>a-b);
-    const p90=Math.max(0.03,sp[Math.floor(sp.length*0.9)]);
-    const fine=p90<1.1;
-    const top=fine?Math.max(0.1,p90*1.15):2.5;
-    const nb=fine?[top*0.15,top*0.3,top*0.5,top*0.72,top]:BREAKS.slice();
+    const p50=Math.max(0.02,sp[Math.floor(sp.length*0.5)]), p95=Math.max(0.03,sp[Math.floor(sp.length*0.95)]);
+    const fine=p95<1.1;
+    // 중간 유속이 가운데 색(청록·초록)에 오도록 최고 단계를 잡음
+    const top=fine?Math.max(0.12,p95*1.15,p50*2):2.5;
+    const nb=fine?[top*0.18,top*0.35,top*0.55,top*0.75,top]:BREAKS.slice();
     // 25% 이상 달라질 때만 바꿔서 깜빡임 방지
     if(Math.abs(nb[4]-VIEW.breaks[4])/VIEW.breaks[4]>0.25||fine!==VIEW.fine){
-      VIEW.breaks=nb; VIEW.fine=fine; VIEW.G=fine?Math.min(5,0.5/p90):1; drawLegend();
+      VIEW.breaks=nb; VIEW.fine=fine; VIEW.G=fine?Math.min(3,0.4/Math.max(0.06,p50)):1; drawLegend();
     }
   },400);
 }
@@ -1036,7 +1045,7 @@ $('#setBtn').onclick=()=>{$('#keyIn').value=ROMS.key();$('#urlIn').value=ROMS.ur
 $('#setClose').onclick=()=>$('#setPanel').classList.remove('show');
 $('#setPanel').addEventListener('click',e=>{if(e.target.id==='setPanel')$('#setPanel').classList.remove('show');});
 function rebuildLayers(){
-  [sat,satLabel,street].forEach(l=>{try{map.removeLayer(l);}catch(e){}});
+  clearBase();
   CONF.vworldKey=pref('vworldKey',''); mode='sat'; $('#layerBtn').innerHTML='<span>🛰</span>'; setupLayers();
 }
 function saveSettings(){
