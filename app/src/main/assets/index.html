@@ -34,6 +34,9 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 .legend .bar{display:flex;margin-top:4px}.legend .bar span{width:22px;height:6px}
 .legend .ticks{display:flex;justify-content:space-between;width:132px;margin-top:2px}
 .toast{position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:1100;background:rgba(10,21,32,.95);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font-size:13px;display:none;max-width:86%;text-align:center}
+.windchip{position:absolute;left:10px;top:90px;z-index:1000;font-size:11.5px;padding:3px 9px;border-radius:99px;background:rgba(10,21,32,.88);color:#cfe6ff;border:1px solid #2a4a6a;display:none;align-items:center;gap:5px}
+.windchip .wa{display:inline-block;transition:transform .3s}
+.winfo{font-size:12px;color:var(--muted);margin-top:6px}
 .samplebadge{position:absolute;left:10px;top:62px;z-index:1000;font-size:11px;padding:3px 8px;border-radius:99px;background:#3a2a12;color:#ffc874;border:1px solid #6a4a1c}
 /* 하단 시트 */
 .sheet{background:var(--panel);border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom));z-index:1000}
@@ -96,9 +99,11 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
       <button class="ibtn" id="locBtn" title="현위치"><span>◎</span></button>
       <button class="ibtn" id="layerBtn" title="지도 종류"><span>🛰</span></button>
       <button class="ibtn on" id="flowBtn" title="흐름선"><span>〰</span></button>
+      <button class="ibtn" id="windBtn" title="바람 영향"><span>🌬</span></button>
       <button class="ibtn" id="setBtn" title="설정"><span>⚙</span></button>
     </div>
     <span class="samplebadge">흐름: 샘플 데이터</span>
+    <span class="windchip" id="windChip"></span>
     <div class="legend">유속 (노트)<div class="bar" id="legendBar"></div><div class="ticks"><span>0</span><span>0.7</span><span>1.8</span><span>2.5+</span></div></div>
     <div class="toast" id="toast"></div>
   </div>
@@ -120,6 +125,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
         <div>상태<b id="iState">-</b></div>
         <div><span id="slackLbl">다음 정조</span><b id="iSlack">-</b></div>
       </div>
+      <div class="winfo" id="iWind"></div>
       <canvas id="tide"></canvas>
     </div>
     <div class="trow">
@@ -364,7 +370,7 @@ function requestReal(){
       setRealData(js,L.latLngBounds([js.bounds.s,js.bounds.w],[js.bounds.n,js.bounds.e]));
       RD.empty=!RD.pts.length;
       if(sel){computeEvents();updateUI();}
-      if(SIM.on){SIM.wantT=-1;simCache.clear();simTimeChanged();} resetParticles();
+      if(SIM.on){SIM.wantT=-1;SIM.pendingAt=0;simCache.clear();simTimeChanged(!SIM.u);} resetParticles();
     }catch(e){ if(id===RD.reqId)toast('실제 조류를 못 불러왔어요: '+e.message,5000); }
     finally{ if(id===RD.reqId){RD.loading=false;updateBadge();} }
   },350);
@@ -377,7 +383,84 @@ function updateBadge(){
     (SIM.on?(SIM.ready?(SIM.done?'실제 예보 + 항내 추정':'항내 흐름 계산 중…'):'항내 흐름 계산 중…'):'실제 예보 · 국립해양조사원');
 }
 // 공통: 지금 모드에 맞는 흐름 값 (실제 모드에서 자료 없으면 null)
-function baseAt(lat,lon,th){ return CONF.realData?realAt(lat,lon,th):sampleAt(lat,lon,th); }
+
+// ================= 바람 (기상청 단기예보, 5km 격자) =================
+// 표층 물은 대략 풍속의 3% 속도로 바람이 부는 쪽으로 밀림 (해양학 경험 법칙)
+const WIND={on:false,key:'',data:null,loading:false,err:'',reqId:0};
+const DRIFT=0.03;
+function kmaGrid(lat,lon){const RE=6371.00877,GRID=5.0,SLAT1=30,SLAT2=60,OLON=126,OLAT=38,XO=43,YO=136,D=Math.PI/180;
+ const re=RE/GRID,s1=SLAT1*D,s2=SLAT2*D,olon=OLON*D,olat=OLAT*D;
+ let sn=Math.tan(Math.PI*0.25+s2*0.5)/Math.tan(Math.PI*0.25+s1*0.5);sn=Math.log(Math.cos(s1)/Math.cos(s2))/Math.log(sn);
+ let sf=Math.tan(Math.PI*0.25+s1*0.5);sf=Math.pow(sf,sn)*Math.cos(s1)/sn;
+ let ro=Math.tan(Math.PI*0.25+olat*0.5);ro=re*sf/Math.pow(ro,sn);
+ let ra=Math.tan(Math.PI*0.25+lat*D*0.5);ra=re*sf/Math.pow(ra,sn);
+ let th=lon*D-olon;if(th>Math.PI)th-=2*Math.PI;if(th<-Math.PI)th+=2*Math.PI;th*=sn;
+ return {nx:Math.floor(ra*Math.sin(th)+XO+0.5),ny:Math.floor(ro-ra*Math.cos(th)+YO+0.5)};}
+function kmaBase(){ // 가장 최근 발표 시각 (02,05,...,23시, 발표 10분 뒤부터 조회 가능)
+  const d=new Date(Date.now()-15*60000); let h=d.getHours(); const hs=[23,20,17,14,11,8,5,2];
+  let bh=hs.find(x=>x<=h); if(bh===undefined){d.setDate(d.getDate()-1);bh=23;}
+  const p=n=>String(n).padStart(2,'0'); return {date:`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`,time:p(bh)+'00'};}
+async function windLoad(lat,lon){
+  if(!ROMS.key()){WIND.err='공공데이터 키가 필요해요';return;}
+  const g=kmaGrid(lat,lon), b=kmaBase(), key=`${g.nx},${g.ny},${b.date}${b.time}`;
+  if(key===WIND.key&&WIND.data)return;
+  const id=++WIND.reqId; WIND.loading=true; WIND.err=''; drawWindChip();
+  try{
+    let items=[];
+    for(let pg=1;pg<=2;pg++){
+      const url=`https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst?serviceKey=${encodeURIComponent(ROMS.key())}&dataType=JSON&numOfRows=1000&pageNo=${pg}&base_date=${b.date}&base_time=${b.time}&nx=${g.nx}&ny=${g.ny}`;
+      const r=await nget(url,60); let js;
+      try{js=JSON.parse(r.text);}catch(e){if(NATIVE)NATIVE.dropCache(url);const m=r.text.match(/<returnAuthMsg>([^<]+)/);throw new Error(m?(m[1].includes('NOT_REGISTERED')?'기상청 단기예보 키가 아직 적용 전이에요 (신청 후 1~2시간)':m[1]):'응답 오류');}
+      const code=ROMS.findNum(js,/^resultCode$/i); if(code!=null&&code!==0){if(NATIVE)NATIVE.dropCache(url);throw new Error('기상청 오류 '+code);}
+      const it=ROMS.findItems(js)||(js.response&&js.response.body&&js.response.body.items&&js.response.body.items.item)||[];
+      items=items.concat(it); const total=ROMS.findNum(js,/^totalCount$/i); if(total==null||items.length>=total)break;
+    }
+    if(id!==WIND.reqId)return;
+    const rec=new Map();
+    for(const it of items){ if(it.category!=='UUU'&&it.category!=='VVV')continue;
+      const t=Date.parse(`${it.fcstDate.slice(0,4)}-${it.fcstDate.slice(4,6)}-${it.fcstDate.slice(6,8)}T${it.fcstTime.slice(0,2)}:${it.fcstTime.slice(2,4)}:00+09:00`);
+      if(!rec.has(t))rec.set(t,{}); rec.get(t)[it.category]=+it.fcstValue; }
+    const times=[...rec.keys()].filter(t=>rec.get(t).UUU!=null&&rec.get(t).VVV!=null).sort((a,b)=>a-b);
+    if(!times.length)throw new Error('바람 예보가 비어 있어요');
+    WIND.data={times,u:times.map(t=>rec.get(t).UUU),v:times.map(t=>rec.get(t).VVV),grid:g}; WIND.key=key;
+  }catch(e){ if(id===WIND.reqId){WIND.err=e.message; toast('바람 예보를 못 받았어요: '+e.message,4500);} }
+  finally{ if(id===WIND.reqId){WIND.loading=false; drawWindChip(); if(SIM.on){SIM.wantT=-1;simTimeChanged();} if(sel)updateUI();} }
+}
+// 시각 th(시간)의 바람 {u: 동쪽, v: 북쪽, m/s} — 예보 범위 밖이면 가장 가까운 값
+function windAt(th){
+  const D=WIND.data; if(!D)return null; const ms=t0.getTime()+th*3600000, T=D.times;
+  if(ms<=T[0])return {u:D.u[0],v:D.v[0]}; if(ms>=T[T.length-1])return {u:D.u[T.length-1],v:D.v[T.length-1]};
+  let i=0; while(T[i+1]<ms)i++; const f=(ms-T[i])/(T[i+1]-T[i]);
+  return {u:D.u[i]+(D.u[i+1]-D.u[i])*f, v:D.v[i]+(D.v[i+1]-D.v[i])*f};
+}
+// 바람에 밀리는 표층 흐름 (노트)
+function windDrift(th){ if(!WIND.on)return null; const w=windAt(th); if(!w)return null; return {vE:w.u*DRIFT*1.9438, vN:w.v*DRIFT*1.9438}; }
+function windText(th){ const w=windAt(th); if(!w)return ''; const sp=Math.hypot(w.u,w.v); const from=bearing(-w.u,-w.v);
+  return `${dirName(from)}풍 ${sp.toFixed(1)}m/s`; }
+function drawWindChip(){
+  const el=$('#windChip'); $('#windBtn').classList.toggle('on',WIND.on);
+  if(!WIND.on){el.style.display='none';return;}
+  el.style.display='inline-flex';
+  if(WIND.loading){el.textContent='바람 불러오는 중…';return;}
+  if(!WIND.data){el.textContent=WIND.err?'바람: '+WIND.err:'바람: 자료 없음';return;}
+  const w=windAt(tH()), to=bearing(w.u,w.v);
+  el.innerHTML=`<span class="wa" style="transform:rotate(${to}deg)">↑</span> ${windText(tH())} · 표층 ${(Math.hypot(w.u,w.v)*DRIFT*1.9438).toFixed(2)}kn 밀림`;
+}
+let windTimer=null;
+function windRequest(){ if(!WIND.on)return; clearTimeout(windTimer); windTimer=setTimeout(()=>{const c=map.getCenter();windLoad(c.lat,c.lng);},500); }
+$('#windBtn').onclick=()=>{
+  WIND.on=!WIND.on; setPref('windOn',WIND.on?'1':'0');
+  if(WIND.on){ if(!ROMS.key()){toast('바람은 ⚙ 설정에 공공데이터 키가 있어야 돼요',3500);} windRequest(); toast(CONF.realData?'바람 켬: 항내 추정 흐름에 바람 효과를 더해요':'바람 켬: 표층 흐름에 바람 효과를 더해요',3000);}
+  drawWindChip(); simCache.clear(); if(SIM.on){SIM.wantT=-1;simTimeChanged();} if(sel)updateUI();
+};
+
+// 바깥 바다 기본 흐름. 실제 예보(ROMS)는 바람 영향이 이미 반영된 예측이라 바람을 또 더하지 않음 (샘플일 때만 더함)
+function baseAt(lat,lon,th){
+  if(CONF.realData) return realAt(lat,lon,th);
+  const v=sampleAt(lat,lon,th), d=windDrift(th);
+  if(v&&d){v.vE+=d.vE; v.vN+=d.vN;}
+  return v;
+}
 function flowAt(lat,lon,th){
   if(SIM.ready&&Math.abs(th-tH())<1e-6){
     simFramePrep(); const pt=map.latLngToContainerPoint([lat,lon]); const v=simAtPx(pt.x,pt.y);
@@ -455,14 +538,16 @@ const WORKER_SRC=`
 const EX=[0,1,0,-1,0,1,-1,-1,1],EY=[0,0,1,0,-1,1,1,-1,-1],WT=[4/9,1/9,1/9,1/9,1/9,1/36,1/36,1/36,1/36],OPP=[0,3,4,1,2,7,8,5,6];
 const WARM=1800, AVG=800; let S=null, timer=null;
 function feq(f,i,r,u,v){const u2=1.5*(u*u+v*v),o=i*9;for(let q=0;q<9;q++){const e=3*(EX[q]*u+EY[q]*v);f[o+q]=WT[q]*r*(1+e+0.5*e*e-u2);}}
-function step(){const {gx,gy,N,solid,ux,uy}=S;let f=S.f,f2=S.f2;const inv=1/S.tau;
+function step(){const {gx,gy,N,solid,ux,uy}=S;let f=S.f,f2=S.f2;const inv=1/S.tau,tau=S.tau,K=S.kfr,FX=S.fwx,FY=S.fwy;
  for(let k=0;k<S.bcIdx.length;k++)feq(f,S.bcIdx[k],1,S.bcU[k],S.bcV[k]);
  for(let i=0;i<N;i++){if(solid[i])continue;const o=i*9;let r=0,mx=0,my=0;
   for(let q=0;q<9;q++){const v=f[o+q];r+=v;mx+=v*EX[q];my+=v*EY[q];}
   if(!(r>0.2)){feq(f,i,1,0,0);r=1;mx=0;my=0;}
   let u=mx/r,v=my/r;const sp=u*u+v*v;if(sp>0.03){const s=Math.sqrt(0.03/sp);u*=s;v*=s;}
-  ux[i]=u;uy[i]=v;const u2=1.5*(u*u+v*v);
-  for(let q=0;q<9;q++){const e=3*(EX[q]*u+EY[q]*v);f[o+q]+=(WT[q]*r*(1+e+0.5*e*e-u2)-f[o+q])*inv;}}
+  ux[i]=u;uy[i]=v;
+  // 바람이 미는 힘(FX,FY) - 바닥 마찰(K*u): 넓은 바다에선 바람 표층류 속도로 수렴, 항 안에선 벽 때문에 순환이 생김
+  const ue=u+tau*(FX-K*u), ve=v+tau*(FY-K*v), u2=1.5*(ue*ue+ve*ve);
+  for(let q=0;q<9;q++){const e=3*(EX[q]*ue+EY[q]*ve);f[o+q]+=(WT[q]*r*(1+e+0.5*e*e-u2)-f[o+q])*inv;}}
  for(let y=0;y<gy;y++)for(let x=0;x<gx;x++){const i=y*gx+x;if(solid[i])continue;const o=i*9;
   for(let q=0;q<9;q++){const nx=x+EX[q],ny=y+EY[q];if(nx<0||ny<0||nx>=gx||ny>=gy)continue;const j=ny*gx+nx;
    if(solid[j])f2[o+OPP[q]]=f[o+q];else f2[j*9+q]=f[o+q];}}
@@ -478,12 +563,12 @@ function run(){timer=null;if(!S)return;const t=performance.now();
  if(S.steps%150<20||S.steps<400)send(false);
  timer=setTimeout(run,0);}
 onmessage=e=>{const m=e.data;
- if(m.type==='init'){const N=m.gx*m.gy;S={id:m.id,gx:m.gx,gy:m.gy,N,solid:m.solid,bcIdx:m.bcIdx,bcU:m.bcU,bcV:m.bcV,tau:0.58,
+ if(m.type==='init'){const N=m.gx*m.gy;S={id:m.id,gx:m.gx,gy:m.gy,N,solid:m.solid,bcIdx:m.bcIdx,bcU:m.bcU,bcV:m.bcV,tau:0.58,fwx:m.fwx||0,fwy:m.fwy||0,kfr:m.kfr||0,
    f:new Float32Array(N*9),f2:new Float32Array(N*9),ux:new Float32Array(N),uy:new Float32Array(N),au:new Float32Array(N),av:new Float32Array(N),steps:0,avgN:0};
    let mu=0,mv=0;for(let k=0;k<m.bcU.length;k++){mu+=m.bcU[k];mv+=m.bcV[k];}mu/=m.bcU.length||1;mv/=m.bcV.length||1;
    for(let i=0;i<N;i++)if(!S.solid[i])feq(S.f,i,1,mu*0.5,mv*0.5);
    if(!timer)timer=setTimeout(run,0);}
- else if(m.type==='bc'&&S){S.id=m.id;S.bcU=m.bcU;S.bcV=m.bcV;S.steps=Math.min(S.steps,WARM-900);if(S.steps<0)S.steps=0;S.avgN=0;S.au.fill(0);S.av.fill(0);
+ else if(m.type==='bc'&&S){S.id=m.id;S.bcU=m.bcU;S.bcV=m.bcV;S.fwx=m.fwx||0;S.fwy=m.fwy||0;S.kfr=m.kfr||0;S.steps=Math.min(S.steps,WARM-900);if(S.steps<0)S.steps=0;S.avgN=0;S.au.fill(0);S.av.fill(0);
    if(!timer)timer=setTimeout(run,0);}
  else if(m.type==='stop'){S=null;}
 };`;
@@ -491,7 +576,7 @@ let simWorker=null, simJob=0;
 try{simWorker=new Worker(URL.createObjectURL(new Blob([WORKER_SRC],{type:'text/javascript'})));}catch(e){simWorker=null;}
 if(simWorker)simWorker.onmessage=e=>{const m=e.data; if(m.id!==simJob)return;
   SIM.u=m.u; SIM.v=m.v; SIM.steps=m.steps; SIM.done=m.done; SIM.ready=m.steps>500||m.done; SIM.simT=SIM.wantT;
-  if(m.done){simCache.set(SIM.key+'|'+SIM.wantT,{u:m.u,v:m.v,scale:SIM.scale});if(simCache.size>40)simCache.delete(simCache.keys().next().value);}
+  if(m.done){simCache.set(SIM.key+'|'+SIM.wantT+'|'+(WIND.on?WIND.key:''),{u:m.u,v:m.v,scale:SIM.scale});if(simCache.size>40)simCache.delete(simCache.keys().next().value);}
   if(SIM.ready&&sel)updateUI(); updateBadge();};
 const blockedRGB=(r,g,b)=>{ if(isWaterRGB(r,g,b))return false; const mx=Math.max(r,g,b),mn=Math.min(r,g,b);
   if(mn>=250)return false;                    // 흰 도로(다리 위 도로 포함)는 물을 막지 않음
@@ -545,20 +630,26 @@ function simBC(){
     if(v){vE[q]=v.vE;vN[q]=v.vN;got++;sE+=v.vE;sN+=v.vN;mx=Math.max(mx,Math.hypot(v.vE,v.vN));}else vE[q]=NaN;}
   if(!got)return null;
   for(let q=0;q<n;q++)if(isNaN(vE[q])){vE[q]=sE/got;vN[q]=sN/got;}
+  const dr=WIND.on?(()=>{const w=windAt(th);return w?{vE:w.u*DRIFT*1.9438,vN:w.v*DRIFT*1.9438}:null;})():null;
+  if(dr)mx=Math.max(mx,Math.hypot(dr.vE,dr.vN)*1.5);
   const scale=0.07/mx, bcU=new Float32Array(n), bcV=new Float32Array(n);
+  const kfr=dr?0.003:0, fwx=dr?kfr*dr.vE*scale:0, fwy=dr?-kfr*dr.vN*scale:0;
   for(let q=0;q<n;q++){bcU[q]=vE[q]*scale;bcV[q]=-vN[q]*scale;}
-  return {bcU,bcV,scale};
+  return {bcU,bcV,scale,fwx,fwy,kfr};
 }
 // 시간이 바뀌면: 저장된 결과가 있으면 바로 사용, 없으면 일꾼에게 새 경계값 전달 (재생 중엔 너무 자주 안 보냄)
 function simTimeChanged(first){
   if(!SIM.on||(!first&&SIM.wantT===tMin))return;
-  const c=simCache.get(SIM.key+'|'+tMin);
+  const c=simCache.get(SIM.key+'|'+tMin+'|'+(WIND.on?WIND.key:'')); 
   if(c){SIM.u=c.u;SIM.v=c.v;SIM.scale=c.scale;SIM.ready=true;SIM.done=true;SIM.wantT=SIM.simT=tMin;simJob++;updateBadge();return;}
   if(!first&&playing&&performance.now()-SIM.lastSend<1500)return;
-  const b=simBC(); if(!b){SIM.on=false;return;}
+  // 바깥 흐름 자료가 아직 없으면(실제 예보 불러오는 중) 1초마다 다시 시도
+  if(!first&&SIM.pendingAt&&performance.now()-SIM.pendingAt<1000)return;
+  const b=simBC(); if(!b){SIM.pendingAt=performance.now();return;}
+  SIM.pendingAt=0;
   SIM.wantT=tMin; SIM.scale=b.scale; SIM.lastSend=performance.now(); SIM.done=false; const id=++simJob;
-  if(first||!SIM.u) simWorker.postMessage({type:'init',id,gx:SIM.gx,gy:SIM.gy,solid:SIM.solid,bcIdx:SIM.bcIdx,bcU:b.bcU,bcV:b.bcV});
-  else simWorker.postMessage({type:'bc',id,bcU:b.bcU,bcV:b.bcV});
+  if(first||!SIM.u) simWorker.postMessage({type:'init',id,gx:SIM.gx,gy:SIM.gy,solid:SIM.solid,bcIdx:SIM.bcIdx,bcU:b.bcU,bcV:b.bcV,fwx:b.fwx,fwy:b.fwy,kfr:b.kfr});
+  else simWorker.postMessage({type:'bc',id,bcU:b.bcU,bcV:b.bcV,fwx:b.fwx,fwy:b.fwy,kfr:b.kfr});
 }
 // 화면 좌표(px)의 추정 흐름(노트). undefined=계산 구역 밖, null=육지
 let simFrame={k:1,x0:0,y0:0};
@@ -601,7 +692,7 @@ function stepFlow(){
   xF.lineWidth=1.5; xF.lineCap='round'; paths.forEach((pa,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(pa);});
 }
 map.on('movestart zoomstart',()=>{moving=true;xF.clearRect(0,0,W,H);});
-map.on('moveend',()=>{moving=false;buildMask();requestReal();});
+map.on('moveend',()=>{moving=false;buildMask();requestReal();windRequest();});
 map.on('resize',()=>{resizeFlow();buildMask();});
 $('#flowBtn').onclick=e=>{showFlow=!showFlow;$('#flowBtn').classList.toggle('on',showFlow);if(!showFlow)xF.clearRect(0,0,W,H);};
 
@@ -659,8 +750,11 @@ function updateUI(){
   const d=new Date(t0.getTime()+tMin*60000);
   $('#timeLabel').textContent=`${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]}) ${fmt(tMin)}`;
   $('#slider').value=tMin;
+  drawWindChip();
   if(!sel)return;
   $('#iname').textContent=sel.name;
+  { const w=WIND.on&&WIND.data?windAt(tH()):null;
+    $('#iWind').textContent=w?`🌬 ${windText(tH())} · 표층 물이 약 ${(Math.hypot(w.u,w.v)*DRIFT*1.9438).toFixed(2)}kn로 바람 따라 밀려요${CONF.realData?' (바깥 바다 예보엔 이미 반영)':''}`:''; }
   const v=flowAt(sel.lat,sel.lng,tH());
   if(!v){['#iSpeed','#iDir','#iState','#iSlack'].forEach(q=>$(q).textContent='-');
     $('#iState').textContent=CONF.realData?'자료 없음':'-'; drawTide(); return;}
@@ -799,6 +893,7 @@ resizeFlow(); drawFavPins(); updateUI(); loop();
 (async()=>{
   CONF.realData=!!ROMS.key();
   setupLayers(); updateBadge(); buildMask(); requestReal();
+  WIND.on=pref('windOn','0')==='1'; drawWindChip(); windRequest();
   if(CONF.realData)$('#slackLbl').textContent='물 약해짐';
   toast(CONF.realData?'지도를 확대하면 국립해양조사원 실제 조류 예보가 보여요':'지금은 샘플 흐름이에요. ⚙ 설정에 공공데이터 키를 넣으면 실제 조류로 바뀌어요',4000);
 })();
