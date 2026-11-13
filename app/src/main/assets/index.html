@@ -310,11 +310,13 @@ const RD={times:[],pts:[],bins:new Map(),R:0.05,box:null,loading:false,reqId:0};
 function binKey(lat,lon){return Math.floor(lat/RD.R)+','+Math.floor(lon/RD.R);}
 function setRealData(js,box){
   RD.times=js.times||[]; RD.pts=js.points||[]; RD.box=box; RD.bins=new Map();
-  // 격자 간격 추정 → 보간 반경
-  const lats=[...new Set(RD.pts.map(p=>+p.lat.toFixed(4)))].sort((a,b)=>a-b), gaps=[];
-  for(let i=1;i<lats.length;i++){const g=lats[i]-lats[i-1];if(g>1e-4)gaps.push(g);}
-  gaps.sort((a,b)=>a-b); const sp=gaps.length?gaps[Math.floor(gaps.length/2)]:0.03;
-  RD.R=Math.max(0.008,sp*1.6);
+  // 격자 간격 추정 → 보간 반경: 각 점에서 '가장 가까운 이웃 점'까지 거리의 중앙값 (격자가 기울어져 있어도 맞게)
+  const P=RD.pts, nn=[], step=Math.max(1,Math.floor(P.length/300));
+  for(let i=0;i<P.length;i+=step){let best=1e9;const a=P[i];
+    for(let j=0;j<P.length;j++){if(i===j)continue;const dy=P[j].lat-a.lat,dx=(P[j].lon-a.lon)*0.82,d=dx*dx+dy*dy;if(d>1e-10&&d<best)best=d;}
+    if(best<1e9)nn.push(Math.sqrt(best));}
+  nn.sort((a,b)=>a-b); const sp=nn.length?nn[Math.floor(nn.length/2)]:0.03;
+  RD.R=Math.max(0.005,sp*2.0);
   RD.pts.forEach(p=>{const k=binKey(p.lat,p.lon);if(!RD.bins.has(k))RD.bins.set(k,[]);RD.bins.get(k).push(p);});
 }
 function timeIdx(th){
@@ -334,7 +336,16 @@ function realAt(lat,lon,th){
       let u=p.u[j], v=p.v[j]; if(u==null)continue;
       if(ti.f>0&&p.u[j2]!=null){u+=(p.u[j2]-u)*ti.f; v+=(p.v[j2]-v)*ti.f;}
       const w=1/(d2+1e-6); su+=u*w; sv+=v*w; sw+=w;}}
-  if(!sw)return null;
+  if(!sw){
+    // 반경 안에 점이 없으면, 조금 더 넓게(2배) 찾아 가장 가까운 점 하나 사용 (작은 빈틈 메우기)
+    let bd=4*R2, bp=null;
+    for(let a=-2;a<=2;a++)for(let b=-2;b<=2;b++){const arr=RD.bins.get((bl+a)+','+(bo+b));if(!arr)continue;
+      for(const p of arr){const dy=p.lat-lat,dx=(p.lon-lon)*0.82,d2=dx*dx+dy*dy;if(d2<bd&&p.u[ti.i]!=null){bd=d2;bp=p;}}}
+    if(!bp)return null;
+    const j=ti.i,j2=Math.min(j+1,RD.times.length-1);let u=bp.u[j],v=bp.v[j];
+    if(ti.f>0&&bp.u[j2]!=null){u+=(bp.u[j2]-u)*ti.f;v+=(bp.v[j2]-v)*ti.f;}
+    return {vE:u,vN:v,real:true};
+  }
   return {vE:su/sw, vN:sv/sw, real:true};
 }
 let realTimer=null;
