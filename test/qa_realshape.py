@@ -50,6 +50,20 @@ with sync_playwright() as p:
     check('R5 조금 움직이면 다시 받지 않음(저장 재사용)', c4-c3<=4, f'추가 호출 {c4-c3}회')
     go(15,34.86,128.15,5000); c5=calls()
     check('R6 이미 본 곳 다시 가면 호출 거의 없음', c5-c4<=4, f'추가 호출 {c5-c4}회')
+    # R8: 항내 추정 계산이 끝난 곳을 떠났다가 돌아오면 바로 보여야 함 (실기기 지연 보고 11-14)
+    import time
+    def wait_sim(limit):
+        t=time.time()
+        while time.time()-t<limit:
+            if E("__QA.SIM.on&&__QA.SIM.ready&&__QA.SIM.done"): return time.time()-t
+            pg.wait_for_timeout(100)
+        return None
+    go(16,34.898,128.096,500); t1=wait_sim(90)
+    go(16,34.918,128.20,500); wait_sim(90)
+    go(16,34.898,128.096,0); t0=time.time(); pg.wait_for_timeout(2500)  # 예보 다시 맞춘 뒤까지 포함
+    while E("__QA.RD.loading") and time.time()-t0<30: pg.wait_for_timeout(100)
+    r=wait_sim(30); t3=None if r is None else r  # 예보 맞춘 뒤 다시 계산하느라 기다린 시간
+    check('R8 계산 끝난 곳에 돌아오면 3초 안에 표시 (다시 계산 안 함)', t3 is not None and t3<3, f'처음 {t1 and round(t1,1)}초 → 돌아왔을 때 {t3 and round(t3,1)}초')
     check('R7 스크립트 오류 없음', not errs, errs[:2])
     print(f'총 호출 {calls()}회 (하루 한도 10,000)')
     br.close()

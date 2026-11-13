@@ -453,7 +453,7 @@ function requestReal(){
       if(RD.staleMin)toast(`인터넷이 안 돼서 저장된 예보를 보여줘요 (${staleText(RD.staleMin)} 받은 자료)`,4000);
       apply(items);
       if(sel){computeEvents();updateUI();}
-      if(SIM.on){SIM.wantT=-1;SIM.pendingAt=0;simCache.clear();simTimeChanged(!SIM.u);} computeViewScale();
+      if(SIM.on){SIM.wantT=-1;SIM.pendingAt=0;simTimeChanged(!SIM.u);} computeViewScale();
     }catch(e){ if(id===RD.reqId)toast('실제 조류를 못 불러왔어요: '+e.message,5000); }
     finally{ if(id===RD.reqId){RD.loading=false;RD.prog='';updateBadge();} }
   },350);
@@ -538,7 +538,7 @@ function windRequest(){ if(!WIND.on)return; clearTimeout(windTimer); windTimer=s
 $('#windBtn').onclick=()=>{
   WIND.on=!WIND.on; setPref('windOn',WIND.on?'1':'0');
   if(WIND.on){ if(!ROMS.key()){toast('바람은 ⚙ 설정에 공공데이터 키가 있어야 돼요',3500);} windRequest(); toast(CONF.realData?'바람 켬: 항내 추정 흐름에 바람 효과를 더해요':'바람 켬: 표층 흐름에 바람 효과를 더해요',3000);}
-  drawWindChip(); simCache.clear(); if(SIM.on){SIM.wantT=-1;simTimeChanged();} if(sel)updateUI();
+  drawWindChip(); if(SIM.on){SIM.wantT=-1;simTimeChanged();} if(sel)updateUI();
 };
 
 // 바깥 바다 기본 흐름. 실제 예보(ROMS)는 바람 영향이 이미 반영된 예측이라 바람을 또 더하지 않음 (샘플일 때만 더함)
@@ -652,7 +652,8 @@ function isWater(x,y){
 // 계산은 별도 일꾼(Web Worker)이 해서 화면이 버벅이지 않고, 흔들림은 시간 평균으로 없앰. 숫자는 '추정'.
 const SIM_ZOOM=15, SZ=16, SC=12, DOM=171*SC, SNAP=256;   // 기준 확대단계 16에서 171칸×12px(약 4km) 구역, 칸 하나 약 23m
 const SIM={on:false,ready:false,key:'',ox:0,oy:0,gx:0,gy:0,solid:null,bcIdx:null,u:null,v:null,scale:1,steps:0,done:false,simT:-1,wantT:-1,building:0,lastSend:0};
-const simCache=new Map();
+const simCache=new Map(), simDomCache=new Map();
+const simDomPut=(k,v)=>{simDomCache.set(k,v);if(simDomCache.size>12)simDomCache.delete(simDomCache.keys().next().value);};
 const WORKER_SRC=`
 const EX=[0,1,0,-1,0,1,-1,-1,1],EY=[0,0,1,0,-1,1,1,-1,-1],WT=[4/9,1/9,1/9,1/9,1/9,1/36,1/36,1/36,1/36],OPP=[0,3,4,1,2,7,8,5,6];
 const WARM=1800, AVG=800; let S=null, timer=null;
@@ -695,7 +696,7 @@ let simWorker=null, simJob=0;
 try{simWorker=new Worker(URL.createObjectURL(new Blob([WORKER_SRC],{type:'text/javascript'})));}catch(e){simWorker=null;}
 if(simWorker)simWorker.onmessage=e=>{const m=e.data; if(m.id!==simJob)return;
   SIM.u=m.u; SIM.v=m.v; SIM.steps=m.steps; SIM.done=m.done; SIM.ready=m.steps>500||m.done; SIM.simT=SIM.wantT;
-  if(m.done){simCache.set(SIM.key+'|'+SIM.wantT+'|'+(WIND.on?WIND.key:''),{u:m.u,v:m.v,scale:SIM.scale});if(simCache.size>40)simCache.delete(simCache.keys().next().value);}
+  if(m.done){simCache.set(SIM.key+'|'+SIM.wantT,{h:SIM.wantH,u:m.u,v:m.v,scale:SIM.scale});if(simCache.size>80)simCache.delete(simCache.keys().next().value);}
   if(SIM.ready&&sel)updateUI(); updateBadge();};
 const blockedRGB=(r,g,b)=>{ if(isWaterRGB(r,g,b))return false; const mx=Math.max(r,g,b),mn=Math.min(r,g,b),av=(r+g+b)/3;
   if(mn>=250)return false;                 // 흰 도로·다리 상판은 물을 막지 않음
@@ -718,6 +719,9 @@ async function simBuildDomain(d,key){
   const job=++SIM.building; SIM.key=key; SIM.on=false; SIM.ready=false; simJob++; simWorker.postMessage({type:'stop'});
   const ox=d.cx-DOM/2, oy=d.cy-DOM/2, gx=DOM/SC, gy=DOM/SC;
   Object.assign(SIM,{ox,oy,gx,gy});
+  if(simDomCache.has(key)){const g=simDomCache.get(key); if(!g)return;
+    Object.assign(SIM,{solid:g.solid,bcIdx:g.bcIdx,u:null,v:null,steps:0,done:false,simT:-1,wantT:-1,on:true});
+    simTimeChanged(true); return;}
   // 1) 구역 지도(OpenStreetMap, 확대단계 15)를 받아 물/구조물 판별
   const z=SZ-1, f=0.5, cv=document.createElement('canvas'); cv.width=DOM*f; cv.height=DOM*f; const cx=cv.getContext('2d');
   const jobs=[];
@@ -738,10 +742,11 @@ async function simBuildDomain(d,key){
       if(Y>0&&solid[c-gx]&&!seen[c-gx]){seen[c-gx]=1;st.push(c-gx);} if(Y<gy-1&&solid[c+gx]&&!seen[c+gx]){seen[c+gx]=1;st.push(c+gx);}}
     if(!edge&&comp.length<6)for(const c of comp)solid[c]=0;}
   let water=0; for(let i=0;i<N;i++)if(!solid[i])water++;
-  if(water<N*0.05||water===N){SIM.key=key;return;} // 물이 거의 없거나 장애물이 없는 먼바다 → 계산 불필요
+  if(water<N*0.05||water===N){SIM.key=key;simDomPut(key,null);return;} // 물이 거의 없거나 장애물이 없는 먼바다 → 계산 불필요
   const bc=[]; for(let i=0;i<N;i++){if(solid[i])continue;const X=i%gx,Y=(i/gx)|0;if(X===0||Y===0||X===gx-1||Y===gy-1)bc.push(i);}
-  if(!bc.length){SIM.key=key;return;}
-  Object.assign(SIM,{ox,oy,gx,gy,solid,bcIdx:Int32Array.from(bc),u:null,v:null,steps:0,done:false,simT:-1,wantT:-1,on:true});
+  if(!bc.length){SIM.key=key;simDomPut(key,null);return;}
+  const bcIdx=Int32Array.from(bc); simDomPut(key,{solid,bcIdx});
+  Object.assign(SIM,{ox,oy,gx,gy,solid,bcIdx,u:null,v:null,steps:0,done:false,simT:-1,wantT:-1,on:true});
   simTimeChanged(true);
 }
 // 구역 가장자리 물 칸에 넣을 바깥 흐름(실제 예보/샘플) 계산 → {bcU,bcV,scale}
@@ -760,16 +765,19 @@ function simBC(){
   return {bcU,bcV,scale,fwx,fwy,kfr};
 }
 // 시간이 바뀌면: 저장된 결과가 있으면 바로 사용, 없으면 일꾼에게 새 경계값 전달 (재생 중엔 너무 자주 안 보냄)
+// 경계값 지문: 바깥 흐름·바람이 같으면 같은 값 → 예전 계산 결과를 그대로 다시 씀
+function bcHash(b){let h=2166136261;const add=v=>{h=Math.imul(h^(Math.round(v*1e5)|0),16777619);};
+  for(let q=0;q<b.bcU.length;q++){add(b.bcU[q]);add(b.bcV[q]);} add(b.scale*100);add(b.fwx*1e3);add(b.fwy*1e3);return h>>>0;}
 function simTimeChanged(first){
   if(!SIM.on||(!first&&SIM.wantT===tMin))return;
-  const c=simCache.get(SIM.key+'|'+tMin+'|'+(WIND.on?WIND.key:'')); 
-  if(c){SIM.u=c.u;SIM.v=c.v;SIM.scale=c.scale;SIM.ready=true;SIM.done=true;SIM.wantT=SIM.simT=tMin;simJob++;updateBadge();return;}
-  if(!first&&playing&&performance.now()-SIM.lastSend<1500)return;
   // 바깥 흐름 자료가 아직 없으면(실제 예보 불러오는 중) 1초마다 다시 시도
   if(!first&&SIM.pendingAt&&performance.now()-SIM.pendingAt<1000)return;
   const b=simBC(); if(!b){SIM.pendingAt=performance.now();return;}
   SIM.pendingAt=0;
-  SIM.wantT=tMin; SIM.scale=b.scale; SIM.lastSend=performance.now(); SIM.done=false; const id=++simJob;
+  const h=bcHash(b), c=simCache.get(SIM.key+'|'+tMin);
+  if(c&&c.h===h){SIM.u=c.u;SIM.v=c.v;SIM.scale=c.scale;SIM.ready=true;SIM.done=true;SIM.wantT=SIM.simT=tMin;SIM.wantH=h;simJob++;if(sel)updateUI();updateBadge();return;}
+  if(!first&&playing&&performance.now()-SIM.lastSend<1500)return;
+  SIM.wantT=tMin; SIM.wantH=h; SIM.scale=b.scale; SIM.lastSend=performance.now(); SIM.done=false; const id=++simJob;
   if(first||!SIM.u) simWorker.postMessage({type:'init',id,gx:SIM.gx,gy:SIM.gy,solid:SIM.solid,bcIdx:SIM.bcIdx,bcU:b.bcU,bcV:b.bcV,fwx:b.fwx,fwy:b.fwy,kfr:b.kfr});
   else simWorker.postMessage({type:'bc',id,bcU:b.bcU,bcV:b.bcV,fwx:b.fwx,fwy:b.fwy,kfr:b.kfr});
 }
