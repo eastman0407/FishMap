@@ -120,6 +120,11 @@ public class MainActivity extends Activity {
     class Bridge {
         private SharedPreferences prefs() { return getSharedPreferences("fishmap", Context.MODE_PRIVATE); }
 
+        /** 앱 버전 (진단용): "1.19 (20)" */
+        @JavascriptInterface public String appVersion() {
+            try { android.content.pm.PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), 0);
+                return pi.versionName + " (" + pi.getLongVersionCode() + ")"; } catch (Exception e) { return "?"; }
+        }
         @JavascriptInterface public String getPref(String k) { return prefs().getString(k, ""); }
         @JavascriptInterface public void setPref(String k, String v) { prefs().edit().putString(k, v).apply(); }
 
