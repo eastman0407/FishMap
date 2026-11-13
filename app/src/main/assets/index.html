@@ -581,9 +581,12 @@ if(simWorker)simWorker.onmessage=e=>{const m=e.data; if(m.id!==simJob)return;
   SIM.u=m.u; SIM.v=m.v; SIM.steps=m.steps; SIM.done=m.done; SIM.ready=m.steps>500||m.done; SIM.simT=SIM.wantT;
   if(m.done){simCache.set(SIM.key+'|'+SIM.wantT+'|'+(WIND.on?WIND.key:''),{u:m.u,v:m.v,scale:SIM.scale});if(simCache.size>40)simCache.delete(simCache.keys().next().value);}
   if(SIM.ready&&sel)updateUI(); updateBadge();};
-const blockedRGB=(r,g,b)=>{ if(isWaterRGB(r,g,b))return false; const mx=Math.max(r,g,b),mn=Math.min(r,g,b);
-  if(mn>=250)return false;                    // 흰 도로(다리 위 도로 포함)는 물을 막지 않음
-  if(mx-mn>28&&(r+g+b)/3>175)return false;    // 노랑·주황·분홍 도로
+const blockedRGB=(r,g,b)=>{ if(isWaterRGB(r,g,b))return false; const mx=Math.max(r,g,b),mn=Math.min(r,g,b),av=(r+g+b)/3;
+  if(mn>=250)return false;                 // 흰 도로·다리 상판은 물을 막지 않음
+  if(av<90)return false;                   // 검은 테두리·글자
+  if(mx-mn<=12&&av<=180)return false;      // 회색 선(다리 테두리 등)
+  if(r>=g&&mx-mn>60&&av>175)return false;   // 노랑·주황·분홍 도로 (초록·모래 제외)
+  if(b>g&&b>r&&b-mn>25)return false;       // 파란 선(항로 표시 등)
   return true; };
 function simDomainOf(){ const c=map.project(map.getCenter(),SZ); return {cx:Math.round(c.x/SNAP)*SNAP, cy:Math.round(c.y/SNAP)*SNAP}; }
 function simEnsure(){
