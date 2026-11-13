@@ -7,8 +7,21 @@ android {
         applicationId 'kr.fishmap.app'
         minSdk 26
         targetSdk 34
-        versionCode 2
-        versionName '1.1'
+        versionCode 3
+        versionName '1.2'
+    }
+    // 항상 같은 서명으로 만들어야 폰에서 '업데이트'가 됨 (개인용 비공개 저장소에 함께 보관)
+    signingConfigs {
+        fixed {
+            storeFile file('fishmap.keystore')
+            storePassword 'fishmap123'
+            keyAlias 'fishmap'
+            keyPassword 'fishmap123'
+        }
+    }
+    buildTypes {
+        debug { signingConfig signingConfigs.fixed }
+        release { signingConfig signingConfigs.fixed }
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
