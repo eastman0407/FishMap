@@ -260,7 +260,7 @@ const pref=(k,d)=>{try{return (NATIVE?NATIVE.getPref(k):localStorage.getItem(k))
 const setPref=(k,v)=>{try{NATIVE?NATIVE.setPref(k,v):localStorage.setItem(k,v);}catch(e){}};
 const ROMS={
   DEF_URL:'https://apis.data.go.kr/1192136/roms/GetRomsApiService',
-  TILE:0.25, CACHE_MIN:60, MAX_PAGES:15,
+  CACHE_MIN:360, // 예보는 하루 단위로 갱신 → 6시간 저장
   key:()=>pref('dataKey',''), url:()=>pref('romsUrl','')||ROMS.DEF_URL,
   findItems(o){
     if(Array.isArray(o)){
@@ -296,30 +296,56 @@ const ROMS={
     if(code!=null&&code!==0){if(NATIVE)NATIVE.dropCache(url);throw new Error('공공데이터포털 오류 '+code+' ('+({20:'권한 없음',22:'호출 한도 초과',30:'등록 안 된 키',31:'기한 만료 키'}[code]||'')+')');}
     return {items:ROMS.findItems(js)||[],total:ROMS.findNum(js,/^totalCount$/i),raw:js};
   },
-  mem:new Map(), stat:{},
-  async tile(tx,ty,maxPages){
-    const k=tx+'_'+ty+'_'+maxPages, c=ROMS.mem.get(k); if(c&&Date.now()-c.at<ROMS.CACHE_MIN*60000)return c.items;
-    const T=ROMS.TILE, b={w:+(tx*T).toFixed(4),s:+(ty*T).toFixed(4)}; b.e=+(b.w+T).toFixed(4); b.n=+(b.s+T).toFixed(4);
+  // ── 받기 방식 (실기기 진단 2026-11-14 기준) ──
+  // 실제 자료: 지점(약 3km 간격)마다 178시간치가 지점순으로 옴 → 지점 1개 = 178줄, 한 번에 최대 300줄
+  //  · 확대(11단계 이상): 0.05° 작은 칸을 '전부' 받음 (칸당 지점 2~4개, 요청 2~3번)
+  //  · 넓은 화면: 바다 위 표본 위치마다 작은 칸(±0.022°) 1번만 → 지점 1~2개씩 (전체 대신 표본)
+  mem:new Map(), stat:{}, DETAIL_ZOOM:11, CELL:0.05, MAX_REQ:150,
+  async cell(key,b,maxPages){
+    const c=ROMS.mem.get(key); if(c&&Date.now()-c.at<ROMS.CACHE_MIN*60000)return c.items;
     let all=[],total=null,pages=0;
     for(let p=1;p<=maxPages;p++){const r=await ROMS.page(b,p,ROMS.CACHE_MIN);pages++;if(r.total!=null)total=r.total;all=all.concat(r.items);
       if(!r.items.length||(total!=null&&all.length>=total)||r.items.length<300)break;}
-    ROMS.stat[tx+'_'+ty]={got:all.length,total,pages,cut:total!=null&&all.length<total};
-    ROMS.mem.set(k,{at:Date.now(),items:all}); return all;
+    ROMS.stat[key]={got:all.length,total,pages,cut:maxPages>1&&total!=null&&all.length<total};
+    ROMS.mem.set(key,{at:Date.now(),items:all}); return all;
   },
-  async load(b){
+  // 지금 화면에 필요한 칸 목록
+  plan(view,zoom,waterAt){
+    const cells=[];
+    if(zoom>=ROMS.DETAIL_ZOOM){
+      const C=ROMS.CELL, pad=0.3, dh=(view.n-view.s)*pad, dw=(view.e-view.w)*pad;
+      const b={s:view.s-dh,n:view.n+dh,w:view.w-dw,e:view.e+dw};
+      for(let x=Math.floor(b.w/C);x<=Math.floor(b.e/C);x++)for(let y=Math.floor(b.s/C);y<=Math.floor(b.n/C);y++){
+        const cb={w:+(x*C).toFixed(4),s:+(y*C).toFixed(4),e:+((x+1)*C).toFixed(4),n:+((y+1)*C).toFixed(4)};
+        // 칸 중심·네 귀퉁이가 전부 육지면 건너뜀 (화면 안에서 판별 가능할 때만)
+        const probe=[[(cb.s+cb.n)/2,(cb.w+cb.e)/2],[cb.s,cb.w],[cb.s,cb.e],[cb.n,cb.w],[cb.n,cb.e]].map(([a,o])=>waterAt(a,o));
+        if(probe.every(v=>v===false))continue;
+        const core=cb.e>view.w&&cb.w<view.e&&cb.n>view.s&&cb.s<view.n; // 화면에 실제로 걸치는 칸
+        cells.push({key:`d${x}_${y}`,b:cb,pages:8,lat:(cb.s+cb.n)/2,lon:(cb.w+cb.e)/2,core});
+      }
+    }else{
+      const zb=Math.max(6,Math.floor(zoom)), sp=ROMS.CELL*Math.pow(2,ROMS.DETAIL_ZOOM-zb), h=0.022;
+      for(let x=Math.floor(view.w/sp);x<=Math.floor(view.e/sp);x++)for(let y=Math.floor(view.s/sp);y<=Math.floor(view.n/sp);y++){
+        const la=(y+0.5)*sp, lo=(x+0.5)*sp;
+        if(waterAt(la,lo)===false)continue; // 표본 위치가 육지면 건너뜀
+        cells.push({key:`s${zb}_${x}_${y}`,b:{s:+(la-h).toFixed(4),n:+(la+h).toFixed(4),w:+(lo-h).toFixed(4),e:+(lo+h).toFixed(4)},pages:1,lat:la,lon:lo,core:true});
+      }
+    }
+    const cy=(view.s+view.n)/2, cx=(view.w+view.e)/2;
+    cells.sort((a,b)=>((a.lat-cy)**2+((a.lon-cx)*0.82)**2)-((b.lat-cy)**2+((b.lon-cx)*0.82)**2));
+    return cells.slice(0,ROMS.MAX_REQ);
+  },
+  // 칸들을 동시에 6개씩 받으며, 1.5초마다 받은 만큼 먼저 보여줌
+  async load(cells,onPart){
     if(!ROMS.key())throw new Error('설정(⚙)에서 공공데이터 키를 넣어주세요');
-    const T=ROMS.TILE; let keys=[];
-    for(let x=Math.floor(b.w/T);x<=Math.floor(b.e/T);x++)for(let y=Math.floor(b.s/T);y<=Math.floor(b.n/T);y++)keys.push({x,y});
-    // 너무 넓으면 화면 가운데에서 가까운 40타일만 (호출 수 보호)
-    const cx=(b.w+b.e)/2/T, cy=(b.s+b.n)/2/T;
-    if(keys.length>40){keys.sort((a,q)=>((a.x+0.5-cx)**2+(a.y+0.5-cy)**2)-((q.x+0.5-cx)**2+(q.y+0.5-cy)**2));keys=keys.slice(0,40);}
-    const mp=keys.length>12?2:15; // 넓은 화면은 타일당 2페이지(600점)까지만
-    let err=null;
-    const lists=await Promise.all(keys.map(k=>ROMS.tile(k.x,k.y,mp).catch(e=>{err=e;return[];})));
-    const flat=lists.flat();
+    const got=new Array(cells.length); let i=0, done=0, err=null, last=Date.now();
+    const worker=async()=>{while(i<cells.length){const k=i++, c=cells[k];
+      try{got[k]=await ROMS.cell(c.key,c.b,c.pages);}catch(e){err=e;got[k]=[];}
+      done++; if(onPart&&Date.now()-last>1500){last=Date.now();onPart(got.filter(Boolean).flat(),done,cells.length);}}};
+    await Promise.all(Array.from({length:Math.min(6,cells.length)},worker));
+    const flat=got.filter(Boolean).flat();
     if(!flat.length&&err)throw err;
-    const tb={w:Math.min(...keys.map(k=>k.x))*T,e:(Math.max(...keys.map(k=>k.x))+1)*T,s:Math.min(...keys.map(k=>k.y))*T,n:(Math.max(...keys.map(k=>k.y))+1)*T};
-    const out=ROMS.normalize(flat,tb); out.bounds=tb; return out;
+    return flat;
   },
   normalize(items,b){
     if(!items.length)return {times:[],points:[]};
@@ -349,7 +375,7 @@ const ROMS={
 
 // ================= 실제 조류 표시 =================
 const REAL_MIN_ZOOM=8;
-const RD={times:[],pts:[],bins:new Map(),R:0.05,box:null,loading:false,reqId:0};
+const RD={times:[],pts:[],bins:new Map(),R:0.05,box:null,loading:false,reqId:0,have:null,prog:''};
 function binKey(lat,lon){return Math.floor(lat/RD.R)+','+Math.floor(lon/RD.R);}
 function setRealData(js,box){
   RD.times=js.times||[]; RD.pts=js.points||[]; RD.box=box; RD.bins=new Map();
@@ -392,26 +418,44 @@ function realAt(lat,lon,th){
   return {vE:su/sw, vN:sv/sw, real:true};
 }
 let realTimer=null;
+function viewWaterAt(lat,lon){ // 화면 안이면 바다판별 결과(true/false), 밖이거나 판별 전이면 undefined
+  if(maskState!=='ready'||!mask)return undefined;
+  const p=map.latLngToContainerPoint([lat,lon]); if(p.x<0||p.y<0||p.x>=W||p.y>=H)return undefined;
+  // 3x3 주변 중 하나라도 물이면 바다로 (해안 가까운 지점 놓치지 않게)
+  for(let dy=-6;dy<=6;dy+=6)for(let dx=-6;dx<=6;dx+=6)if(isWater(p.x+dx,p.y+dy))return true;
+  return false;
+}
 function requestReal(){
   if(!CONF.realData)return;
   clearTimeout(realTimer);
   if(map.getZoom()<REAL_MIN_ZOOM){updateBadge();return;}
-  const b=map.getBounds();
-  if(RD.box&&RD.box.contains(b)){updateBadge();return;}
   realTimer=setTimeout(async()=>{
-    const box=b.pad(0.25), id=++RD.reqId; RD.loading=true; updateBadge();
+    // 바다판별이 끝날 때까지 최대 2초 기다림 (육지 칸 요청 줄이기)
+    for(let k=0;k<20&&maskState==='loading';k++)await new Promise(r=>setTimeout(r,100));
+    const bb=map.getBounds(), view={s:bb.getSouth(),n:bb.getNorth(),w:bb.getWest(),e:bb.getEast()};
+    const cells=ROMS.plan(view,map.getZoom(),viewWaterAt);
+    // 화면에 걸치는 칸을 이미 다 받아 두었으면 다시 받지 않음 (조금 움직일 때)
+    if(RD.pts.length&&RD.have&&cells.filter(c=>c.core).every(c=>RD.have.has(c.key))){updateBadge();return;}
+    const id=++RD.reqId; RD.loading=true; RD.prog=''; updateBadge();
+    const pad=Math.max(view.n-view.s,view.e-view.w)*0.6;
+    const nb={s:view.s-pad,n:view.n+pad,w:view.w-pad,e:view.e+pad};
+    const apply=items=>{
+      const js=ROMS.normalize(items,nb);
+      setRealData(js,L.latLngBounds([nb.s,nb.w],[nb.n,nb.e]));
+      RD.empty=!RD.pts.length;
+      resetParticles();
+    };
     try{
       NET.staleMin=0;
-      const js=await ROMS.load({s:box.getSouth(),n:box.getNorth(),w:box.getWest(),e:box.getEast()});
+      const items=await ROMS.load(cells,(part,done,tot)=>{ if(id!==RD.reqId)return; RD.prog=`${done}/${tot}`; apply(part); updateBadge(); });
       if(id!==RD.reqId)return;
-      RD.staleMin=NET.staleMin;
+      RD.staleMin=NET.staleMin; RD.have=new Set(cells.map(c=>c.key));
       if(RD.staleMin)toast(`인터넷이 안 돼서 저장된 예보를 보여줘요 (${staleText(RD.staleMin)} 받은 자료)`,4000);
-      setRealData(js,L.latLngBounds([js.bounds.s,js.bounds.w],[js.bounds.n,js.bounds.e]));
-      RD.empty=!RD.pts.length;
+      apply(items);
       if(sel){computeEvents();updateUI();}
-      if(SIM.on){SIM.wantT=-1;SIM.pendingAt=0;simCache.clear();simTimeChanged(!SIM.u);} resetParticles(); computeViewScale();
+      if(SIM.on){SIM.wantT=-1;SIM.pendingAt=0;simCache.clear();simTimeChanged(!SIM.u);} computeViewScale();
     }catch(e){ if(id===RD.reqId)toast('실제 조류를 못 불러왔어요: '+e.message,5000); }
-    finally{ if(id===RD.reqId){RD.loading=false;updateBadge();} }
+    finally{ if(id===RD.reqId){RD.loading=false;RD.prog='';updateBadge();} }
   },350);
 }
 const staleText=m=>m<60?`${m}분 전`:m<1440?`${Math.round(m/60)}시간 전`:`${Math.round(m/1440)}일 전`;
@@ -422,7 +466,7 @@ function updateBadge(){
     el.style.cssText='background:#3a2a12;color:#ffc874;border-color:#6a4a1c';
     el.textContent=`📴 저장된 예보 · ${staleText(RD.staleMin)} 받음`; return;}
   el.style.cssText='background:#0f3a2e;color:#7ee0a1;border-color:#1f6b52';
-  el.textContent=map.getZoom()<REAL_MIN_ZOOM?'확대하면 실제 조류가 보여요':RD.loading?'조류 불러오는 중…':RD.empty?'이 구역은 예보 자료 없음':
+  el.textContent=map.getZoom()<REAL_MIN_ZOOM?'확대하면 실제 조류가 보여요':RD.loading?('조류 불러오는 중…'+(RD.prog?' '+RD.prog:'')):RD.empty?'이 구역은 예보 자료 없음':
     (SIM.on?(SIM.ready?(SIM.done?'실제 예보 + 항내 추정':'항내 흐름 계산 중…'):'항내 흐름 계산 중…'):'실제 예보 · 국립해양조사원');
 }
 // 공통: 지금 모드에 맞는 흐름 값 (실제 모드에서 자료 없으면 null)
@@ -933,7 +977,7 @@ async function runDiag(){
   o.push(`조류자료: 지점 ${RD.pts.length}, 시각 ${RD.times.length}, 보간반경 ${RD.R.toFixed(4)}°, 저장예보 ${RD.staleMin||0}분`);
   if(RD.times.length>1)o.push(`  시각범위 ${new Date(RD.times[0]).toLocaleString('ko-KR')} ~ ${new Date(RD.times[RD.times.length-1]).toLocaleString('ko-KR')}, 간격 ${Math.round((RD.times[1]-RD.times[0])/60000)}분`);
   const st=Object.entries(ROMS.stat); const cut=st.filter(([k,v])=>v.cut);
-  o.push(`타일 ${st.length}개 중 잘림 ${cut.length}개`+(st.length?': '+st.slice(0,8).map(([k,v])=>`${k}=${v.got}/${v.total}(${v.pages}p)`).join(' '):''));
+  o.push(`받은 칸 ${st.length}개 중 잘림 ${cut.length}개`+(st.length?': '+st.slice(0,8).map(([k,v])=>`${k}=${v.got}/${v.total}(${v.pages}p)`).join(' '):''));
   // 화면 격자 25곳 중 흐름값 있는 곳
   let has=0,tot=0;for(let yy=0;yy<5;yy++)for(let xx=0;xx<5;xx++){const ll=map.containerPointToLatLng([(xx+.5)*W/5,(yy+.5)*H/5]);tot++;if(isWater((xx+.5)*W/5,(yy+.5)*H/5)&&baseAt(ll.lat,ll.lng,th))has++;}
   o.push(`화면 25곳 중 '바다+흐름값' ${has}곳`);
@@ -1254,7 +1298,7 @@ function saveSettings(){
   setPref('dataKey',$('#keyIn').value.trim()); setPref('romsUrl',$('#urlIn').value.trim()===ROMS.DEF_URL?'':$('#urlIn').value.trim());
   setPref('field_dir',$('#f_dir').value.trim()); setPref('field_speed',$('#f_speed').value.trim()); setPref('dirIsFrom',$('#dirFrom').checked?'true':'false');
   ROMS.mem.clear(); if(NATIVE)NATIVE.clearCache(); setPref('tideScanFailAt','0'); TIDE.err='';
-  CONF.realData=!!ROMS.key(); RD.box=null; RD.pts=[]; RD.times=[];
+  CONF.realData=!!ROMS.key(); RD.box=null; RD.have=null; RD.pts=[]; RD.times=[];
   $('#slackLbl').textContent=CONF.realData?'물 약해짐':'다음 정조'; updateBadge(); requestReal(); if(sel){computeEvents();updateUI();}
 }
 $('#keySave').onclick=()=>{saveSettings();$('#setPanel').classList.remove('show');toast(CONF.realData?'저장했어요. 9단계 이상 확대하면 실제 조류가 보여요':'키를 비워서 샘플 모드로 바꿨어요',3500);};

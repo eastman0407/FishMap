@@ -28,7 +28,7 @@ window.AndroidBridge={_p:__PREFS__,shareText(t){window.__shared=t},getPref(k){re
     for(let h=-30;h<72;h++){const t=new Date(d.getTime()+h*3600e3);const p=n=>String(n).padStart(2,'0');const fd=`${t.getFullYear()}${p(t.getMonth()+1)}${p(t.getDate())}`,ft=p(t.getHours())+'00';
       items.push({category:'UUU',fcstDate:fd,fcstTime:ft,fcstValue:'6'},{category:'VVV',fcstDate:fd,fcstTime:ft,fcstValue:'0'});}
     return reply(200,JSON.stringify({response:{header:{resultCode:'00'},body:{totalCount:items.length,items:{item:items}}}}));}
-  const u2=url.replace('https://apis.data.go.kr/1192136/roms/GetRomsApiService','http://localhost:9099/roms');
+  const u2=url.replace('https://apis.data.go.kr/1192136/roms/GetRomsApiService','http://localhost:9098/roms');
   fetch(u2).then(r=>r.text().then(t=>window.__nativeCb(id,r.status,t))).catch(e=>window.__nativeCb(id,-1,String(e)));}};
 """
 results=[]
