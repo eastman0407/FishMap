@@ -151,7 +151,12 @@ public class MainActivity extends Activity {
                     // 인터넷이 안 될 때(갯바위 등): 오래됐더라도 저장된 자료가 있으면 그걸 사용
                     String stale = null;
                     try { if (cache.exists()) stale = read(new FileInputStream(cache)); } catch (Exception ignored) {}
-                    if (stale != null) { code = 200; body = stale; }
+                    // 1000 + 경과 분 = '오래된 저장 자료'라는 표시 (화면에서 "N시간 전 받음" 표시용)
+                    if (stale != null) {
+                        long ageMin = Math.max(1, (System.currentTimeMillis() - cache.lastModified()) / 60000L);
+                        code = 1000 + (int) Math.min(ageMin, 500000L);
+                        body = stale;
+                    }
                     else { code = -1; body = String.valueOf(e.getMessage()); }
                 }
                 final String js = "window.__nativeCb(" + JSONObject.quote(cbId) + "," + code + "," + JSONObject.quote(body) + ")";
@@ -161,6 +166,18 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void dropCache(String url) { cacheFile(url).delete(); }
+
+        /** 즐겨찾기 백업 글을 카톡·메모 등으로 보내기 */
+        @JavascriptInterface
+        public void shareText(final String text) {
+            runOnUiThread(() -> {
+                Intent i = new Intent(Intent.ACTION_SEND);
+                i.setType("text/plain");
+                i.putExtra(Intent.EXTRA_TEXT, text);
+                i.putExtra(Intent.EXTRA_SUBJECT, "물흐름 지도 즐겨찾기 백업");
+                try { startActivity(Intent.createChooser(i, "즐겨찾기 백업 보내기")); } catch (Exception ignored) {}
+            });
+        }
 
         @JavascriptInterface
         public void clearCache() {

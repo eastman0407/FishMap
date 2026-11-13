@@ -14,7 +14,7 @@ def tile(z,x,y):
 stub=open('/tmp/qa/stub.js').read()
 BRIDGE=r"""
 window.__calls=[];
-window.AndroidBridge={_p:__PREFS__,getPref(k){return this._p[k]||''},setPref(k,v){this._p[k]=v},dropCache(u){__calls.push('drop:'+u.slice(0,60))},clearCache(){},
+window.AndroidBridge={_p:__PREFS__,shareText(t){window.__shared=t},getPref(k){return this._p[k]||''},setPref(k,v){this._p[k]=v},dropCache(u){__calls.push('drop:'+u.slice(0,60))},clearCache(){},
  httpGet(url,id,m){ __calls.push(url.split('?')[0].split('/').slice(-1)[0]+'|'+m);
   const reply=(c,b)=>setTimeout(()=>window.__nativeCb(id,c,b),5);
   if(url.includes('tideFcstTime')){
@@ -177,6 +177,49 @@ with sync_playwright() as p:
     pg.click('#setBtn'); pg.click('#keySave'); pg.wait_for_timeout(300)
     check('G4 설정 저장하면 재탐색 허용', E(pg,"AndroidBridge.getPref('tideScanFailAt')")=='0')
     check('G5 스크립트 오류 없음', not errs, errs[:2])
+    pg.close()
+    print('\n[H] 개선 5종 (REQ-22~26)')
+    pg,errs=page(br,{'dataKey':'TESTKEY','rockOn':'1'})
+    lab=pg.inner_html('#timeLabel')
+    check('H1 물때 표시(남해 8물때식)', '물' in lab and '음 ' in lab, re.sub('<[^>]+>',' ',lab))
+    m=E(pg,"__QA.mulddae(Date.parse('2026-11-14T12:00:00+09:00'),false).name+'/'+__QA.mulddae(Date.parse('2026-11-14T12:00:00+09:00'),true).name")
+    check('H2 물때식 구분 (남해 13물 / 서해 12물)', m=='13물/12물', m)
+    E(pg,"_map.fire('click',{latlng:{lat:36.33,lng:126.5}})"); pg.wait_for_timeout(500)
+    check('H3 서해 지점 누르면 7물때식', '12물' in pg.inner_text('#timeLabel') or '물' in pg.inner_text('#timeLabel'), pg.inner_text('#timeLabel').replace('\n',' '))
+    E(pg,"_map._z=13;_map._c={lat:34.92,lng:128.07};_map.fire('moveend')"); pg.wait_for_timeout(5000)
+    E(pg,"_map.fire('click',{latlng:{lat:34.915,lng:128.06}})"); pg.wait_for_timeout(800)
+    ts=pg.inner_text('#iTide')
+    check('H4 물높이·만조·간조 표시(REQ-22)', '물높이' in ts and ('만조' in ts or '간조' in ts), ts)
+    # 따라가기
+    pg.click('#locBtn'); pg.wait_for_timeout(1500)
+    pg.click('#locBtn'); pg.wait_for_timeout(800)
+    check('H5 ◎ 두 번 → 따라가기 켜짐(REQ-24)', E(pg,"__QA.FOLLOW.on") and 'follow' in pg.get_attribute('#locBtn','class'))
+    pg.context.set_geolocation({'latitude':34.905,'longitude':128.075}); pg.wait_for_timeout(2500)
+    s2=E(pg,"__QA.sel()")
+    check('H6 걸어가면 내 위치 갱신 (GPS 잠깐 끊겨도 유지)', s2 and abs(s2['lat']-34.905)<1e-4 and E(pg,"__QA.FOLLOW.on"), s2)
+    E(pg,"_map.fire('dragstart')"); pg.wait_for_timeout(300)
+    check('H7 지도 손으로 움직이면 따라가기 꺼짐', not E(pg,"__QA.FOLLOW.on"))
+    # 즐겨찾기 백업
+    pg.click('#starBtn'); pg.fill('#favName','백업시험A'); pg.click('#favSave'); pg.wait_for_timeout(200)
+    pg.click('#favBtn'); pg.click('#favExport'); pg.wait_for_timeout(300)
+    shared=E(pg,"window.__shared||''")
+    check('H8 즐겨찾기 백업 보내기(REQ-25)', shared.startswith('물흐름지도-즐겨찾기:') and '백업시험A' in shared, shared[:60])
+    check('H9 스크립트 오류 없음', not errs, errs[:2])
+    pg.close()
+    # 새 폰(빈 앱)에 복원
+    pg,errs=page(br,{})
+    pg.click('#favBtn'); pg.click('#favImportOpen'); pg.fill('#favImportText','카톡에서 복사:\n'+shared); pg.click('#favImport'); pg.wait_for_timeout(300)
+    check('H10 백업 넣기(복원)', any(f['name']=='백업시험A' for f in E(pg,"__QA.loadFavs()")), pg.inner_text('#toast'))
+    pg.click('#favImportOpen'); pg.fill('#favImportText',shared); pg.click('#favImport'); pg.wait_for_timeout(300)
+    check('H11 같은 백업 두 번 넣어도 중복 안 생김', len(E(pg,"__QA.loadFavs()"))==1, pg.inner_text('#toast'))
+    pg.close()
+    # 오프라인: 앱이 저장 자료(90분 전)를 돌려주는 상황
+    OFF=BRIDGE.replace("fetch(u2).then(r=>r.text().then(t=>window.__nativeCb(id,r.status,t)))","fetch(u2).then(r=>r.text().then(t=>window.__nativeCb(id,1090,t)))")
+    BR0=BRIDGE; BRIDGE=OFF; pg,errs=page(br,{'dataKey':'TESTKEY'}); BRIDGE=BR0
+    E(pg,"_map._z=11;_map.fire('moveend')"); pg.wait_for_timeout(4000)
+    b=pg.inner_text('.samplebadge')
+    check('H12 인터넷 없을 때 저장 예보 표시(REQ-23)', '저장된 예보' in b and '2시간 전' in b, b)
+    check('H13 저장 예보로도 흐름 계산', E(pg,"__QA.RD.pts.length")>0, E(pg,"__QA.RD.pts.length"))
     pg.close()
     br.close()
 
