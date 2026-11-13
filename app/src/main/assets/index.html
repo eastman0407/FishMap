@@ -267,30 +267,37 @@ const ROMS={
     let js; try{js=JSON.parse(r.text);}catch(e){if(NATIVE)NATIVE.dropCache(url);
       const m=r.text.match(/<returnAuthMsg>([^<]+)|<resultMsg>([^<]+)/); throw new Error('응답 오류 '+r.status+(m?' '+(m[1]||m[2]):'')+' — 키·주소 확인');}
     const code=ROMS.findNum(js,/^resultCode$/i);
+    if(code===3)return {items:[],total:0,raw:js}; // 자료 없음(육지 구역 등)은 오류가 아님
     if(code!=null&&code!==0){if(NATIVE)NATIVE.dropCache(url);throw new Error('공공데이터포털 오류 '+code+' ('+({20:'권한 없음',22:'호출 한도 초과',30:'등록 안 된 키',31:'기한 만료 키'}[code]||'')+')');}
     return {items:ROMS.findItems(js)||[],total:ROMS.findNum(js,/^totalCount$/i),raw:js};
   },
   mem:new Map(),
-  async tile(tx,ty){
-    const k=tx+'_'+ty, c=ROMS.mem.get(k); if(c&&Date.now()-c.at<ROMS.CACHE_MIN*60000)return c.items;
+  async tile(tx,ty,maxPages){
+    const k=tx+'_'+ty+'_'+maxPages, c=ROMS.mem.get(k); if(c&&Date.now()-c.at<ROMS.CACHE_MIN*60000)return c.items;
     const T=ROMS.TILE, b={w:+(tx*T).toFixed(4),s:+(ty*T).toFixed(4)}; b.e=+(b.w+T).toFixed(4); b.n=+(b.s+T).toFixed(4);
     let all=[],total=null;
-    for(let p=1;p<=ROMS.MAX_PAGES;p++){const r=await ROMS.page(b,p,ROMS.CACHE_MIN);if(r.total!=null)total=r.total;all=all.concat(r.items);
+    for(let p=1;p<=maxPages;p++){const r=await ROMS.page(b,p,ROMS.CACHE_MIN);if(r.total!=null)total=r.total;all=all.concat(r.items);
       if(!r.items.length||(total!=null&&all.length>=total)||r.items.length<300)break;}
     ROMS.mem.set(k,{at:Date.now(),items:all}); return all;
   },
   async load(b){
     if(!ROMS.key())throw new Error('설정(⚙)에서 공공데이터 키를 넣어주세요');
-    const T=ROMS.TILE, xs=[], ys=[];
-    for(let x=Math.floor(b.w/T);x<=Math.floor(b.e/T);x++)xs.push(x);
-    for(let y=Math.floor(b.s/T);y<=Math.floor(b.n/T);y++)ys.push(y);
-    if(xs.length*ys.length>16)throw new Error('범위가 너무 넓어요. 더 확대하세요');
-    const lists=await Promise.all(xs.flatMap(x=>ys.map(y=>ROMS.tile(x,y))));
-    const tb={w:xs[0]*T,e:(xs[xs.length-1]+1)*T,s:ys[0]*T,n:(ys[ys.length-1]+1)*T};
-    const out=ROMS.normalize(lists.flat(),tb); out.bounds=tb; return out;
+    const T=ROMS.TILE; let keys=[];
+    for(let x=Math.floor(b.w/T);x<=Math.floor(b.e/T);x++)for(let y=Math.floor(b.s/T);y<=Math.floor(b.n/T);y++)keys.push({x,y});
+    // 너무 넓으면 화면 가운데에서 가까운 40타일만 (호출 수 보호)
+    const cx=(b.w+b.e)/2/T, cy=(b.s+b.n)/2/T;
+    if(keys.length>40){keys.sort((a,q)=>((a.x+0.5-cx)**2+(a.y+0.5-cy)**2)-((q.x+0.5-cx)**2+(q.y+0.5-cy)**2));keys=keys.slice(0,40);}
+    const mp=keys.length>12?2:15; // 넓은 화면은 타일당 2페이지(600점)까지만
+    let err=null;
+    const lists=await Promise.all(keys.map(k=>ROMS.tile(k.x,k.y,mp).catch(e=>{err=e;return[];})));
+    const flat=lists.flat();
+    if(!flat.length&&err)throw err;
+    const tb={w:Math.min(...keys.map(k=>k.x))*T,e:(Math.max(...keys.map(k=>k.x))+1)*T,s:Math.min(...keys.map(k=>k.y))*T,n:(Math.max(...keys.map(k=>k.y))+1)*T};
+    const out=ROMS.normalize(flat,tb); out.bounds=tb; return out;
   },
   normalize(items,b){
     if(!items.length)return {times:[],points:[]};
+
     const F=ROMS.fields(items[0]);
     if(!F.lat||!F.lon||!F.dir||!F.speed)throw new Error('응답 칸 이름을 못 찾음: '+Object.keys(items[0]).join(', '));
     const unit=pref('speedUnit','auto'), sp0=items.slice(0,2000).map(it=>+it[F.speed]).filter(x=>x>0).sort((a,b)=>a-b), med=sp0.length?sp0[sp0.length>>1]:0;
@@ -315,7 +322,7 @@ const ROMS={
 };
 
 // ================= 실제 조류 표시 =================
-const REAL_MIN_ZOOM=9;
+const REAL_MIN_ZOOM=8;
 const RD={times:[],pts:[],bins:new Map(),R:0.05,box:null,loading:false,reqId:0};
 function binKey(lat,lon){return Math.floor(lat/RD.R)+','+Math.floor(lon/RD.R);}
 function setRealData(js,box){
