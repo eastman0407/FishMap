@@ -76,7 +76,8 @@ with sync_playwright() as p:
     E(pg,"_map._z=8;_map.fire('moveend')"); pg.wait_for_timeout(3000)
     check('B4 광역 8단계 표시(REQ-18)', E(pg,"__QA.RD.pts.length")>0 and '자료 없음' not in pg.inner_text('.samplebadge'), pg.inner_text('.samplebadge'))
     E(pg,"_map._z=11;_map.fire('moveend')"); pg.wait_for_timeout(2500)
-    check('B5 색 단계 자동조정(REQ-19)', len(E(pg,"__QA.VIEW.breaks"))==5, [round(x,2) for x in E(pg,"__QA.VIEW.breaks")])
+    # REQ-19 → REQ-37(11-14 사용자 결정): 색은 낚시 기준 고정 7단계(빨강=2.0노트), 약한 흐름은 움직임 속도(VIEW.G)로 구분
+    check('B5 색 단계 고정(빨강 2.0) + 약한 흐름 움직임 확대(REQ-19→37)', E(pg,"__QA.VIEW.breaks")==[0.3,0.6,1,1.4,1.7,2] and E(pg,"__QA.VIEW.G")>=1, [E(pg,"__QA.VIEW.breaks"),E(pg,"__QA.VIEW.G")])
     # 지점 선택·정보카드
     E(pg,"_map.fire('click',{latlng:{lat:34.9,lng:128.05}})"); pg.wait_for_timeout(800)
     check('B6 지점 정보카드', pg.is_visible('#info') and 'kn' in pg.inner_text('#iSpeed'), pg.inner_text('#iSpeed')+' '+pg.inner_text('#iDir'))

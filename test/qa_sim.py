@@ -1,6 +1,6 @@
 # 항내 추정 ON/OFF·과속·받기 실패 시험 (build-20). 실제 모양 모의 서버(9098) + 합성 OSM 타일
 import sys, time, statistics as S
-sys.argv=sys.argv[:1]
+sys.argv=sys.argv[:2]
 src=open('test/qa_realshape.py').read().split("    c0=calls()")[0]
 src=src.replace("BRIDGE=r\"\"\"window.AndroidBridge={","BRIDGE=r\"\"\"window.__failN=0;window.__failBox=null;window.AndroidBridge={")
 src=src.replace("  if(!url.includes('/roms/'))return reply(200,","  if(url.includes('/roms/')&&window.__failBox&&(()=>{const q=new URL(url).searchParams;return +q.get('ymin')>=window.__failBox[0]&&+q.get('ymax')<=window.__failBox[1]&&+q.get('xmin')>=window.__failBox[2]&&+q.get('xmax')<=window.__failBox[3]})())return reply(-1,'timeout');\n  if(!url.includes('/roms/'))return reply(200,")
@@ -14,6 +14,11 @@ exec(src+'''
     RATIO="""(()=>{const th=__QA.tH(),o=[];for(let yy=1;yy<20;yy++)for(let xx=1;xx<10;xx++){const x=xx*__QA.W()/10,y=yy*__QA.H()/20;
       if(!__QA.isWater(x,y))continue;const ll=_map.containerPointToLatLng([x,y]);const a=__QA.flowAt(ll.lat,ll.lng,th),b=__QA.baseAt(ll.lat,ll.lng,th);
       if(a&&b&&a.est&&Math.hypot(b.vE,b.vN)>0.05)o.push(Math.hypot(a.vE,a.vN)/Math.hypot(b.vE,b.vN));}return o;})()"""
+    # 속도비는 정조(물 흐름이 거의 없는 때)에 재면 의미 없음 → 앞으로 24시간 중 예보 유속이 가장 센 시각으로 맞춤
+    go(13,34.882,128.096,6000)
+    best=E("""(()=>{let bt=0,bv=-1;for(let m=0;m<=1440;m+=60){const th=m/60;let s=0,n=0;for(const p of __QA.RD.pts.slice(0,40)){const v=__QA.baseAt(p.lat,p.lon,th);if(v){s+=Math.hypot(v.vE,v.vN);n++;}}if(n&&s/n>bv){bv=s/n;bt=m;}}return [bt,bv];})()""")
+    E(f"const s=document.querySelector('#slider');s.value={best[0]};s.dispatchEvent(new Event('input'))"); pg.wait_for_timeout(800)
+    print('시험 시각(분)', best)
     # S1 OFF 13단계: 계산 안 함 (지금과 같음)
     go(13,34.882,128.096,6000)
     check('S1 OFF·13단계: 항내 추정 꺼짐(기존 동작)', not E("__QA.SIM.on"), E("document.querySelector('.samplebadge').textContent"))
