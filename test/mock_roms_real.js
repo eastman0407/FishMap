@@ -4,7 +4,7 @@
 //  - 격자 간격 약 0.029°(위도) x 0.031°(경도), 살짝 비틀린 격자
 //  - 구역에 지점 없으면 resultCode 3
 const http=require('http');
-const T0=(()=>{const d=new Date(Date.now()+9*3600e3);d.setUTCHours(0,0,0,0);return d.getTime()-9*3600e3-86400e3;})(); // 어제 00시 KST
+const T00=(()=>{const d=new Date(Date.now()+9*3600e3);d.setUTCHours(0,0,0,0);return d.getTime()-9*3600e3-86400e3;})(); // 어제 00시 KST
 const NT=178, DLAT=0.0287, DLON=0.0313;
 function pts(s,n,w,e){
   const out=[];
@@ -14,16 +14,18 @@ function pts(s,n,w,e){
   }
   return out.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
 }
-let calls=0;
+let calls=0, EMPTY=false, T0=T00;
+// 시험 조작: /mode?empty=1 → 모든 대답 '자료 없음'(일시적 빈 대답 흉내), /mode?run=1 → 예보 회차 하루 뒤로(새 예보 발표)
 http.createServer((req,res)=>{
   const u=new URL(req.url,'http://x'); const q=k=>+u.searchParams.get(k);
   if(u.pathname==='/calls'){res.end(String(calls));return;}
-  if(u.pathname==='/reset'){calls=0;res.end('0');return;}
+  if(u.pathname==='/reset'){calls=0;EMPTY=false;T0=T00;res.end('0');return;}
+  if(u.pathname==='/mode'){if(u.searchParams.has('empty'))EMPTY=q('empty')===1;if(q('run')===1)T0+=86400e3;res.end('ok');return;}
   calls++;
   const P=pts(q('ymin'),q('ymax'),q('xmin'),q('xmax')), page=q('pageNo')||1, rows=Math.min(300,q('numOfRows')||10);
   const total=P.length*NT;
   res.writeHead(200,{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'});
-  if(!total){res.end(JSON.stringify({header:{resultCode:'03',resultMsg:'NODATA_ERROR'}}));return;}
+  if(!total||EMPTY){res.end(JSON.stringify({header:{resultCode:'03',resultMsg:'NODATA_ERROR'}}));return;}
   const items=[];
   for(let r=(page-1)*rows;r<Math.min(total,page*rows);r++){
     const [lat,lon]=P[Math.floor(r/NT)], h=r%NT, t=new Date(T0+h*3600e3+9*3600e3), p=n=>String(n).padStart(2,'0');

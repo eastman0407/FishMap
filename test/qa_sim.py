@@ -26,17 +26,23 @@ exec(src+'''
     r=sorted(E(RATIO)); check('S4 ON·13단계 추정/예보 속도비 0.75~1.33 (과속 수정)', r and 0.75<=S.median(r)<=1.33, f'중앙값 {S.median(r):.2f}, 10~90% {r[len(r)//10]:.2f}~{r[-len(r)//10]:.2f}, 표본 {len(r)}' if r else '표본 없음')
     # S5 16단계 섬 옆 속도비 (예전 1.69배)
     go(16,34.882,128.096,500); wait("__QA.SIM.on&&__QA.SIM.done",120)
-    FAR="""(()=>{const s=__QA.SIM,gx=s.gx,gy=s.gy,N=gx*gy,d=new Int32Array(N).fill(1e9),q=[];
+    FAR="""(()=>{const T=[...__QA.SIM.tiles.values()].find(t=>__QA.SIM.view.includes(t.key)&&t.cur&&t.solid);const s={gx:T.gx,gy:T.gy,solid:T.solid,u:T.cur.u,v:T.cur.v,scale:T.cur.scale,ox:T.ox,oy:T.oy,sz:T.lv},gx=s.gx,gy=s.gy,N=gx*gy,d=new Int32Array(N).fill(1e9),q=[];
       for(let i=0;i<N;i++)if(s.solid[i]){d[i]=0;q.push(i);}
       for(let h=0;h<q.length;h++){const c=q[h],X=c%gx,Y=(c/gx)|0;for(const[dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){const x=X+dx,y=Y+dy;if(x<0||y<0||x>=gx||y>=gy)continue;const j=y*gx+x;if(d[j]>d[c]+1){d[j]=d[c]+1;q.push(j);}}}
       const o=[];for(let Y=15;Y<gy-15;Y+=3)for(let X=15;X<gx-15;X+=3){const i=Y*gx+X;if(d[i]<45)continue;
         const ll=_map.unproject([s.ox+(X+0.5)*12,s.oy+(Y+0.5)*12],s.sz),b=__QA.baseAt(ll.lat,ll.lng,__QA.tH());if(!b)continue;const bs=Math.hypot(b.vE,b.vN);if(bs<0.05)continue;
         o.push(Math.hypot(s.u[i],s.v[i])/s.scale/bs);}return o;})()"""
     r=sorted(E(FAR)); check('S5 16단계 섬에서 1km 이상 떨어진 바다 속도비 0.75~1.33 (수정 전 1.12)', r and 0.75<=S.median(r)<=1.33, f'중앙값 {S.median(r):.2f}, 10~90% {r[len(r)//10]:.2f}~{r[-len(r)//10]:.2f}' if r else '표본 없음')
-    # S6 경계 이어짐: 구역 가장자리 바로 안쪽 값이 예보와 같은지
-    edge=E("""(()=>{const s=__QA.SIM,o=[];for(const[X,Y] of [[1,85],[169,85],[85,1],[85,169]]){const ll=_map.unproject([s.ox+(X+0.5)*12,s.oy+(Y+0.5)*12],s.sz);
-      const a=__QA.flowAt(ll.lat,ll.lng,__QA.tH()),b=__QA.baseAt(ll.lat,ll.lng,__QA.tH());if(a&&b)o.push(Math.hypot(a.vE-b.vE,a.vN-b.vN)/Math.max(0.05,Math.hypot(b.vE,b.vN)));}return o;})()""")
-    check('S6 구역 가장자리에서 예보와 이어짐(차이 15% 이하)', edge and max(edge)<=0.15, [round(x,2) for x in edge])
+    # S6 구역 가장자리·겹침에서 끊김 없음: 화면을 가로지르는 선 3개에서 이웃 칸 사이 급변
+    go(13,34.882,128.096,500); wait("__QA.SIM.on&&__QA.SIM.done",180)
+    jump=E("""(()=>{const th=__QA.tH();let mx=0,med=[];for(const fy of [0.3,0.5,0.7]){let prev=null;for(let i=0;i<=400;i++){const ll=_map.containerPointToLatLng([i*__QA.W()/400,__QA.H()*fy]);
+      const v=__QA.flowAt(ll.lat,ll.lng,th);if(v&&prev)mx=Math.max(mx,Math.hypot(v.vE-prev.vE,v.vN-prev.vN));if(v)med.push(Math.hypot(v.vE,v.vN));prev=v;}}med.sort((a,b)=>a-b);return [mx,med[med.length>>1]];})()""")
+    check('S6 구역 경계·겹침에서 끊김 없음 (이웃 칸 급변 ≤ 평균의 35%)', jump[0]<=0.35*max(jump[1],0.05), f'최대 급변 {jump[0]:.3f}kn, 평균 {jump[1]:.3f}kn, 구역 {E("__QA.SIM.view.length")}개')
+    # S6b 옮겨도·같은 범위에서 확대해도 같은 곳 결과가 같음 (고정 구역)
+    PT="JSON.stringify([[34.885,128.09],[34.878,128.10],[34.889,128.085]].map(([a,o])=>{const v=__QA.flowAt(a,o,__QA.tH());return v?[+v.vE.toFixed(5),+v.vN.toFixed(5)]:null}))"
+    a0=E(PT); E("_map.panBy(120,-90)"); pg.wait_for_timeout(800); wait("__QA.SIM.on&&__QA.SIM.done",180); a1=E(PT)
+    go(14,34.882,128.096,500); wait("__QA.SIM.on&&__QA.SIM.done",180); a2=E(PT)
+    check('S6b 옮기거나 13→14단계로 확대해도 같은 곳 값 동일', a0==a1==a2 and 'null' not in a0, f'{a0} | {a1} | {a2}')
     # S7 OFF 되돌리기
     E("document.querySelector('#simBtn').click()"); go(13,34.882,128.096,3000)
     check('S7 OFF로 되돌리면 13단계 계산 꺼짐', not E("__QA.SIM.on"))

@@ -7,8 +7,8 @@ android {
         applicationId 'kr.fishmap.app'
         minSdk 26
         targetSdk 34
-        versionCode 21
-        versionName '1.20'
+        versionCode 22
+        versionName '1.21'
     }
     // 항상 같은 서명으로 만들어야 폰에서 '업데이트'가 됨 (개인용 비공개 저장소에 함께 보관)
     signingConfigs {

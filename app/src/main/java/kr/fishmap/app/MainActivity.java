@@ -123,7 +123,7 @@ public class MainActivity extends Activity {
         /** 앱 버전 (진단용): "1.19 (20)" */
         @JavascriptInterface public String appVersion() {
             try { android.content.pm.PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), 0);
-                return pi.versionName + " (" + pi.getLongVersionCode() + ")"; } catch (Exception e) { return "?"; }
+                @SuppressWarnings("deprecation") int vc = pi.versionCode; return pi.versionName + " (" + vc + ")"; } catch (Throwable e) { return "?"; }
         }
         @JavascriptInterface public String getPref(String k) { return prefs().getString(k, ""); }
         @JavascriptInterface public void setPref(String k, String v) { prefs().edit().putString(k, v).apply(); }
@@ -137,7 +137,8 @@ public class MainActivity extends Activity {
                 File cache = cacheFile(url);
                 try {
                     if (maxAgeMin > 0 && cache.exists() && System.currentTimeMillis() - cache.lastModified() < maxAgeMin * 60000L) {
-                        code = 200;
+                        // 2000000 + 경과 분 = '기간 안의 저장본'이라는 표시 (진단·빈 대답 재확인용)
+                        code = 2000000 + (int) ((System.currentTimeMillis() - cache.lastModified()) / 60000L);
                         body = read(new FileInputStream(cache));
                     } else {
                         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
@@ -184,6 +185,22 @@ public class MainActivity extends Activity {
             });
         }
 
+        /** 지난 자료 청소: rules = "roms:11520,tide:2880,wind:4320,misc:43200,legacy:0" (종류:보관 분). 결과 "지운 개수,바이트" */
+        @JavascriptInterface
+        public String cleanCache(String rules) {
+            java.util.Map<String, Long> keep = new java.util.HashMap<>();
+            for (String r : rules.split(",")) { String[] kv = r.split(":"); if (kv.length == 2) try { keep.put(kv[0].trim(), Long.parseLong(kv[1].trim())); } catch (Exception ignored) {} }
+            File[] fs = new File(getCacheDir(), "http").listFiles();
+            int n = 0; long bytes = 0; long now = System.currentTimeMillis();
+            if (fs != null) for (File f : fs) {
+                String nm = f.getName(); int u = nm.indexOf('_');
+                String cat = u > 0 ? nm.substring(0, u) : "legacy";
+                Long k = keep.get(cat); if (k == null) k = keep.get("misc"); if (k == null) continue;
+                if (now - f.lastModified() > k * 60000L) { long len = f.length(); if (f.delete()) { n++; bytes += len; } }
+            }
+            return n + "," + bytes;
+        }
+
         @JavascriptInterface
         public void clearCache() {
             File[] fs = new File(getCacheDir(), "http").listFiles();
@@ -195,12 +212,14 @@ public class MainActivity extends Activity {
         File dir = new File(getCacheDir(), "http");
         dir.mkdirs();
         try {
+            // 종류별 이름표 → 지난 자료 청소 때 종류마다 보관 기간을 다르게
+            String cat = url.contains("/roms/") ? "roms" : url.contains("tideFcst") ? "tide" : url.contains("VilageFcst") ? "wind" : "misc";
             MessageDigest md = MessageDigest.getInstance("SHA-1");
             StringBuilder sb = new StringBuilder();
             for (byte b : md.digest(url.getBytes(StandardCharsets.UTF_8))) sb.append(String.format("%02x", b));
-            return new File(dir, sb.toString());
+            return new File(dir, cat + "_" + sb);
         } catch (Exception e) {
-            return new File(dir, Integer.toHexString(url.hashCode()));
+            return new File(dir, "misc_" + Integer.toHexString(url.hashCode()));
         }
     }
 

@@ -130,10 +130,14 @@ with sync_playwright() as p:
     for k in range(50):
         pg.wait_for_timeout(1000)
         if E(pg,"__QA.SIM.done"): done=True; break
-    check('D1 항내 계산 완료', done, f"steps={E(pg,'__QA.SIM.steps')} badge={pg.inner_text('.samplebadge')}")
-    key=E(pg,"__QA.SIM.key"); u=E(pg,"Array.from(__QA.SIM.u.slice(9000,9004))")
+    check('D1 항내 계산 완료', done, f"구역 {E(pg,'__QA.SIM.view.length')}개 badge={pg.inner_text('.samplebadge')}")
+    PT="JSON.stringify([[34.918,128.065],[34.921,128.072],[34.916,128.075]].map(([a,o])=>{const v=__QA.flowAt(a,o,__QA.tH());return v?[+v.vE.toFixed(6),+v.vN.toFixed(6)]:null}))"
+    u=E(pg,PT)
     E(pg,"_map.panBy(80,-60)"); pg.wait_for_timeout(1500)
-    check('D2 조금 이동해도 결과 동일(재현성)', E(pg,"__QA.SIM.key")==key and E(pg,"Array.from(__QA.SIM.u.slice(9000,9004))")==u)
+    for k in range(40):
+        if E(pg,"__QA.SIM.done"): break
+        pg.wait_for_timeout(1000)
+    check('D2 조금 이동해도 같은 곳 결과 동일(재현성)', E(pg,PT)==u, u)
     E(pg,"_map.fire('click',{latlng:{lat:34.9196,lng:128.07}})"); pg.wait_for_timeout(500)
     check('D3 항내 지점 카드 "추정" 표시', '추정' in pg.inner_text('#iState') or '약' in pg.inner_text('#iSpeed'), pg.inner_text('#iSpeed')+' / '+pg.inner_text('#iState'))
     pg.close()

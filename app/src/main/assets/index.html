@@ -255,8 +255,21 @@ const NET={staleMin:0};
 function nget(url,maxAge){
   if(!NATIVE) return fetch(url).then(async r=>({status:r.status,text:await r.text(),stale:0})).catch(e=>({status:-1,text:String(e),stale:0}));
   return new Promise(res=>{const id='c'+Date.now()+Math.random();
-    nativeCbs[id]=(c,b)=>{const st=c>=1000?c-1000:0; if(st)NET.staleMin=Math.max(NET.staleMin,st); res({status:c>=1000?200:c,text:b,stale:st});};
+    nativeCbs[id]=(c,b)=>{
+      if(c>=2000000){res({status:200,text:b,stale:0,cached:true,ageMin:c-2000000});return;} // 기간 안의 저장본
+      const st=c>=1000?c-1000:0; if(st)NET.staleMin=Math.max(NET.staleMin,st); res({status:c>=1000?200:c,text:b,stale:st,cached:st>0,ageMin:st});};
     NATIVE.httpGet(url,id,maxAge||0);});
+}
+// ── 지난 자료 자동 청소 (하루 1번, 앱 켤 때): 종류별 보관 기간(분) ──
+// 조류 예보 8일(예보 길이 7.4일, 인터넷 끊겨도 마지막 예보는 끝날 때까지 남김), 조석 8일(관측소 목록 7일 포함),
+// 바람 3일(예보 길이), 기타 30일, 옛 형식 파일(이름표 없음)은 바로 삭제
+const CLEAN_RULES='roms:11520,tide:11520,wind:4320,misc:43200,legacy:0';
+function cleanOld(force){
+  try{ if(!NATIVE||!NATIVE.cleanCache)return null;
+    const last=+(pref('cleanAt','0'))||0; if(!force&&Date.now()-last<20*3600000)return null;
+    const r=NATIVE.cleanCache(CLEAN_RULES).split(','); setPref('cleanAt',String(Date.now())); setPref('cleanRes',r.join(','));
+    return {n:+r[0],bytes:+r[1]};
+  }catch(e){return null;}
 }
 const pref=(k,d)=>{try{return (NATIVE?NATIVE.getPref(k):localStorage.getItem(k))||d;}catch(e){return d;}};
 const setPref=(k,v)=>{try{NATIVE?NATIVE.setPref(k,v):localStorage.setItem(k,v);}catch(e){}};
@@ -294,43 +307,74 @@ const ROMS={
     let js; try{js=JSON.parse(r.text);}catch(e){if(NATIVE)NATIVE.dropCache(url);
       const m=r.text.match(/<returnAuthMsg>([^<]+)|<resultMsg>([^<]+)/); throw new Error('응답 오류 '+r.status+(m?' '+(m[1]||m[2]):'')+' — 키·주소 확인');}
     const code=ROMS.findNum(js,/^resultCode$/i);
-    if(code===3)return {items:[],total:0,raw:js}; // 자료 없음(육지 구역 등)은 오류가 아님
+    if(code===3)return {items:[],total:0,raw:js,cached:r.cached,ageMin:r.ageMin,url}; // 자료 없음(육지 구역 등)은 오류가 아님
     if(code!=null&&code!==0){if(NATIVE)NATIVE.dropCache(url);throw new Error('공공데이터포털 오류 '+code+' ('+({20:'권한 없음',22:'호출 한도 초과',30:'등록 안 된 키',31:'기한 만료 키'}[code]||'')+')');}
-    return {items:ROMS.findItems(js)||[],total:ROMS.findNum(js,/^totalCount$/i),raw:js};
+    return {items:ROMS.findItems(js)||[],total:ROMS.findNum(js,/^totalCount$/i),raw:js,cached:r.cached,ageMin:r.ageMin,url};
   },
   // ── 받기 방식 (실기기 진단 2026-11-14 기준) ──
   // 실제 자료: 지점(약 3km 간격)마다 178시간치가 지점순으로 옴 → 지점 1개 = 178줄, 한 번에 최대 300줄
   //  · 확대(11단계 이상): 0.05° 작은 칸을 '전부' 받음 (칸당 지점 2~4개, 요청 2~3번)
   //  · 넓은 화면: 바다 위 표본 위치마다 작은 칸(±0.022°) 1번만 → 지점 1~2개씩 (전체 대신 표본)
-  mem:new Map(), stat:{}, DETAIL_ZOOM:11, CELL:0.05, MAX_REQ:150,
-  async cell(key,b,maxPages){
-    const c=ROMS.mem.get(key); if(c&&Date.now()-c.at<ROMS.CACHE_MIN*60000)return c.items;
-    let all=[],total=null,pages=0;
-    for(let p=1;p<=maxPages;p++){const r=await ROMS.page(b,p,ROMS.CACHE_MIN);pages++;if(r.total!=null)total=r.total;all=all.concat(r.items);
+  // run = 예보 회차(첫 시각). 한 화면에는 가장 새 회차 한 벌만 씀 (11-14 실기기: 어제·오늘 예보가 섞여 경계·구멍)
+  mem:new Map(), stat:{}, DETAIL_ZOOM:11, CELL:0.05, MAX_REQ:150, run:0, EMPTY_MIN:10,
+  runOf(items){let m=Infinity;const F=items.length?ROMS.fields(items[0]):null;if(!F)return 0;
+    for(let i=0;i<items.length;i+=1){const t=ROMS.time(items[i],F.time);if(t!=null&&t<m)m=t;} return isFinite(m)?m:0;},
+  async fetchCell(b,maxPages,maxAge){
+    let all=[],total=null,pages=0,cached=false,ageMin=0;const urls=[];
+    for(let p=1;p<=maxPages;p++){const r=await ROMS.page(b,p,maxAge);pages++;urls.push(r.url);if(p===1){cached=!!r.cached;ageMin=r.ageMin||0;}
+      if(r.total!=null)total=r.total;all=all.concat(r.items);
       if(!r.items.length||(total!=null&&all.length>=total)||r.items.length<300)break;}
-    ROMS.stat[key]={got:all.length,total,pages,cut:maxPages>1&&total!=null&&all.length<total};
-    ROMS.mem.set(key,{at:Date.now(),items:all}); return all;
+    return {all,total,pages,cached,ageMin,urls};
   },
+  async cell(key,b,maxPages){
+    const c=ROMS.mem.get(key); if(c&&Date.now()-c.at<c.ttl&&(!c.run||c.run>=ROMS.run))return c.items;
+    let f=await ROMS.fetchCell(b,maxPages,ROMS.CACHE_MIN), retried='';
+    let run=f.all.length?ROMS.runOf(f.all):0;
+    // 저장본이 비었거나(빈 대답 6시간 저장 결함) 옛 회차면 → 저장본 버리고 서버에 새로 물어봄
+    if(f.cached&&(!f.all.length||(run&&run<ROMS.run))){
+      if(NATIVE)f.urls.forEach(u=>NATIVE.dropCache(u));
+      retried=f.all.length?'옛 회차→새로':'빈 저장본→새로';
+      f=await ROMS.fetchCell(b,maxPages,ROMS.CACHE_MIN); run=f.all.length?ROMS.runOf(f.all):0;
+    }
+    // 빈 대답은 저장하지 않음 (다음에 다시 물어봄), 기억도 10분만
+    if(!f.all.length&&NATIVE)f.urls.forEach(u=>NATIVE.dropCache(u));
+    if(run>ROMS.run){ // 새 회차 등장 → 옛 회차 칸은 버림 (다음 화면 갱신 때 새로 받음)
+      const old=ROMS.run; ROMS.run=run;
+      if(old){for(const [k,v] of ROMS.mem)if(v.run&&v.run<run)ROMS.mem.delete(k); RD.have=null; ROMS.newRun=true;}
+    }
+    ROMS.stat[key]={got:f.all.length,total:f.total,pages:f.pages,cut:maxPages>1&&f.total!=null&&f.all.length<f.total,
+      src:f.cached?'저장':'새로',age:f.ageMin,run,retried,at:Date.now()};
+    ROMS.mem.set(key,{at:Date.now(),ttl:(f.all.length?ROMS.CACHE_MIN:ROMS.EMPTY_MIN)*60000,items:f.all,run,b}); return f.all;
+  },
+  // 화면 둘레(nb)에 걸치는, 가장 새 회차의 받은 칸 전부 (새 결과가 비어도 기존 흐름을 지우지 않게)
+  pool(nb){const out=[];for(const v of ROMS.mem.values()){if(!v.items.length||!v.b)continue;if(v.run&&v.run<ROMS.run)continue;
+      if(v.b.e<nb.w||v.b.w>nb.e||v.b.n<nb.s||v.b.s>nb.n)continue;out.push(v.items);}return out.flat();},
   // 지금 화면에 필요한 칸 목록
-  plan(view,zoom,waterAt){
-    const cells=[];
-    if(zoom>=ROMS.DETAIL_ZOOM){
-      const C=ROMS.CELL, pad=0.3, dh=(view.n-view.s)*pad, dw=(view.e-view.w)*pad;
-      const b={s:view.s-dh,n:view.n+dh,w:view.w-dw,e:view.e+dw};
+  // ext: 항내 추정 구역 범위 (구역 테두리에 넣을 바깥 예보가 다 있어야 해서 함께 받음)
+  plan(view,zoom,waterAt,ext){
+    const cells=[], C=ROMS.CELL, pad=0.3, dh=(view.n-view.s)*pad, dw=(view.e-view.w)*pad;
+    let b={s:view.s-dh,n:view.n+dh,w:view.w-dw,e:view.e+dw};
+    if(ext)b={s:Math.min(b.s,ext.s),n:Math.max(b.n,ext.n),w:Math.min(b.w,ext.w),e:Math.max(b.e,ext.e)};
+    const need=ext||view, nDetail=(Math.floor(b.e/C)-Math.floor(b.w/C)+1)*(Math.floor(b.n/C)-Math.floor(b.s/C)+1);
+    if(zoom>=ROMS.DETAIL_ZOOM&&nDetail<=90){
       for(let x=Math.floor(b.w/C);x<=Math.floor(b.e/C);x++)for(let y=Math.floor(b.s/C);y<=Math.floor(b.n/C);y++){
         const cb={w:+(x*C).toFixed(4),s:+(y*C).toFixed(4),e:+((x+1)*C).toFixed(4),n:+((y+1)*C).toFixed(4)};
         // 칸 중심·네 귀퉁이가 전부 육지면 건너뜀 (화면 안에서 판별 가능할 때만)
         const probe=[[(cb.s+cb.n)/2,(cb.w+cb.e)/2],[cb.s,cb.w],[cb.s,cb.e],[cb.n,cb.w],[cb.n,cb.e]].map(([a,o])=>waterAt(a,o));
         if(probe.every(v=>v===false))continue;
-        const core=cb.e>view.w&&cb.w<view.e&&cb.n>view.s&&cb.s<view.n; // 화면에 실제로 걸치는 칸
+        const core=cb.e>need.w&&cb.w<need.e&&cb.n>need.s&&cb.s<need.n; // 화면(또는 계산 구역)에 걸치는 칸
         cells.push({key:`d${x}_${y}`,b:cb,pages:8,lat:(cb.s+cb.n)/2,lon:(cb.w+cb.e)/2,core});
       }
     }else{
-      const zb=Math.max(6,Math.floor(zoom)), sp=ROMS.CELL*Math.pow(2,ROMS.DETAIL_ZOOM-zb), h=0.022;
-      for(let x=Math.floor(view.w/sp);x<=Math.floor(view.e/sp);x++)for(let y=Math.floor(view.s/sp);y<=Math.floor(view.n/sp);y++){
+      // 넓으면 표본: 간격은 CELL×2^k (같은 간격이면 같은 칸 이름 → 다시 쓸 수 있음), 표본 90곳 이하
+      const zb=Math.max(6,Math.floor(zoom)); let k=Math.max(0,ROMS.DETAIL_ZOOM-zb), sp=C*Math.pow(2,k);
+      const area=ext?b:view;
+      while(((area.e-area.w)/sp+1)*((area.n-area.s)/sp+1)>90){k++;sp*=2;}
+      const h=0.022;
+      for(let x=Math.floor(area.w/sp);x<=Math.floor(area.e/sp);x++)for(let y=Math.floor(area.s/sp);y<=Math.floor(area.n/sp);y++){
         const la=(y+0.5)*sp, lo=(x+0.5)*sp;
         if(waterAt(la,lo)===false)continue; // 표본 위치가 육지면 건너뜀
-        cells.push({key:`s${zb}_${x}_${y}`,b:{s:+(la-h).toFixed(4),n:+(la+h).toFixed(4),w:+(lo-h).toFixed(4),e:+(lo+h).toFixed(4)},pages:1,lat:la,lon:lo,core:true});
+        cells.push({key:`s${k}_${x}_${y}`,b:{s:+(la-h).toFixed(4),n:+(la+h).toFixed(4),w:+(lo-h).toFixed(4),e:+(lo+h).toFixed(4)},pages:1,lat:la,lon:lo,core:true});
       }
     }
     const cy=(view.s+view.n)/2, cx=(view.w+view.e)/2;
@@ -383,18 +427,59 @@ const ROMS={
 
 // ================= 실제 조류 표시 =================
 const REAL_MIN_ZOOM=8;
-const RD={times:[],pts:[],bins:new Map(),R:0.05,box:null,loading:false,reqId:0,have:null,prog:'',failed:[]};
+// ── 예보 점 잇기 (11-14 개선): 점 3개씩 삼각형으로 이어 그 안을 고르게 채움(들로네 삼각망·선형) ──
+//  · 긴 변(LMAX, 약 5km 이상)은 잇지 않음 → 멀리 떨어진 점끼리 육지 건너 섞이지 않게
+//  · 삼각형 밖(해안 가장자리)은 가까운 점들만 매끄러운 가중치로 (반경 약 3km), 그보다 멀면 '자료 없음'
+//  · 예전 방식(반경 안 점만 섞고, 없으면 10km까지 가장 가까운 점 복사)은 경계가 칼같이 생겼음
+const KX=0.82; // 경도 1도 ≈ 위도 0.82도 (북위 35도)
+function delaunay(P){ // P:[{x,y}] → 삼각형 [i,j,k] 목록 (보이어-왓슨)
+  const n=P.length; if(n<3)return [];
+  let mnx=Infinity,mny=Infinity,mxx=-Infinity,mxy=-Infinity; for(const p of P){mnx=Math.min(mnx,p.x);mny=Math.min(mny,p.y);mxx=Math.max(mxx,p.x);mxy=Math.max(mxy,p.y);}
+  const d=Math.max(mxx-mnx,mxy-mny)*20+1, cx=(mnx+mxx)/2, cy=(mny+mxy)/2;
+  const V=P.concat([{x:cx-d,y:cy-d},{x:cx+d,y:cy-d},{x:cx,y:cy+d}]);
+  const cc=(a,b,c)=>{const A=V[a],B=V[b],C=V[c],D=2*(A.x*(B.y-C.y)+B.x*(C.y-A.y)+C.x*(A.y-B.y));
+    if(Math.abs(D)<1e-18)return {x:0,y:0,r:Infinity};
+    const a2=A.x*A.x+A.y*A.y,b2=B.x*B.x+B.y*B.y,c2=C.x*C.x+C.y*C.y;
+    const x=(a2*(B.y-C.y)+b2*(C.y-A.y)+c2*(A.y-B.y))/D, y=(a2*(C.x-B.x)+b2*(A.x-C.x)+c2*(B.x-A.x))/D;
+    return {x,y,r:(A.x-x)**2+(A.y-y)**2};};
+  let T=[{v:[n,n+1,n+2],c:cc(n,n+1,n+2)}];
+  for(let i=0;i<n;i++){const p=V[i],bad=[],keep=[];
+    for(const t of T)((p.x-t.c.x)**2+(p.y-t.c.y)**2<t.c.r?bad:keep).push(t);
+    const ed=new Map();
+    for(const t of bad)for(const [a,b] of [[t.v[0],t.v[1]],[t.v[1],t.v[2]],[t.v[2],t.v[0]]]){const k=a<b?a+','+b:b+','+a;ed.set(k,ed.has(k)?null:[a,b]);}
+    T=keep; for(const e of ed.values())if(e)T.push({v:[e[0],e[1],i],c:cc(e[0],e[1],i)});
+  }
+  return T.filter(t=>t.v[0]<n&&t.v[1]<n&&t.v[2]<n).map(t=>t.v);
+}
+const RD={times:[],pts:[],bins:new Map(),R:0.03,box:null,loading:false,reqId:0,have:null,prog:'',failed:[],tri:[],tbins:new Map(),TG:0.05,LMAX:0.045};
 function binKey(lat,lon){return Math.floor(lat/RD.R)+','+Math.floor(lon/RD.R);}
 function setRealData(js,box){
-  RD.times=js.times||[]; RD.pts=js.points||[]; RD.box=box; RD.bins=new Map();
-  // 격자 간격 추정 → 보간 반경: 각 점에서 '가장 가까운 이웃 점'까지 거리의 중앙값 (격자가 기울어져 있어도 맞게)
+  RD.ver=(RD.ver||0)+1; RD.times=js.times||[]; RD.pts=js.points||[]; RD.box=box; RD.bins=new Map(); RD.tri=[]; RD.tbins=new Map();
+  // 점 간격: 각 점에서 '세 번째로 가까운 점'까지 거리의 중앙값
+  //  (촘촘한 격자에선 이웃 간격과 같고, 넓은 화면 표본처럼 2~3점씩 뭉친 경우엔 뭉치 사이 간격이 됨)
   const P=RD.pts, nn=[], step=Math.max(1,Math.floor(P.length/300));
-  for(let i=0;i<P.length;i+=step){let best=1e9;const a=P[i];
-    for(let j=0;j<P.length;j++){if(i===j)continue;const dy=P[j].lat-a.lat,dx=(P[j].lon-a.lon)*0.82,d=dx*dx+dy*dy;if(d>1e-10&&d<best)best=d;}
-    if(best<1e9)nn.push(Math.sqrt(best));}
+  for(let i=0;i<P.length;i+=step){const a=P[i], b3=[1e9,1e9,1e9];
+    for(let j=0;j<P.length;j++){if(i===j)continue;const dy=P[j].lat-a.lat,dx=(P[j].lon-a.lon)*KX,d=dx*dx+dy*dy;if(d<=1e-10)continue;
+      if(d<b3[2]){b3[2]=d;b3.sort((x,y)=>x-y);}}
+    const k=b3[2]<1e9?b3[2]:b3[1]<1e9?b3[1]:b3[0]; if(k<1e9)nn.push(Math.sqrt(k));}
   nn.sort((a,b)=>a-b); const sp=nn.length?nn[Math.floor(nn.length/2)]:0.03;
-  RD.R=Math.max(0.005,sp*2.0);
+  RD.LMAX=Math.min(0.5,Math.max(0.045,sp*2.2));     // 이보다 긴 변은 잇지 않음 (촘촘할 때 약 5km)
+  RD.R=Math.min(0.2,Math.max(0.03,sp*1.1));          // 삼각형 밖 보조 반경 (촘촘할 때 약 3km)
+  // 확대(11단계+)에서는 점이 적게 받아졌어도 '약 3~6km' 제한을 넘기지 않음 (넓은 화면 표본일 때만 멀리 이음)
+  if(map.getZoom()>=ROMS.DETAIL_ZOOM){RD.LMAX=Math.min(RD.LMAX,0.055);RD.R=Math.min(RD.R,0.033);}
   RD.pts.forEach(p=>{const k=binKey(p.lat,p.lon);if(!RD.bins.has(k))RD.bins.set(k,[]);RD.bins.get(k).push(p);});
+  if(P.length>=3&&P.length<=3000){
+    const L2=RD.LMAX*RD.LMAX, Q=P.map(p=>({x:p.lon*KX,y:p.lat}));
+    RD.TG=RD.LMAX;
+    for(const [a,b,c] of delaunay(Q)){
+      const A=Q[a],B=Q[b],C=Q[c], e=(u,v)=>(u.x-v.x)**2+(u.y-v.y)**2;
+      if(e(A,B)>L2||e(B,C)>L2||e(C,A)>L2)continue;
+      const det=(B.y-C.y)*(A.x-C.x)+(C.x-B.x)*(A.y-C.y); if(Math.abs(det)<1e-14)continue;
+      const t={a,b,c,A,B,C,det}; RD.tri.push(t);
+      const x0=Math.floor(Math.min(A.x,B.x,C.x)/RD.TG),x1=Math.floor(Math.max(A.x,B.x,C.x)/RD.TG),y0=Math.floor(Math.min(A.y,B.y,C.y)/RD.TG),y1=Math.floor(Math.max(A.y,B.y,C.y)/RD.TG);
+      for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){const k=x+','+y;if(!RD.tbins.has(k))RD.tbins.set(k,[]);RD.tbins.get(k).push(t);}
+    }
+  }
 }
 function timeIdx(th){
   const T=RD.times; if(!T.length)return null; const ms=t0.getTime()+th*3600000;
@@ -402,27 +487,27 @@ function timeIdx(th){
   let lo=0,hi=T.length-1; while(hi-lo>1){const m=(lo+hi)>>1; if(T[m]<=ms)lo=m; else hi=m;}
   return {i:lo,f:(ms-T[lo])/(T[hi]-T[lo]),out:false};
 }
+function ptVal(p,ti){const j=ti.i,j2=Math.min(j+1,RD.times.length-1);let u=p.u[j],v=p.v[j];if(u==null)return null;
+  if(ti.f>0&&p.u[j2]!=null){u+=(p.u[j2]-u)*ti.f;v+=(p.v[j2]-v)*ti.f;}return [u,v];}
 function realAt(lat,lon,th){
   if(!RD.pts.length)return null;
   const ti=timeIdx(th); if(!ti||ti.out)return null;
-  const bl=Math.floor(lat/RD.R), bo=Math.floor(lon/RD.R), R2=RD.R*RD.R;
-  let su=0,sv=0,sw=0;
-  for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const arr=RD.bins.get((bl+a)+','+(bo+b));if(!arr)continue;
-    for(const p of arr){const dy=p.lat-lat, dx=(p.lon-lon)*0.82, d2=dx*dx+dy*dy; if(d2>R2)continue;
-      const j=ti.i, j2=Math.min(j+1,RD.times.length-1);
-      let u=p.u[j], v=p.v[j]; if(u==null)continue;
-      if(ti.f>0&&p.u[j2]!=null){u+=(p.u[j2]-u)*ti.f; v+=(p.v[j2]-v)*ti.f;}
-      const w=1/(d2+1e-6); su+=u*w; sv+=v*w; sw+=w;}}
-  if(!sw){
-    // 반경 안에 점이 없으면, 조금 더 넓게(2배) 찾아 가장 가까운 점 하나 사용 (작은 빈틈 메우기)
-    let bd=4*R2, bp=null;
-    for(let a=-2;a<=2;a++)for(let b=-2;b<=2;b++){const arr=RD.bins.get((bl+a)+','+(bo+b));if(!arr)continue;
-      for(const p of arr){const dy=p.lat-lat,dx=(p.lon-lon)*0.82,d2=dx*dx+dy*dy;if(d2<bd&&p.u[ti.i]!=null){bd=d2;bp=p;}}}
-    if(!bp)return null;
-    const j=ti.i,j2=Math.min(j+1,RD.times.length-1);let u=bp.u[j],v=bp.v[j];
-    if(ti.f>0&&bp.u[j2]!=null){u+=(bp.u[j2]-u)*ti.f;v+=(bp.v[j2]-v)*ti.f;}
-    return {vE:u,vN:v,real:true};
+  const x=lon*KX, y=lat;
+  // 1) 삼각형 안이면 세 꼭짓점 값을 거리 비율로 섞음 (선형 → 경계가 생기지 않음)
+  const arr=RD.tbins.get(Math.floor(x/RD.TG)+','+Math.floor(y/RD.TG));
+  if(arr)for(const t of arr){const {A,B,C,det}=t;
+    const l1=((B.y-C.y)*(x-C.x)+(C.x-B.x)*(y-C.y))/det, l2=((C.y-A.y)*(x-C.x)+(A.x-C.x)*(y-C.y))/det, l3=1-l1-l2;
+    if(l1<-1e-9||l2<-1e-9||l3<-1e-9)continue;
+    let su=0,sv=0,sw=0; for(const [w,i] of [[l1,t.a],[l2,t.b],[l3,t.c]]){const q=ptVal(RD.pts[i],ti);if(q&&w>0){su+=q[0]*w;sv+=q[1]*w;sw+=w;}}
+    if(sw>0.3)return {vE:su/sw,vN:sv/sw,real:true};
+    break;
   }
+  // 2) 삼각형 밖(해안 가장자리): 반경 R 안 점들만, 가장자리로 갈수록 0이 되는 매끄러운 가중치
+  const R=RD.R, bl=Math.floor(lat/R), bo=Math.floor(lon/R); let su=0,sv=0,sw=0;
+  for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const arr2=RD.bins.get((bl+a)+','+(bo+b));if(!arr2)continue;
+    for(const p of arr2){const d=Math.hypot(p.lat-lat,(p.lon-lon)*KX)/R; if(d>=1)continue;
+      const q=ptVal(p,ti); if(!q)continue; const w=(1-d)**4*(4*d+1); su+=q[0]*w; sv+=q[1]*w; sw+=w;}}
+  if(sw<1e-6)return null;
   return {vE:su/sw, vN:sv/sw, real:true};
 }
 let realTimer=null;
@@ -441,12 +526,13 @@ function requestReal(){
     // 바다판별이 끝날 때까지 최대 2초 기다림 (육지 칸 요청 줄이기)
     for(let k=0;k<20&&maskState==='loading';k++)await new Promise(r=>setTimeout(r,100));
     const bb=map.getBounds(), view={s:bb.getSouth(),n:bb.getNorth(),w:bb.getWest(),e:bb.getEast()};
-    const cells=ROMS.plan(view,map.getZoom(),viewWaterAt);
+    const ext=simExtent(), cells=ROMS.plan(view,map.getZoom(),viewWaterAt,ext);
     // 화면에 걸치는 칸을 이미 다 받아 두었으면 다시 받지 않음 (조금 움직일 때)
     if(RD.pts.length&&RD.have&&cells.filter(c=>c.core).every(c=>RD.have.has(c.key))){updateBadge();return;}
     const id=++RD.reqId; RD.loading=true; RD.prog=''; updateBadge();
     const pad=Math.max(view.n-view.s,view.e-view.w)*0.6;
-    const nb={s:view.s-pad,n:view.n+pad,w:view.w-pad,e:view.e+pad};
+    let nb={s:view.s-pad,n:view.n+pad,w:view.w-pad,e:view.e+pad};
+    if(ext)nb={s:Math.min(nb.s,ext.s-0.03),n:Math.max(nb.n,ext.n+0.03),w:Math.min(nb.w,ext.w-0.03),e:Math.max(nb.e,ext.e+0.03)};
     const apply=items=>{
       const js=ROMS.normalize(items,nb);
       setRealData(js,L.latLngBounds([nb.s,nb.w],[nb.n,nb.e]));
@@ -455,15 +541,16 @@ function requestReal(){
     };
     try{
       NET.staleMin=0;
-      const res=await ROMS.load(cells,(part,done,tot)=>{ if(id!==RD.reqId)return; RD.prog=`${done}/${tot}`; apply(part); updateBadge(); });
-      if(id!==RD.reqId)return; const items=res.items;
+      const res=await ROMS.load(cells,(part,done,tot)=>{ if(id!==RD.reqId)return; RD.prog=`${done}/${tot}`; apply(ROMS.pool(nb)); updateBadge(); });
+      if(id!==RD.reqId)return; const items=ROMS.pool(nb);
       // 실패한 칸은 '받음'에 넣지 않음 → 다음에 화면을 움직이면 다시 받음
       RD.staleMin=NET.staleMin; RD.failed=res.failed; RD.have=new Set(cells.map(c=>c.key).filter(k=>!res.failed.includes(k)));
+      if(ROMS.newRun){ROMS.newRun=false;RD.have=null;toast('새 조류 예보가 나와서 바꿔 받는 중이에요',3000);setTimeout(requestReal,500);}
       if(res.failed.length)toast(`조류 ${res.failed.length}칸을 못 받았어요 (${res.err}). 화면을 조금 움직이면 다시 받아요`,5000);
       if(RD.staleMin)toast(`인터넷이 안 돼서 저장된 예보를 보여줘요 (${staleText(RD.staleMin)} 받은 자료)`,4000);
       apply(items);
       if(sel){computeEvents();updateUI();}
-      if(SIM.on){SIM.wantT=-1;SIM.pendingAt=0;simTimeChanged(!SIM.u);} computeViewScale();
+      if(SIM.view.length){SIM.pendingAt=0;simTimeChanged(true);} computeViewScale();
     }catch(e){ if(id===RD.reqId)toast('실제 조류를 못 불러왔어요: '+e.message,5000); }
     finally{ if(id===RD.reqId){RD.loading=false;RD.prog='';updateBadge();} }
   },350);
@@ -521,7 +608,7 @@ async function windLoad(lat,lon){
     if(!times.length)throw new Error('바람 예보가 비어 있어요');
     WIND.data={times,u:times.map(t=>rec.get(t).UUU),v:times.map(t=>rec.get(t).VVV),grid:g}; WIND.key=key;
   }catch(e){ if(id===WIND.reqId){WIND.err=e.message; toast('바람 예보를 못 받았어요: '+e.message,4500);} }
-  finally{ if(id===WIND.reqId){WIND.loading=false; drawWindChip(); if(SIM.on){SIM.wantT=-1;simTimeChanged();} if(sel)updateUI();} }
+  finally{ if(id===WIND.reqId){WIND.loading=false; drawWindChip(); if(SIM.view.length){simTimeChanged(true);} if(sel)updateUI();} }
 }
 // 시각 th(시간)의 바람 {u: 동쪽, v: 북쪽, m/s} — 예보 범위 밖이면 가장 가까운 값
 function windAt(th){
@@ -548,12 +635,12 @@ function windRequest(){ if(!WIND.on)return; clearTimeout(windTimer); windTimer=s
 $('#simBtn').onclick=()=>{
   SIMMODE.on=!SIMMODE.on; setPref('simMode',SIMMODE.on?'1':'0'); $('#simBtn').classList.toggle('on',SIMMODE.on);
   toast(SIMMODE.on?`항내 추정 ON: ${SIMMODE.MIN}단계 이상에서 화면 전체를 섬·항구 모양대로 계산해요`:'항내 추정 OFF: 15단계 이상에서만 화면 가운데를 계산해요',3500);
-  simEnsure(); updateBadge(); if(sel)updateUI();
+  simEnsure(); requestReal(); updateBadge(); if(sel)updateUI();
 };
 $('#windBtn').onclick=()=>{
   WIND.on=!WIND.on; setPref('windOn',WIND.on?'1':'0');
   if(WIND.on){ if(!ROMS.key()){toast('바람은 ⚙ 설정에 공공데이터 키가 있어야 돼요',3500);} windRequest(); toast(CONF.realData?'바람 켬: 항내 추정 흐름에 바람 효과를 더해요':'바람 켬: 표층 흐름에 바람 효과를 더해요',3000);}
-  drawWindChip(); if(SIM.on){SIM.wantT=-1;simTimeChanged();} if(sel)updateUI();
+  drawWindChip(); if(SIM.view.length){simTimeChanged(true);} if(sel)updateUI();
 };
 
 // 바깥 바다 기본 흐름. 실제 예보(ROMS)는 바람 영향이 이미 반영된 예측이라 바람을 또 더하지 않음 (샘플일 때만 더함)
@@ -666,14 +753,16 @@ function isWater(x,y){
 // 화면이 아니라 '지도에 고정된 구역(약 4km 네모)'을 계산 → 화면을 옮겨도 결과가 같음.
 // 방파제·해안선 모양 안에서, 구역 가장자리의 실제(또는 샘플) 흐름을 넣고 물리 법칙대로 계산.
 // 계산은 별도 일꾼(Web Worker)이 해서 화면이 버벅이지 않고, 흔들림은 시간 평균으로 없앰. 숫자는 '추정'.
-const SIM_ZOOM=15, SC=12, DOM=171*SC, SNAP=256;   // 계산 단계 16에서 171칸×12px(약 4km) 구역, 칸 하나 약 23m
-// 항내 추정 버튼: OFF=지금처럼 15단계 이상에서 화면 가운데 4km만, ON=10단계 이상 어디서나 화면 전체
-// ON일 때 계산 단계 = 지금 확대단계+1 → 구역(171칸)이 화면을 다 덮음 (13단계면 약 16km, 칸 하나 약 94m)
+const SIM_ZOOM=15, SC=12, DOM=171*SC, OVC=24, STRIDE=DOM-OVC*SC;   // 구역 171칸×12px, 이웃 구역과 24칸 겹침
+// ── 항내 추정: 고정 바둑판 구역 (11-14 개선) ──
+// 예전: 화면 위치에 맞춰 구역을 새로 잡음 → 옮길 때마다 테두리가 달라져 같은 곳 결과가 바뀜
+// 지금: 지도를 고정된 바둑판 구역으로 나눠 '같은 곳은 언제나 같은 구역·같은 계산'. 이웃 구역과 겹친 부분은 부드럽게 섞음
+// 계산 단계(칸 크기)는 확대 범위별로 고정: 15단계 이상=16(칸 약 23m, 구역 4km) / ⚓ON 13~15=14(약 94m) / 11~13=12(약 375m) / 10~11=11
 const SIMMODE={on:false, MIN:10};
-function simLevel(){const z=map.getZoom(); if(z>=SIM_ZOOM)return 16; return SIMMODE.on&&z>=SIMMODE.MIN?Math.floor(z)+1:0;}
-const SIM={sz:16,bcN:null,on:false,ready:false,key:'',ox:0,oy:0,gx:0,gy:0,solid:null,bcIdx:null,u:null,v:null,scale:1,steps:0,done:false,simT:-1,wantT:-1,building:0,lastSend:0};
+function simLevel(){const z=map.getZoom(); if(z>=SIM_ZOOM)return 16; if(!SIMMODE.on||z<SIMMODE.MIN)return 0; return z>=13?14:z>=11?12:11;}
+const SIM={sz:16,on:false,ready:false,done:false,wantT:-1,pendingAt:0,lastSend:0,tiles:new Map(),view:[],queue:[],job:null,u:null};
 const simCache=new Map(), simDomCache=new Map();
-const simDomPut=(k,v)=>{simDomCache.set(k,v);if(simDomCache.size>12)simDomCache.delete(simDomCache.keys().next().value);};
+const simDomPut=(k,v)=>{simDomCache.set(k,v);if(simDomCache.size>24)simDomCache.delete(simDomCache.keys().next().value);};
 const WORKER_SRC=`
 const EX=[0,1,0,-1,0,1,-1,-1,1],EY=[0,0,1,0,-1,1,1,-1,-1],WT=[4/9,1/9,1/9,1/9,1/9,1/36,1/36,1/36,1/36],OPP=[0,3,4,1,2,7,8,5,6];
 const WARM=1800, AVG=800; let S=null, timer=null;
@@ -715,10 +804,11 @@ onmessage=e=>{const m=e.data;
 };`;
 let simWorker=null, simJob=0;
 try{simWorker=new Worker(URL.createObjectURL(new Blob([WORKER_SRC],{type:'text/javascript'})));}catch(e){simWorker=null;}
-if(simWorker)simWorker.onmessage=e=>{const m=e.data; if(m.id!==simJob)return;
-  SIM.u=m.u; SIM.v=m.v; SIM.steps=m.steps; SIM.done=m.done; SIM.ready=m.steps>500||m.done; SIM.simT=SIM.wantT;
-  if(m.done){simCache.set(SIM.key+'|'+SIM.wantT,{h:SIM.wantH,u:m.u,v:m.v,scale:SIM.scale});if(simCache.size>80)simCache.delete(simCache.keys().next().value);}
-  if(SIM.ready&&sel)updateUI(); updateBadge();};
+if(simWorker)simWorker.onmessage=e=>{const m=e.data, J=SIM.job; if(!J||m.id!==J.id)return;
+  const T=J.tile; T.cur={u:m.u,v:m.v,scale:J.scale,t:J.t,done:m.done,partial:!m.done}; T.steps=m.steps;
+  if(m.done){simCache.set(T.key+'|'+J.t,{h:J.h,u:m.u,v:m.v,scale:J.scale});if(simCache.size>60)simCache.delete(simCache.keys().next().value);
+    SIM.job=null; simPump();}
+  simStatus(); if(sel)updateUI(); updateBadge();};
 const blockedRGB=(r,g,b)=>{ if(isWaterRGB(r,g,b))return false; const mx=Math.max(r,g,b),mn=Math.min(r,g,b),av=(r+g+b)/3;
   if(mn>=250)return false;                 // 흰 도로·다리 상판은 물을 막지 않음
   if(av<90)return false;                   // 검은 테두리·글자
@@ -726,32 +816,38 @@ const blockedRGB=(r,g,b)=>{ if(isWaterRGB(r,g,b))return false; const mx=Math.max
   if(r>=g&&mx-mn>60&&av>175)return false;   // 노랑·주황·분홍 도로 (초록·모래 제외)
   if(b>g&&b>r&&b-mn>25)return false;       // 파란 선(항로 표시 등)
   return true; };
-function simDomainOf(lv){ const c=map.project(map.getCenter(),lv); return {cx:Math.round(c.x/SNAP)*SNAP, cy:Math.round(c.y/SNAP)*SNAP}; }
+// 항내 추정 구역들이 덮는 위경도 범위 (구역 테두리 예보까지 받기 위해)
+function simExtent(){const lv=simLevel(); if(!lv)return null; const T=simViewTiles(lv); if(!T.length)return null;
+  let s=90,n=-90,w=180,e=-180; for(const t of T){const a=map.unproject([t.ox,t.oy],lv),b=map.unproject([t.ox+DOM,t.oy+DOM],lv);
+    s=Math.min(s,b.lat);n=Math.max(n,a.lat);w=Math.min(w,a.lng);e=Math.max(e,b.lng);} return {s,n,w,e};}
+// 화면에 걸치는 고정 구역 목록 (단계 lv의 픽셀 좌표)
+function simViewTiles(lv){const s=map.getSize(),a=map.project(map.containerPointToLatLng([0,0]),lv),b=map.project(map.containerPointToLatLng([s.x,s.y]),lv),out=[];
+  for(let ix=Math.floor((a.x-DOM)/STRIDE)+1;ix<=Math.floor(b.x/STRIDE);ix++)for(let iy=Math.floor((a.y-DOM)/STRIDE)+1;iy<=Math.floor(b.y/STRIDE);iy++){
+    const ox=ix*STRIDE, oy=iy*STRIDE; if(ox+DOM<=a.x||ox>=b.x||oy+DOM<=a.y||oy>=b.y)continue; out.push({key:lv+':'+ix+','+iy,lv,ix,iy,ox,oy});}
+  return out.slice(0,9);}
+function simStatus(){const V=SIM.view.map(k=>SIM.tiles.get(k)).filter(t=>t&&t.solid&&!t.nodata);
+  SIM.on=V.length>0; SIM.ready=V.some(t=>t.cur&&t.cur.t===tMin); SIM.done=SIM.on&&V.every(t=>t.cur&&t.cur.t===tMin&&t.cur.done);
+  const c=V.find(t=>t.cur); SIM.u=c?c.cur.u:null;}
 function simEnsure(){
   const lv=simLevel();
-  if(!simWorker||!lv){ if(SIM.on){SIM.on=false;SIM.ready=false;SIM.key='';simJob++;if(simWorker)simWorker.postMessage({type:'stop'});updateBadge();} return; }
-  // 지금 계산 구역 안에 화면이 다 들어 있으면 그대로 사용 (조금 옮겨도 다시 계산 안 함)
-  if(SIM.key&&SIM.gx&&SIM.sz===lv){const s=map.getSize(),a=map.project(map.containerPointToLatLng([0,0]),lv),b=map.project(map.containerPointToLatLng([s.x,s.y]),lv),m=SC*2;
-    if(a.x>=SIM.ox+m&&a.y>=SIM.oy+m&&b.x<=SIM.ox+DOM-m&&b.y<=SIM.oy+DOM-m){simTimeChanged();return;}}
-  const d=simDomainOf(lv), key=lv+':'+d.cx+','+d.cy;
-  if(key===SIM.key){simTimeChanged();return;}
-  simBuildDomain(d,key,lv);
+  if(!simWorker||!lv){ if(SIM.view.length){SIM.view=[];SIM.queue=[];SIM.job=null;SIM.lastTile=null;simJob++;if(simWorker)simWorker.postMessage({type:'stop'});simStatus();updateBadge();} return; }
+  SIM.sz=lv; const vt=simViewTiles(lv); SIM.view=vt.map(t=>t.key);
+  for(const t of vt)if(!SIM.tiles.has(t.key)){const T=Object.assign({},t,{gx:DOM/SC,gy:DOM/SC,state:'new',cur:null});SIM.tiles.set(t.key,T);simBuildTile(T);}
+  // 오래 안 본 구역은 메모리에서 내림 (계산 결과는 simCache에 남아 다시 오면 바로 씀)
+  if(SIM.tiles.size>16)for(const k of [...SIM.tiles.keys()])if(!SIM.view.includes(k)&&SIM.tiles.size>16)SIM.tiles.delete(k);
+  SIM.wantT=-1; simTimeChanged(true);
 }
-async function simBuildDomain(d,key,lv){
-  const job=++SIM.building; SIM.key=key; SIM.on=false; SIM.ready=false; simJob++; simWorker.postMessage({type:'stop'});
-  const ox=d.cx-DOM/2, oy=d.cy-DOM/2, gx=DOM/SC, gy=DOM/SC;
-  Object.assign(SIM,{ox,oy,gx,gy,sz:lv});
-  if(simDomCache.has(key)){const g=simDomCache.get(key); if(!g)return;
-    Object.assign(SIM,{solid:g.solid,bcIdx:g.bcIdx,bcN:g.bcN,bcNb:g.bcNb,u:null,v:null,steps:0,done:false,simT:-1,wantT:-1,on:true});
-    simTimeChanged(true); return;}
-  // 1) 구역 지도(OpenStreetMap, 확대단계 15)를 받아 물/구조물 판별
+async function simBuildTile(T){
+  const {key,lv,ox,oy,gx,gy}=T; T.state='mask';
+  if(simDomCache.has(key)){const g=simDomCache.get(key); if(!g){T.state='skip';return;} Object.assign(T,g); T.state='ready'; simTimeChanged(true); return;}
+  // 구역 지도(OpenStreetMap, 계산 단계-1)를 받아 물/구조물 판별
   const z=lv-1, f=0.5, cv=document.createElement('canvas'); cv.width=DOM*f; cv.height=DOM*f; const cx=cv.getContext('2d');
   const jobs=[];
   for(let tx=Math.floor(ox*f/256);tx<=Math.floor((ox+DOM)*f/256);tx++)for(let ty=Math.floor(oy*f/256);ty<=Math.floor((oy+DOM)*f/256);ty++)
     jobs.push(tileImg(`https://tile.openstreetmap.org/${z}/${tx}/${ty}.png`).then(im=>{if(im)cx.drawImage(im,tx*256-ox*f,ty*256-oy*f);return !!im;}));
-  const ok=await Promise.all(jobs); if(job!==SIM.building)return;
-  if(!ok.some(Boolean)){SIM.key='';return;}
-  let d8; try{d8=cx.getImageData(0,0,cv.width,cv.height).data;}catch(e){SIM.key='';return;}
+  const ok=await Promise.all(jobs);
+  if(!ok.some(Boolean)){SIM.tiles.delete(key);return;}
+  let d8; try{d8=cx.getImageData(0,0,cv.width,cv.height).data;}catch(e){SIM.tiles.delete(key);return;}
   const cs=SC*f, N=gx*gy, solid=new Uint8Array(N), W8=cv.width;
   for(let y=0;y<gy;y++)for(let x=0;x<gx;x++){let bl=0,n=0;
     for(let yy=Math.floor(y*cs);yy<Math.floor((y+1)*cs);yy++)for(let xx=Math.floor(x*cs);xx<Math.floor((x+1)*cs);xx++){const o=(yy*W8+xx)*4;n++;if(blockedRGB(d8[o],d8[o+1],d8[o+2]))bl++;}
@@ -764,64 +860,88 @@ async function simBuildDomain(d,key,lv){
       if(Y>0&&solid[c-gx]&&!seen[c-gx]){seen[c-gx]=1;st.push(c-gx);} if(Y<gy-1&&solid[c+gx]&&!seen[c+gx]){seen[c+gx]=1;st.push(c+gx);}}
     if(!edge&&comp.length<6)for(const c of comp)solid[c]=0;}
   let water=0; for(let i=0;i<N;i++)if(!solid[i])water++;
-  if(water<N*0.05||water===N){SIM.key=key;simDomPut(key,null);return;} // 물이 거의 없거나 장애물이 없는 먼바다 → 계산 불필요
+  if(water<N*0.05||water===N){simDomPut(key,null);T.state='skip';return;} // 물이 거의 없거나 장애물 없는 먼바다 → 예보 그대로
   const bc=[]; for(let i=0;i<N;i++){if(solid[i])continue;const X=i%gx,Y=(i/gx)|0;if(X===0||Y===0||X===gx-1||Y===gy-1)bc.push(i);}
-  if(!bc.length){SIM.key=key;simDomPut(key,null);return;}
+  if(!bc.length){simDomPut(key,null);T.state='skip';return;}
   // 경계 칸마다 안쪽 방향(nx,ny)과 안쪽 이웃 칸 (물이 나가는 변은 이웃 속도를 이어받게)
   const bcIdx=Int32Array.from(bc), bcN=new Int8Array(bc.length*2), bcNb=new Int32Array(bc.length);
   for(let q=0;q<bc.length;q++){const i=bc[q],X=i%gx,Y=(i/gx)|0,nx=(X===0)-(X===gx-1),ny=(Y===0)-(Y===gy-1);
     bcN[q*2]=nx;bcN[q*2+1]=ny; const j=(Y+ny)*gx+(X+nx); bcNb[q]=solid[j]?-1:j;}
-  simDomPut(key,{solid,bcIdx,bcN,bcNb});
-  Object.assign(SIM,{ox,oy,gx,gy,solid,bcIdx,bcN,bcNb,u:null,v:null,steps:0,done:false,simT:-1,wantT:-1,on:true});
+  const g={solid,bcIdx,bcN,bcNb}; simDomPut(key,g); Object.assign(T,g); T.state='ready';
   simTimeChanged(true);
 }
-// 구역 가장자리 물 칸에 넣을 바깥 흐름(실제 예보/샘플) 계산 → {bcU,bcV,scale}
-function simBC(){
-  const th=tH(), n=SIM.bcIdx.length, vE=new Float32Array(n), vN=new Float32Array(n); let mx=0.3,got=0,sE=0,sN=0;
-  for(let q=0;q<n;q++){const i=SIM.bcIdx[q],X=i%SIM.gx,Y=(i/SIM.gx)|0;
-    const ll=map.unproject([SIM.ox+(X+0.5)*SC,SIM.oy+(Y+0.5)*SC],SIM.sz); const v=baseAt(ll.lat,ll.lng,th);
-    if(v){vE[q]=v.vE;vN[q]=v.vN;got++;sE+=v.vE;sN+=v.vN;mx=Math.max(mx,Math.hypot(v.vE,v.vN));}else vE[q]=NaN;}
-  if(!got)return null;
-  for(let q=0;q<n;q++)if(isNaN(vE[q])){vE[q]=sE/got;vN[q]=sN/got;}
+// 구역 가장자리 물 칸에 넣을 바깥 흐름(실제 예보) → {bcU,bcV,bcIn,scale}
+// 바깥 예보가 없는 경계 칸은 '물이 자유롭게 드나드는 열린 경계'로 둠 (예전: 평균값을 지어서 넣음)
+function simBC(T,th){
+  const n=T.bcIdx.length, vE=new Float32Array(n), vN=new Float32Array(n), has=new Uint8Array(n); let mx=0.3,got=0;
+  for(let q=0;q<n;q++){const i=T.bcIdx[q],X=i%T.gx,Y=(i/T.gx)|0;
+    const ll=map.unproject([T.ox+(X+0.5)*SC,T.oy+(Y+0.5)*SC],T.lv); const v=baseAt(ll.lat,ll.lng,th);
+    if(v){vE[q]=v.vE;vN[q]=v.vN;has[q]=1;got++;mx=Math.max(mx,Math.hypot(v.vE,v.vN));}}
+  if(got<n*0.1)return null; // 바깥 예보가 거의 없으면 계산하지 않음 (지어낸 값 방지)
   const dr=WIND.on?(()=>{const w=windAt(th);return w?{vE:w.u*DRIFT*1.9438,vN:w.v*DRIFT*1.9438}:null;})():null;
   if(dr)mx=Math.max(mx,Math.hypot(dr.vE,dr.vN)*1.5);
-  const scale=0.07/mx, bcU=new Float32Array(n), bcV=new Float32Array(n);
+  const scale=0.07/mx, bcU=new Float32Array(n), bcV=new Float32Array(n), bcIn=new Uint8Array(n);
   const kfr=dr?0.003:0, fwx=dr?kfr*dr.vE*scale:0, fwy=dr?-kfr*dr.vN*scale:0;
-  // 물이 들어오는 변만 속도를 정해 주고, 나가는 변은 안쪽 흐름 그대로 빠져나가게 (열린 경계)
-  const bcIn=new Uint8Array(n);
   for(let q=0;q<n;q++){bcU[q]=vE[q]*scale;bcV[q]=-vN[q]*scale;
-    bcIn[q]=(SIM.bcNb[q]<0||bcU[q]*SIM.bcN[q*2]+bcV[q]*SIM.bcN[q*2+1]>=0)?1:0;}
+    bcIn[q]=has[q]&&(T.bcNb[q]<0||bcU[q]*T.bcN[q*2]+bcV[q]*T.bcN[q*2+1]>=0)?1:0;
+    if(!has[q]&&T.bcNb[q]<0)bcIn[q]=1;} // 예보 없음 + 안쪽도 막힘 → 멈춘 물(0)
   return {bcU,bcV,bcIn,scale,fwx,fwy,kfr};
 }
-// 시간이 바뀌면: 저장된 결과가 있으면 바로 사용, 없으면 일꾼에게 새 경계값 전달 (재생 중엔 너무 자주 안 보냄)
+// '자료 부족' 칸: 예보 점에서 멀어(약 3km+) 예보만으로는 값을 알 수 없던 곳 → 계산은 하되 흐리게·카드에 표시
+const FS=3; // 3칸(단계16에서 약 70m)마다 판별
+function simFar(T,th){const fx=Math.ceil(T.gx/FS), fy=Math.ceil(T.gy/FS), far=new Uint8Array(fx*fy);
+  for(let y=0;y<fy;y++)for(let x=0;x<fx;x++){const ll=map.unproject([T.ox+(x*FS+1.5)*SC,T.oy+(y*FS+1.5)*SC],T.lv);far[y*fx+x]=baseAt(ll.lat,ll.lng,th)?0:1;}
+  T.far=far; T.fx=fx; T.farVer=RD.ver;}
 // 경계값 지문: 바깥 흐름·바람이 같으면 같은 값 → 예전 계산 결과를 그대로 다시 씀
 function bcHash(b){let h=2166136261;const add=v=>{h=Math.imul(h^(Math.round(v*1e5)|0),16777619);};
-  for(let q=0;q<b.bcU.length;q++){add(b.bcU[q]);add(b.bcV[q]);} add(b.scale*100);add(b.fwx*1e3);add(b.fwy*1e3);return h>>>0;}
+  for(let q=0;q<b.bcU.length;q++){add(b.bcU[q]);add(b.bcV[q]);add(b.bcIn[q]);} add(b.scale*100);add(b.fwx*1e3);add(b.fwy*1e3);return h>>>0;}
+// 시간이 바뀌거나 자료가 바뀌면: 화면 구역마다 저장 결과 확인 → 없는 구역만 계산 줄에 세움
 function simTimeChanged(first){
-  if(!SIM.on||(!first&&SIM.wantT===tMin))return;
-  // 바깥 흐름 자료가 아직 없으면(실제 예보 불러오는 중) 1초마다 다시 시도
+  if(!SIM.view.length)return;
+  if(!first&&SIM.wantT===tMin)return;
   if(!first&&SIM.pendingAt&&performance.now()-SIM.pendingAt<1000)return;
-  const b=simBC(); if(!b){SIM.pendingAt=performance.now();return;}
-  SIM.pendingAt=0;
-  const h=bcHash(b), c=simCache.get(SIM.key+'|'+tMin);
-  if(c&&c.h===h){SIM.u=c.u;SIM.v=c.v;SIM.scale=c.scale;SIM.ready=true;SIM.done=true;SIM.wantT=SIM.simT=tMin;SIM.wantH=h;simJob++;if(sel)updateUI();updateBadge();return;}
   if(!first&&playing&&performance.now()-SIM.lastSend<1500)return;
-  SIM.wantT=tMin; SIM.wantH=h; SIM.scale=b.scale; SIM.lastSend=performance.now(); SIM.done=false; const id=++simJob;
-  if(first||!SIM.u) simWorker.postMessage({type:'init',id,gx:SIM.gx,gy:SIM.gy,solid:SIM.solid,bcIdx:SIM.bcIdx,bcNb:SIM.bcNb,bcIn:b.bcIn,bcU:b.bcU,bcV:b.bcV,fwx:b.fwx,fwy:b.fwy,kfr:b.kfr});
+  SIM.wantT=tMin; SIM.pendingAt=0; SIM.lastSend=performance.now();
+  const th=tH(); let missing=false; SIM.queue=[];
+  for(const k of SIM.view){const T=SIM.tiles.get(k); if(!T||T.state!=='ready')continue;
+    const b=simBC(T,th); T.nodata=!b; if(!b){missing=true;T.cur=null;continue;}
+    if(T.farVer!==RD.ver)simFar(T,th);
+    const h=bcHash(b), c=simCache.get(k+'|'+tMin);
+    if(c&&c.h===h){T.cur={u:c.u,v:c.v,scale:c.scale,t:tMin,done:true};continue;}
+    if(T.cur&&T.cur.t!==tMin)T.cur=Object.assign({},T.cur,{done:false});
+    SIM.queue.push({tile:T,b,h,t:tMin});}
+  if(missing)SIM.pendingAt=performance.now();
+  // 지금 계산 중인 일이 더 이상 필요 없으면 멈추고 다음으로
+  if(SIM.job&&!SIM.queue.some(q=>q.tile===SIM.job.tile&&q.h===SIM.job.h&&q.t===SIM.job.t)){SIM.job=null;if(!SIM.queue.length){simWorker.postMessage({type:'stop'});SIM.lastTile=null;}}
+  else if(SIM.job)SIM.queue=SIM.queue.filter(q=>!(q.tile===SIM.job.tile&&q.t===SIM.job.t));
+  // 화면 가운데 구역부터
+  const c=map.project(map.getCenter(),SIM.sz);
+  SIM.queue.sort((a,b)=>Math.hypot(a.tile.ox+DOM/2-c.x,a.tile.oy+DOM/2-c.y)-Math.hypot(b.tile.ox+DOM/2-c.x,b.tile.oy+DOM/2-c.y));
+  simPump(); simStatus(); updateBadge(); if(sel)updateUI();
+}
+function simPump(){
+  if(SIM.job||!SIM.queue.length)return;
+  const q=SIM.queue.shift(), T=q.tile, id=++simJob, b=q.b; SIM.job={id,tile:T,h:q.h,t:q.t,scale:b.scale};
+  if(SIM.lastTile!==T.key) simWorker.postMessage({type:'init',id,gx:T.gx,gy:T.gy,solid:T.solid,bcIdx:T.bcIdx,bcNb:T.bcNb,bcIn:b.bcIn,bcU:b.bcU,bcV:b.bcV,fwx:b.fwx,fwy:b.fwy,kfr:b.kfr});
   else simWorker.postMessage({type:'bc',id,bcIn:b.bcIn,bcU:b.bcU,bcV:b.bcV,fwx:b.fwx,fwy:b.fwy,kfr:b.kfr});
+  SIM.lastTile=T.key;
 }
 // 화면 좌표(px)의 추정 흐름(노트). undefined=계산 구역 밖, null=육지
+// 겹친 구역은 가장자리에서 멀수록 큰 비중으로 섞고, 바깥 가장자리는 예보와 섞어 이어지게
 let simFrame={k:1,x0:0,y0:0};
-function simFramePrep(){const o=map.project(map.containerPointToLatLng([0,0]),SIM.sz);simFrame={k:Math.pow(2,SIM.sz-map.getZoom()),x0:o.x,y0:o.y};}
+function simFramePrep(){const o=map.project(map.containerPointToLatLng([0,0]),SIM.sz);simFrame={k:Math.pow(2,SIM.sz-map.getZoom()),x0:o.x,y0:o.y,z:map.getZoom()};}
 function simAtPx(x,y){
-  if(!SIM.on||!SIM.ready||!SIM.u)return undefined;
-  const X=Math.floor((simFrame.x0+x*simFrame.k-SIM.ox)/SC), Y=Math.floor((simFrame.y0+y*simFrame.k-SIM.oy)/SC);
-  if(X<1||Y<1||X>=SIM.gx-1||Y>=SIM.gy-1)return undefined;
-  const i=Y*SIM.gx+X; if(SIM.solid[i])return null;
-  const d=Math.min(X,Y,SIM.gx-1-X,SIM.gy-1-Y); // 구역 가장자리 12칸은 예보와 섞어 부드럽게 이어지게
-  return {vE:SIM.u[i]/SIM.scale, vN:-SIM.v[i]/SIM.scale, real:CONF.realData, est:true, w:Math.min(1,d/12)};
+  if(!SIM.ready)return undefined;
+  const PX=simFrame.x0+x*simFrame.k, PY=simFrame.y0+y*simFrame.k;
+  let su=0,sv=0,sw=0,any=false,low=false;
+  for(const k of SIM.view){const T=SIM.tiles.get(k); if(!T||!T.cur||T.cur.t!==tMin)continue;
+    const X=Math.floor((PX-T.ox)/SC), Y=Math.floor((PY-T.oy)/SC); if(X<1||Y<1||X>=T.gx-1||Y>=T.gy-1)continue;
+    const i=Y*T.gx+X; if(T.solid[i])return null; any=true; if(T.far&&T.far[((Y/FS)|0)*T.fx+((X/FS)|0)])low=true;
+    const d=Math.min(X,Y,T.gx-1-X,T.gy-1-Y), w=Math.max(0.001,Math.min(1,(d-1)/(OVC-2)));
+    su+=T.cur.u[i]/T.cur.scale*w; sv+=-T.cur.v[i]/T.cur.scale*w; sw+=w;}
+  if(!any)return undefined;
+  return {vE:su/sw, vN:sv/sw, real:CONF.realData, est:true, w:Math.min(1,sw), low};
 }
-
 // ================= 흐름선 애니메이션 =================
 const cF=$('#flow'), xF=cF.getContext('2d'); let W=0,H=0,DPR=1, showFlow=true, moving=false;
 function resizeFlow(){const s=map.getSize();W=s.x;H=s.y;DPR=Math.min(2,window.devicePixelRatio||1);cF.width=W*DPR;cF.height=H*DPR;xF.setTransform(DPR,0,0,DPR,0,0);}
@@ -833,23 +953,25 @@ const PXK=0.55;
 function stepFlow(){
   xF.globalCompositeOperation='destination-in';xF.fillStyle='rgba(0,0,0,0.9)';xF.fillRect(0,0,W,H);xF.globalCompositeOperation='source-over';
   if(moving||maskState==='loading')return;
-  if(SIM.on&&SIM.wantT!==tMin)simTimeChanged();
+  if(SIM.view.length&&SIM.wantT!==tMin)simTimeChanged();
   if(!showFlow)return;
-  const useSim=SIM.on&&SIM.ready; if(useSim)simFramePrep();
-  const th=tH(), paths=COLORS.map(()=>new Path2D()), K=useSim?PXK*3:PXK;
+  const useSim=SIM.ready; if(useSim)simFramePrep();
+  const th=tH(), paths=COLORS.map(()=>new Path2D()), dimPaths=COLORS.map(()=>new Path2D()), K=useSim?PXK*3:PXK;
   for(const p of parts){
     p.age++;
     if(p.age>p.max||!isWater(p.x,p.y)){spawn(p);continue;}
-    let v; if(useSim){v=simAtPx(p.x,p.y);} if(!useSim||v===undefined){const ll=map.containerPointToLatLng([p.x,p.y]);v=baseAt(ll.lat,ll.lng,th);}
+    let v; if(useSim){v=simAtPx(p.x,p.y); if(v&&v.w<1){const ll=map.containerPointToLatLng([p.x,p.y]),bb=baseAt(ll.lat,ll.lng,th); if(bb){v.vE=v.vE*v.w+bb.vE*(1-v.w);v.vN=v.vN*v.w+bb.vN*(1-v.w);}}}
+    if(!useSim||v===undefined){const ll=map.containerPointToLatLng([p.x,p.y]);v=baseAt(ll.lat,ll.lng,th);}
     if(!v){spawn(p);continue;}
     const sp=Math.hypot(v.vE,v.vN);
     // 약한 흐름도 움직임이 보이도록 이동 거리만 키움 (색은 실제 세기 그대로)
     const g=useSim&&sp>1e-6?1.2*Math.sqrt(sp)/sp:VIEW.G;
     const nx=p.x+v.vE*K*g, ny=p.y-v.vN*K*g;
-    const pa=paths[bucket(sp)]; pa.moveTo(p.x,p.y); pa.lineTo(nx+0.01,ny); p.x=nx; p.y=ny;
+    const pa=(v.low?dimPaths:paths)[bucket(sp)]; pa.moveTo(p.x,p.y); pa.lineTo(nx+0.01,ny); p.x=nx; p.y=ny;
     if(nx<0||ny<0||nx>W||ny>H)p.age=1e9;
   }
   xF.lineWidth=1.5; xF.lineCap='round'; paths.forEach((pa,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(pa);});
+  xF.globalAlpha=0.35; dimPaths.forEach((pa,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(pa);}); xF.globalAlpha=1; // 자료 부족(추정만)
 }
 map.on('movestart zoomstart',()=>{moving=true;xF.clearRect(0,0,W,H);});
 map.on('moveend',()=>{moving=false;buildMask();requestReal();windRequest();drawRocks();drawTidal();tideEnsure();computeViewScale();});
@@ -1035,13 +1157,23 @@ async function runDiag(){
   o.push(`조류자료: 지점 ${RD.pts.length}, 시각 ${RD.times.length}, 보간반경 ${RD.R.toFixed(4)}°, 저장예보 ${RD.staleMin||0}분`);
   if(RD.times.length>1)o.push(`  시각범위 ${new Date(RD.times[0]).toLocaleString('ko-KR')} ~ ${new Date(RD.times[RD.times.length-1]).toLocaleString('ko-KR')}, 간격 ${Math.round((RD.times[1]-RD.times[0])/60000)}분`);
   // 지금 화면이 필요로 하는 칸들의 상태
-  {const bb=map.getBounds(), cells=ROMS.plan({s:bb.getSouth(),n:bb.getNorth(),w:bb.getWest(),e:bb.getEast()},z,viewWaterAt);
+  {const bb=map.getBounds(), cells=ROMS.plan({s:bb.getSouth(),n:bb.getNorth(),w:bb.getWest(),e:bb.getEast()},z,viewWaterAt,simExtent());
    let ok=0,empty=0,cut=0,fail=[],none=0;
    for(const c of cells){const v=ROMS.stat[c.key]; if(!v){none++;continue;} if(v.fail){fail.push(`${c.key}:${v.fail}`);continue;}
      if(!v.got)empty++;else ok++; if(v.cut)cut++;}
    o.push(`지금 화면 칸 ${cells.length}개: 받음 ${ok}, 자료없음 ${empty}, 잘림 ${cut}, 실패 ${fail.length}, 아직 안 받음 ${none}`);
+   const vs=cells.map(c=>ROMS.stat[c.key]).filter(v=>v&&!v.fail), fr=vs.filter(v=>v.src==='새로').length;
+   o.push(`  받은 곳: 새로 받음 ${fr}, 저장본 ${vs.length-fr}`+(vs.some(v=>v.retried)?`, 다시 물어봄 ${vs.filter(v=>v.retried).length}`:''));
+   o.push(`  예보 회차: ${ROMS.run?new Date(ROMS.run).toLocaleString('ko-KR'):'-'} 시작`+(()=>{const od=[...ROMS.mem.values()].filter(v=>v.items.length&&v.run&&v.run!==ROMS.run).length;return od?` · ⚠ 다른 회차 ${od}칸 보관 중`:'';})());
    if(fail.length)o.push('  실패: '+fail.slice(0,5).join(' | '));
-   if(empty)o.push('  자료없음 칸: '+cells.filter(c=>ROMS.stat[c.key]&&!ROMS.stat[c.key].fail&&!ROMS.stat[c.key].got).slice(0,6).map(c=>`${c.key}(${c.lat.toFixed(3)},${c.lon.toFixed(3)})`).join(' '));}
+   const emp=cells.filter(c=>ROMS.stat[c.key]&&!ROMS.stat[c.key].fail&&!ROMS.stat[c.key].got);
+   if(empty)o.push('  자료없음 칸: '+emp.slice(0,6).map(c=>{const v=ROMS.stat[c.key];return `${c.key}(${c.lat.toFixed(3)},${c.lon.toFixed(3)} ${v.src}${v.src==='저장'?' '+v.age+'분전':''}${v.retried?' '+v.retried:''})`;}).join(' '));
+   if(emp.length){ // 그 자리에서 새로 물어보기 (원인 확인용)
+     try{const c=emp[0], r=await ROMS.page(c.b,1,0); o.push(`  └ ${c.key} 지금 새로 물어봄: 결과코드 ${ROMS.findNum(r.raw,/^resultCode$/i)}, 전체 ${r.total??'-'}건, 받음 ${r.items.length}줄`);}
+     catch(e){o.push('  └ 새로 물어봄 실패: '+e.message);}
+   }}
+  {const cr=(pref('cleanRes','')||'').split(','), ca=+(pref('cleanAt','0'))||0;
+   o.push(`지난 자료 청소: ${ca?new Date(ca).toLocaleString('ko-KR'):'아직 안 함'}`+(ca?` · ${cr[0]||0}개 ${Math.round((+cr[1]||0)/1024)}KB 지움`:''));}
   // 화면 격자 25곳 중 흐름값 있는 곳
   let has=0,sea=0;for(let yy=0;yy<5;yy++)for(let xx=0;xx<5;xx++){const ll=map.containerPointToLatLng([(xx+.5)*W/5,(yy+.5)*H/5]);if(!isWater((xx+.5)*W/5,(yy+.5)*H/5))continue;sea++;if(baseAt(ll.lat,ll.lng,th))has++;}
   o.push(`화면 25곳 중 바다 ${sea}곳, 그중 흐름값 있음 ${has}곳`);
@@ -1182,7 +1314,7 @@ function updateUI(){
   if(!v){['#iSpeed','#iDir','#iState','#iSlack'].forEach(q=>$(q).textContent='-');
     $('#iState').textContent=CONF.realData?'자료 없음':'-'; drawTide(); return;}
   const sp=Math.hypot(v.vE,v.vN), deg=bearing(v.vE,v.vN);
-  let [st,cls]=v.est?['항내 추정','s']:v.real?(sp<EV.max*0.25?['약함','s']:sp>EV.max*0.66?['강함','e']:['보통','f']):stateOf(v.s);
+  let [st,cls]=v.est?(v.low?['추정·자료 부족','s']:['항내 추정','s']):v.real?(sp<EV.max*0.25?['약함','s']:sp>EV.max*0.66?['강함','e']:['보통','f']):stateOf(v.s);
   $('#iSpeed').textContent=(v.est?'약 ':'')+sp.toFixed(sp<1?2:1)+' kn';
   $('#iDir').textContent=dirName(deg)+'쪽';
   $('#iState').innerHTML=`<span class="tag ${cls}">${st}</span>`;
@@ -1393,6 +1525,7 @@ resizeFlow(); drawFavPins(); updateUI(); loop();
   CONF.realData=!!ROMS.key(); CONF.vworldKey=pref('vworldKey','');
   setupLayers(); updateBadge(); buildMask(); requestReal();
   WIND.on=pref('windOn','0')==='1'; drawWindChip(); windRequest();
+  setTimeout(()=>cleanOld(false),3000); // 화면이 다 뜬 뒤 조용히
   SIMMODE.on=pref('simMode','0')==='1'; $('#simBtn').classList.toggle('on',SIMMODE.on);
   TIDAL.on=pref('tidalOn','1')==='1'; $('#tidalChk').checked=TIDAL.on; drawTidal();
   $('#tidalChk').onchange=()=>{TIDAL.on=$('#tidalChk').checked; setPref('tidalOn',TIDAL.on?'1':'0'); drawTidal();
