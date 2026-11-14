@@ -584,8 +584,14 @@ function updateBadge(){
     el.textContent=`📴 저장된 예보 · ${staleText(RD.staleMin)} 받음`; return;}
   el.style.cssText='background:#0f3a2e;color:#7ee0a1;border-color:#1f6b52';
   el.textContent=map.getZoom()<REAL_MIN_ZOOM?'확대하면 실제 조류가 보여요':RD.loading?('조류 불러오는 중…'+(RD.prog?' '+RD.prog:'')):RD.empty?'이 구역은 예보 자료 없음':RD.failed&&RD.failed.length?`⚠ 실제 예보 · ${RD.failed.length}칸 못 받음`:
-    (SIM.on?(SIM.ready&&SIM.done?'실제 예보 + 항내 추정':SIM.rough?'항내 흐름 계산 중… (대략 표시)':'항내 흐름 계산 중…'):SIMMODE.on&&map.getZoom()<SIMMODE.MIN?`실제 예보 · 항내 추정은 ${SIMMODE.MIN}단계부터`:'실제 예보 · 국립해양조사원');
+    (SIM.on?(simLevel()!==SIM.sz?'항내 흐름 계산 준비 중…':SIM.ready&&SIM.done?'실제 예보 + 항내 추정':SIM.rough?'항내 흐름 계산 중… (대략 표시)':'항내 흐름 계산 중…')+' · '+simLevelText():SIMMODE.on&&map.getZoom()<SIMMODE.MIN?`실제 예보 · 항내 추정은 ${SIMMODE.MIN}단계부터`:'실제 예보 · 국립해양조사원');
 }
+// 지금 항내 추정 계산 단계 표시 (11-14 요청): 단계 이름 + 칸 한 변 길이(m) + 구역 한 변(km)
+// 단계 16 = 칸 약 23m·구역 4km(15단계 이상) / 14 = 약 94m·16km(⚓ON 13~15) / 12 = 약 375m(11~13) / 11(10~11)
+function simLevelText(){const lv=simLevel()||SIM.sz; if(!lv)return ''; // 확대를 바꾸면 계산 시작 전에도 바로 새 단계로 표시
+  const lat=map.getCenter().lat, mpp=156543.03*Math.cos(lat*Math.PI/180)/Math.pow(2,lv), cell=mpp*SC, dom=mpp*DOM/1000;
+  const name=lv===16?'정밀':lv===14?'보통':'넓게';
+  return `${name}(칸 ${cell<100?Math.round(cell):Math.round(cell/10)*10}m·구역 ${dom<10?dom.toFixed(1):Math.round(dom)}km)`;}
 // 공통: 지금 모드에 맞는 흐름 값 (실제 모드에서 자료 없으면 null)
 
 // ================= 바람 (기상청 단기예보, 5km 격자) =================
@@ -1245,7 +1251,7 @@ async function runDiag(){
   const o=[], c=map.getCenter(), z=map.getZoom(), th=tH();
   const ver=(()=>{try{return NATIVE&&NATIVE.appVersion?NATIVE.appVersion():'웹'}catch(e){return '?'}})();
   o.push(`[물흐름지도 진단] v${ver} ${new Date().toLocaleString('ko-KR')}`);
-  o.push(`상태: ${RD.loading?'조류 받는 중 '+(RD.prog||''):'받기 끝'}, 배지="${$('.samplebadge').textContent}", 항내추정 ${SIMMODE.on?'ON':'OFF'}(${SIM.on?(SIM.done?'계산완료':'계산중'):'꺼짐'}, 단계 ${SIM.sz||'-'})`);
+  o.push(`상태: ${RD.loading?'조류 받는 중 '+(RD.prog||''):'받기 끝'}, 배지="${$('.samplebadge').textContent}", 항내추정 ${SIMMODE.on?'ON':'OFF'}(${SIM.on?(SIM.done?'계산완료':'계산중'):'꺼짐'}, 단계 ${SIM.sz||'-'} ${SIM.on?simLevelText():''})`);
   o.push(`화면: 확대 ${z.toFixed(1)}, 중심 ${c.lat.toFixed(4)},${c.lng.toFixed(4)}, 크기 ${W}x${H}`);
   // 1) 바다/육지 판별
   let wpct='-';
