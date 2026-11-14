@@ -1,0 +1,15 @@
+window.L=(function(){const chain=o=>Object.assign(o,{addTo(){return o},on(){return o}});
+const handlers={};const R=6378137;
+function proj(ll,z){const la=ll.lat!==undefined?ll.lat:ll[0],lo=ll.lng!==undefined?ll.lng:ll[1];const s=256*Math.pow(2,z);
+ return{x:(lo+180)/360*s,y:(1-Math.log(Math.tan(la*Math.PI/180)+1/Math.cos(la*Math.PI/180))/Math.PI)/2*s};}
+function unproj(p,z){const x=p.x!==undefined?p.x:p[0],y=p.y!==undefined?p.y:p[1];const s=256*Math.pow(2,z);const lo=x/s*360-180;const n=Math.PI-2*Math.PI*y/s;return{lat:180/Math.PI*Math.atan(0.5*(Math.exp(n)-Math.exp(-n))),lng:lo};}
+const map={_z:16,_c:{lat:34.92,lng:128.07},getSize(){const e=document.getElementById('map');return{x:e.clientWidth,y:e.clientHeight}},
+getZoom(){return this._z},getCenter(){return this._c},getZoomScale(a,b){return Math.pow(2,a-b)},project:proj,unproject:unproj,
+containerPointToLatLng(p){const s=this.getSize(),c=proj(this._c,this._z);return unproj({x:c.x+(p.x!==undefined?p.x:p[0])-s.x/2,y:c.y+(p.y!==undefined?p.y:p[1])-s.y/2},this._z)},
+latLngToContainerPoint(ll){const s=this.getSize(),c=proj(this._c,this._z),q=proj(ll,this._z);return{x:q.x-c.x+s.x/2,y:q.y-c.y+s.y/2}},
+on(ev,f){ev.split(' ').forEach(e=>(handlers[e]=handlers[e]||[]).push(f));return this},fire(e,a){(handlers[e]||[]).forEach(f=>f(a))},
+setView(){return this},createPane(){return{style:{}}},panTo(c){window.__panned=(window.__panned||0)+1;this._c={lat:c[0],lng:c[1]};},flyTo(c,z){this._c={lat:c[0]!==undefined?c[0]:c.lat,lng:c[1]!==undefined?c[1]:c.lng};if(z)this._z=z;this.fire('movestart');this.fire('moveend');},invalidateSize(){},removeLayer(){},attributionControl:{addAttribution(){}},
+panBy(dx,dy){const c=proj(this._c,this._z);this._c=unproj({x:c.x+dx,y:c.y+dy},this._z);this.fire('movestart');this.fire('moveend');},
+getBounds(){const s=this.getSize();const a=this.containerPointToLatLng([0,s.y]),b=this.containerPointToLatLng([s.x,0]);const B=(S,N,Wd,E)=>({getSouth:()=>S,getNorth:()=>N,getWest:()=>Wd,getEast:()=>E,pad(r){const dl=(N-S)*r,dw=(E-Wd)*r;return B(S-dl,N+dl,Wd-dw,E+dw)},contains(o){return o.getSouth()>=S&&o.getNorth()<=N&&o.getWest()>=Wd&&o.getEast()<=E}});return B(a.lat,b.lat,a.lng,b.lng)}};
+return{canvas(){return{}},circleMarker(ll,o){window.__rocks=(window.__rocks||[]);window.__rocks.push(o.color);return chain({})},map(){window._map=map;return map},tileLayer(){return chain({})},latLngBounds(a,b){const S=Math.min(a[0],b[0]),N=Math.max(a[0],b[0]),Wd=Math.min(a[1],b[1]),E=Math.max(a[1],b[1]);const B={getSouth:()=>S,getNorth:()=>N,getWest:()=>Wd,getEast:()=>E,pad(){return B},contains(o){if(Array.isArray(o))return o[0]>=S&&o[0]<=N&&o[1]>=Wd&&o[1]<=E;return o.getSouth()>=S&&o.getNorth()<=N&&o.getWest()>=Wd&&o.getEast()<=E}};return B},
+marker(){window.__markers=(window.__markers||0)+1;return chain({setLatLng(){}})},divIcon(){return{}},circle(){return chain({setLatLng(){},setRadius(){}})},layerGroup(){const g=chain({clearLayers(){window.__rocks=[];g._items=[]}});g._items=[];return g},polygon(r,o){const p={on(){return p},addTo(l){(l._items=l._items||[]).push({r,o});return p}};return p},DomEvent:{stopPropagation(){}}};})();

@@ -157,6 +157,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
       <button class="btn" id="keyTest" style="flex:1">연결 시험</button>
       <button class="btn" id="diagBtn" style="flex:1">🔍 진단 보내기</button>
     </div>
+    <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="tidalChk" style="width:auto;height:auto"> 갯벌 범위 점선 표시 <span style="font-size:12px;color:var(--muted)">(11단계 이상 · 일부 지역만)</span></label></div>
     <details style="margin-top:12px;background:var(--panel2)"><summary style="font-size:13px">고급 (자료가 이상할 때)</summary>
       <div class="empty" style="padding:6px 0 2px">칸 이름 직접 지정 (비우면 자동)</div>
       <div class="namebox"><input id="f_dir" placeholder="유향 칸 (예: crdir)"><input id="f_speed" placeholder="유속 칸 (예: crsp)"></div>
@@ -851,13 +852,31 @@ function stepFlow(){
   xF.lineWidth=1.5; xF.lineCap='round'; paths.forEach((pa,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(pa);});
 }
 map.on('movestart zoomstart',()=>{moving=true;xF.clearRect(0,0,W,H);});
-map.on('moveend',()=>{moving=false;buildMask();requestReal();windRequest();drawRocks();tideEnsure();computeViewScale();});
+map.on('moveend',()=>{moving=false;buildMask();requestReal();windRequest();drawRocks();drawTidal();tideEnsure();computeViewScale();});
 map.on('resize',()=>{resizeFlow();buildMask();});
 $('#flowBtn').onclick=e=>{showFlow=!showFlow;$('#flowBtn').classList.toggle('on',showFlow);if(!showFlow)xF.clearRect(0,0,W,H);};
 
 
 // ================= 간출암·노출암 (국립해양조사원 전자해도 자료, 앱에 내장) =================
 // 간출암(주황): 썰물 때만 드러나는 바위 — 포인트이자 밀물 때 위험. 노출암(흰색): 항상 드러난 바위.
+// ── 갯벌 범위 (국립해양조사원 조간대 구역 → tidal.json: [남,서,북,동,[[위,경,위,경…] 바깥, 구멍…]]) ──
+const TIDAL={on:true,data:null,loading:false,MIN:11};
+const tidalPane=map.createPane('tidal'); tidalPane.style.zIndex=410; tidalPane.style.pointerEvents='none';
+const tidalRenderer=L.canvas({padding:0.3,pane:'tidal'});
+const tidalLayer=L.layerGroup().addTo(map);
+async function drawTidal(){
+  tidalLayer.clearLayers();
+  if(!TIDAL.on||map.getZoom()<TIDAL.MIN)return;
+  if(!TIDAL.data){ if(TIDAL.loading)return; TIDAL.loading=true;
+    try{TIDAL.data=await (await fetch('tidal.json')).json();}catch(e){TIDAL.data=[];} TIDAL.loading=false;
+    if(!TIDAL.on||map.getZoom()<TIDAL.MIN)return; }
+  const b=map.getBounds().pad(0.2);
+  for(const t of TIDAL.data){
+    if(t[2]<b.getSouth()||t[0]>b.getNorth()||t[3]<b.getWest()||t[1]>b.getEast())continue;
+    const rings=t[4].map(r=>{const o=[];for(let i=0;i<r.length;i+=2)o.push([r[i],r[i+1]]);return o;});
+    L.polygon(rings,{renderer:tidalRenderer,pane:'tidal',interactive:false,color:'#c9b27c',weight:1.6,dashArray:'6 5',fillColor:'#c9b27c',fillOpacity:0.13}).addTo(tidalLayer);
+  }
+}
 const ROCK={on:false,data:null,loading:false};
 const rockPane=map.createPane('rocks'); rockPane.style.zIndex=430;
 const rockRenderer=L.canvas({padding:0.3,pane:'rocks'});
@@ -1375,6 +1394,9 @@ resizeFlow(); drawFavPins(); updateUI(); loop();
   setupLayers(); updateBadge(); buildMask(); requestReal();
   WIND.on=pref('windOn','0')==='1'; drawWindChip(); windRequest();
   SIMMODE.on=pref('simMode','0')==='1'; $('#simBtn').classList.toggle('on',SIMMODE.on);
+  TIDAL.on=pref('tidalOn','1')==='1'; $('#tidalChk').checked=TIDAL.on; drawTidal();
+  $('#tidalChk').onchange=()=>{TIDAL.on=$('#tidalChk').checked; setPref('tidalOn',TIDAL.on?'1':'0'); drawTidal();
+    if(TIDAL.on&&map.getZoom()<TIDAL.MIN)toast(`갯벌 점선은 ${TIDAL.MIN}단계 이상 확대하면 보여요`,3000);};
   ROCK.on=pref('rockOn','0')==='1'; $('#rockBtn').classList.toggle('on',ROCK.on); drawRocks(); tideEnsure();
   if(CONF.realData)$('#slackLbl').textContent='물 약해짐';
   toast(CONF.realData?'지도를 확대하면 국립해양조사원 실제 조류 예보가 보여요':'지금은 샘플 흐름이에요. ⚙ 설정에 공공데이터 키를 넣으면 실제 조류로 바뀌어요',4000);
