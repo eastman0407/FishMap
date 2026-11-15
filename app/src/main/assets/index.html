@@ -44,6 +44,17 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 .tchip{font-size:11.5px;padding:3px 9px;border-radius:99px;background:rgba(10,21,32,.88);color:#cfe6ff;border:1px solid #2a4a6a;display:none;white-space:nowrap}
 .tchip.tide{cursor:pointer;color:#9fe7ff} .tchip.phase{color:#ffe08a;border-color:#5a4a1c}
 .tidest{white-space:nowrap;font-size:11px;padding:2px 6px;border-radius:99px;background:rgba(10,21,32,.85);color:#9fe7ff;border:1px solid #2a6a8a;transform:translate(-4px,-50%);display:inline-block;cursor:pointer}
+.ptabs{display:flex;gap:6px;margin:0 0 10px}.ptabs button{flex:1;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);font-size:14px}
+.ptabs button.on{color:var(--accent);border-color:var(--accent);font-weight:700}
+.plan{list-style:none;margin:6px 0 0;padding:0}.plan>li{border-bottom:1px solid var(--line);padding:9px 2px;cursor:pointer}
+.plan .l1{font-size:14.5px;display:flex;justify-content:space-between;gap:6px}.plan .l2{font-size:12px;color:var(--muted);margin-top:3px}
+.plan li.today .l1{color:var(--accent);font-weight:700}.plan .gold{color:#ffd24a}
+.plan .det{display:none;margin-top:8px;font-size:13px;line-height:1.6;background:var(--panel2);border-radius:10px;padding:8px 10px;cursor:default}
+.plan li.open .det{display:block}.plan .det b{color:var(--text)}.plan .det .sub{color:var(--muted);font-size:12px}
+.plan .lg input{width:100%;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);padding:0 8px;font-size:13px;margin-top:5px}
+.plan .lg .row{display:flex;gap:6px;margin-top:6px}.plan .lg .row button{flex:1;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:12.5px}
+.recpin{width:22px;height:22px;border-radius:50%;background:#ffd24a;color:#1a1200;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;border:2px solid #1a1200;box-shadow:0 0 4px #000}
+.logpin{font-size:16px;filter:drop-shadow(0 0 2px #000)}
 .tidelist{list-style:none;margin:8px 0 0;padding:0} .tidelist li{display:flex;justify-content:space-between;padding:9px 4px;border-bottom:1px solid var(--line);font-size:15px}
 .tidelist li.past{opacity:.45} .tidelist li.next{color:var(--accent);font-weight:700}
 .samplebadge{font-size:11px;padding:3px 8px;border-radius:99px;background:#3a2a12;color:#ffc874;border:1px solid #6a4a1c}
@@ -112,6 +123,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
       <button class="ibtn" id="windBtn" title="바람 영향"><span>🌬</span></button>
       <button class="ibtn" id="simBtn" title="항내 추정 (섬·항구 주변 흐름 계산)"><span>⚓</span></button>
       <button class="ibtn" id="rockBtn" title="갯바위·간출암"><span>🪨</span></button>
+      <button class="ibtn" id="planBtn" title="출조 계획·기록·추천"><span>📅</span></button>
       <button class="ibtn" id="setBtn" title="설정"><span>⚙</span></button>
     </div>
     <div class="topchips">
@@ -129,6 +141,8 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
       <div class="ihead">
         <div class="nm" id="iname">-</div>
         <button class="star" id="starBtn">☆ 저장</button>
+        <button class="star" id="alertBtn" title="안전 알림 (만조·바위 잠김 전)">🔔</button>
+        <button class="star" id="biteBtn" title="입질 기록 (지금 시각·물때·유속 자동 저장)" style="color:var(--accent);border-color:var(--accent)">🎣 입질!</button>
         <button class="x" id="closeInfo">×</button>
       </div>
       <div class="namebox" id="namebox" style="display:none">
@@ -169,6 +183,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
       <button class="btn" id="diagBtn" style="flex:1">🔍 진단 보내기</button>
     </div>
     <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">빨강(낚시 어려움) 시작 유속</span><input id="redKn" type="number" step="0.1" min="1.2" max="3" style="width:80px;flex:none"> <span style="font-size:13px;color:var(--muted)">노트</span></div>
+    <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">🔔 안전 알림 시각</span><select id="alertLead" style="height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"><option value="30">30분 전</option><option value="60">1시간 전</option><option value="120">2시간 전</option></select></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="tidalChk" style="width:auto;height:auto"> 갯벌 범위 점선 표시 <span style="font-size:12px;color:var(--muted)">(11단계 이상 · 일부 지역만)</span></label></div>
     <details style="margin-top:12px;background:var(--panel2)"><summary style="font-size:13px">고급 (자료가 이상할 때)</summary>
       <div class="empty" style="padding:6px 0 2px">칸 이름 직접 지정 (비우면 자동)</div>
@@ -185,6 +200,35 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
     <div class="empty" id="tideSub" style="padding:0"></div>
     <ul class="tidelist" id="tideList"></ul>
     <div class="empty" style="padding:10px 0 0;font-size:12px">국립해양조사원 조석예보(고,저조) · 보고 있는 화면 가운데에서 가장 가까운 조위 관측소(지도에 🌊 표시) · 실제 지금 시각 기준</div>
+  </div>
+</div>
+<div class="panel" id="planPanel">
+  <div class="pbox">
+    <h3>출조 도우미 <button class="x" id="planClose">×</button></h3>
+    <div class="ptabs"><button data-tab="plan" class="on">📅 계획</button><button data-tab="log">📓 기록</button><button data-tab="rec">📍 추천</button></div>
+    <div id="tabPlan">
+      <div class="namebox" style="align-items:center"><span style="font-size:13px;color:var(--muted);flex:none">기준</span><select id="planBase" style="flex:1;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"></select></div>
+      <div class="empty" id="planSub" style="padding:6px 0 0;font-size:12px"></div>
+      <ul class="plan" id="planList"></ul>
+      <div class="empty" style="padding:10px 0 0;font-size:12px" data-plannote>승부 시간 = 만조·간조 앞뒤 1시간 30분 · ⭐ = 해뜰녘·해질녘과 겹침 · 조차 세기는 이 3주 안에서 비교 · 유속은 예보가 있는 약 7일, 바람은 약 3일만</div>
+    </div>
+    <div id="tabRec" style="display:none">
+      <div class="namebox"><select id="recSido" style="flex:1;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"></select>
+        <select id="recSgg" style="flex:1.4;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"></select></div>
+      <div class="namebox" style="margin-top:8px"><button class="btn" id="recGo" style="flex:2;background:var(--accent);color:#06221f;border:none;font-weight:700">이 지역 추천 받기</button><button class="btn" id="recClear" style="flex:1">핀 지우기</button></div>
+      <div class="empty" id="recSub" style="padding:8px 0 0;font-size:12.5px;text-align:left"></div>
+      <ul class="plan" id="recList"></ul>
+      <div class="empty" style="padding:10px 0 0;font-size:12px">⚠ 참고용: 유속 예보·간출암·물때 규칙으로 계산한 후보예요. 진입로·낚시 금지 구역·안전은 확인하지 못해요 · 행정구역: 통계청 SGIS(2018, 공공누리 1유형)</div>
+    </div>
+    <div id="tabLog" style="display:none">
+      <div class="namebox" style="align-items:center;flex-wrap:wrap">
+        <label style="font-size:13px;display:flex;align-items:center;gap:6px;flex:1"><input type="checkbox" id="logPins" style="width:auto;height:auto"> 지도에 기록 위치 표시</label>
+        <button class="btn" id="logCsv">📤 CSV 보내기</button>
+      </div>
+      <div class="empty" id="logSum" style="padding:6px 0 0;font-size:12.5px;text-align:left"></div>
+      <ul class="plan" id="logList"></ul>
+      <div class="empty" style="padding:10px 0 0;font-size:12px">지점 카드의 🎣 입질! 버튼을 누르면 그 순간의 시각·물때·들물/날물·조차·유속·바람이 저장돼요. 어종·메모는 여기서 적어요 · 폰 안에만 저장</div>
+    </div>
   </div>
 </div>
 <div class="panel" id="favPanel">
@@ -1250,6 +1294,271 @@ function drawTideStation(){
     .on('click',ev=>{L.DomEvent.stopPropagation(ev);openTidePanel();}).addTo(map);
 }
 $('#tideClose').onclick=()=>$('#tidePanel').classList.remove('show');
+// ================= 출조 계획 (REQ-43, 강의자료 1·2부): 3주치 물때·조차·승부 시간·해 뜨고 지는 시각 =================
+// 해 뜨는·지는 시각 (NOAA 근사식, 오차 1~2분). dayMs=그날 0시(한국시간)
+function sunTimes(dayMs,lat,lon){
+  const D=Math.PI/180, n=Math.round((dayMs+12*3600e3)/DAY+2440587.5-2451545.0), Js=n-lon/360;
+  const M=(357.5291+0.98560028*Js)%360, C=1.9148*Math.sin(M*D)+0.02*Math.sin(2*M*D)+0.0003*Math.sin(3*M*D);
+  const lam=(M+C+180+102.9372)%360, Jt=2451545+Js+0.0053*Math.sin(M*D)-0.0069*Math.sin(2*lam*D);
+  const dec=Math.asin(Math.sin(lam*D)*Math.sin(23.44*D));
+  const cw=(Math.sin(-0.833*D)-Math.sin(lat*D)*Math.sin(dec))/(Math.cos(lat*D)*Math.cos(dec)); if(Math.abs(cw)>1)return null;
+  const w=Math.acos(cw)/D, toMs=j=>(j-2440587.5)*DAY;
+  return {rise:toMs(Jt-w/360),set:toMs(Jt+w/360)};
+}
+// 여러 날의 만조·간조 (고·저조 API, 하루 1번 요청, 12시간 저장. 앞 3일은 조석 칩과 같은 저장본 사용)
+async function tideExDays(code,d0,n){
+  const out=[],days=[];for(let i=-1;i<=n;i++)days.push(i);let k=0;
+  async function w(){while(k<days.length){const i=days[k++];
+    const url=`${TIDE_HL_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=10&obsCode=${code}&reqDate=${ymd(new Date(d0+i*DAY+3600e3))}`;
+    try{const r=await nget(url,720);const it=ROMS.findItems(JSON.parse(r.text))||[];if(!it.length&&NATIVE)NATIVE.dropCache(url);
+      for(const x of it){const ms=kstMs(x.predcDt),h=+x.predcTdlvVl,se=+x.extrSe;if(ms!=null&&isFinite(h)&&se>=1&&se<=4)out.push({ms,h:h/100,hi:se===1||se===3});}
+    }catch(e){if(NATIVE)NATIVE.dropCache(url);}
+    PLAN.prog++; if(PLAN.prog%4===0)$('#planSub').textContent=`조석 예보 받는 중 ${PLAN.prog}/${days.length}`;}}
+  await Promise.all([w(),w(),w(),w()]);
+  out.sort((a,b)=>a.ms-b.ms); return out.filter((e,i)=>!i||e.ms-out[i-1].ms>60000);
+}
+const PLAN={days:21,win:90,prog:0,busy:false,base:null,res:null};
+const dstr=ms=>{const d=new Date(ms);return `${d.getMonth()+1}/${d.getDate()}(${'일월화수목금토'[d.getDay()]})`;};
+function planBases(){
+  const a=[]; const c=map.getCenter(); a.push({k:'center',n:'지금 화면 가운데',la:c.lat,lo:c.lng});
+  if(sel)a.push({k:'sel',n:'선택한 지점 · '+sel.name,la:sel.lat,lo:sel.lng});
+  loadFavs().forEach((f,i)=>a.push({k:'f'+i,n:'⭐ '+f.name,la:f.lat,lo:f.lng})); return a;
+}
+// 하루 계획 만들기: 순수 계산 (시험용으로 따로 둠)
+function planDays(ex,d0,n,lat,lon){
+  const west=isWestSea(lat,lon), W=PLAN.win*60000, days=[];
+  for(let i=0;i<n;i++){const a=d0+i*DAY,b=a+DAY, e=ex.filter(x=>x.ms>=a&&x.ms<b), sun=sunTimes(a,lat,lon);
+    let rg=null; for(let j=0;j<ex.length-1;j++){const p=ex[j],q=ex[j+1];if(p.hi===q.hi)continue;const mid=(p.ms+q.ms)/2;if(mid<a||mid>=b)continue;const r=Math.abs(p.h-q.h);if(rg==null||r>rg)rg=r;}
+    const golds=sun?[[sun.rise-30*60000,sun.rise+60*60000,'해뜰녘'],[sun.set-60*60000,sun.set+30*60000,'해질녘']]:[];
+    const wins=e.map(x=>{const s=x.ms-W,t=x.ms+W,g=golds.find(G=>s<G[1]&&t>G[0]);return {s,t,x,gold:g?g[2]:null};});
+    const md=mulddae(a+12*3600e3,west);
+    days.push({d:a,ex:e,rg,sun,wins,md});}
+  const rs=days.map(d=>d.rg).filter(v=>v!=null),mn=Math.min(...rs),mx=Math.max(...rs);
+  for(const d of days){if(d.rg==null){d.str='';continue;}const r=mx>mn?(d.rg-mn)/(mx-mn):0.5;d.str=r>=0.66?'사리 쪽 · 물살 셈':r<=0.33?'조금 쪽 · 물살 약함':'중간';}
+  return days;
+}
+// 대표 승부 시간: ⭐ 겹침 > 낮(06~19시) > 아무거나
+function bestWin(d){const now=Date.now(),W=d.wins.some(w=>w.t>now)?d.wins.filter(w=>w.t>now):d.wins; // 오늘은 아직 안 지난 것 중에서
+  return W.find(w=>w.gold)||W.find(w=>{const h=new Date(w.x.ms).getHours();return h>=6&&h<=19;})||W[0]||null;}
+// 승부 시간 동안 이 지점 최대 유속(노트). 예보 없으면 null, 예보 범위를 넘으면 'after'
+function winFlow(w,lat,lon){
+  const T=RD.times; if(!T.length)return null; if(w.s>T[T.length-1])return 'after';
+  let mx=null; for(let ms=w.s;ms<=w.t;ms+=30*60000){const v=realAt(lat,lon,(ms-t0.getTime())/3600000);if(v){const sp=Math.hypot(v.vE,v.vN);if(mx==null||sp>mx)mx=sp;}}
+  return mx;
+}
+function winWind(w){const D=WIND.data;if(!D||!D.times.length||w.s>D.times[D.times.length-1]||w.t<D.times[0])return null;
+  let mx=0;for(let ms=w.s;ms<=w.t;ms+=3600e3){const q=windAt((ms-t0.getTime())/3600000);if(q)mx=Math.max(mx,Math.hypot(q.u,q.v));}return mx;}
+function renderPlan(){
+  const R=PLAN.res,L=$('#planList'); if(!R){L.innerHTML='';return;}
+  const now=Date.now(), b=R.base;
+  $('#planSub').textContent=`${R.st.n} 관측소 기준 (기준 지점에서 약 ${R.st.km.toFixed(0)}km) · ${isWestSea(b.la,b.lo)?'7물때식':'8물때식'} · 하루를 누르면 자세히`;
+  L.innerHTML=R.days.map((d,i)=>{const bw=bestWin(d), today=d.d===tideDay();
+    const fl=bw?winFlow(bw,b.la,b.lo):null;
+    const flt=fl==='after'?'유속 예보 전':fl==null?'':`유속 최대 ${fl.toFixed(1)}노트`;
+    const l2=[d.sun?`해 ${hhmm(d.sun.rise)} / ${hhmm(d.sun.set)}`:'',flt].filter(Boolean).join(' · ');
+    const det=[];
+    det.push(`<b>만조·간조</b><br>`+(d.ex.length?d.ex.map(x=>`${x.hi?'▲ 만조':'▼ 간조'} ${hhmm(x.ms)} <span class="sub">${x.h.toFixed(2)}m</span>`).join('<br>'):'자료 없음'));
+    det.push(`<b>승부 시간</b> <span class="sub">(만조·간조 앞뒤 1시간 30분)</span><br>`+d.wins.map(w=>{const f=winFlow(w,b.la,b.lo),wd=winWind(w);
+      return `${w.gold?'<span class="gold">⭐</span> ':''}${hhmm(w.s)}~${hhmm(w.t)} <span class="sub">(${w.x.hi?'만조':'간조'} ${hhmm(w.x.ms)} 앞뒤${w.gold?' · '+w.gold+' 겹침':''})</span><br>`
+        +`<span class="sub">　도착 권장 ${hhmm(w.s-2*3600e3)}~${hhmm(w.s-3600e3)} · 잠깐 쉬는 때 ${hhmm(w.x.ms-20*60000)}~${hhmm(w.x.ms+20*60000)}(물 멈춤)`
+        +(f==='after'?' · 유속 예보 전':f!=null?` · 유속 최대 ${f.toFixed(1)}노트${f>=RED.kn?' (낚시 어려움)':''}`:'')+(wd!=null?` · 바람 최대 ${wd.toFixed(0)}m/s`:'')+`</span>`;}).join('<br>'));
+    if(d.sun)det.push(`<b>해</b> 뜸 ${hhmm(d.sun.rise)} · 짐 ${hhmm(d.sun.set)}`);
+    det.push(`<b>물때</b> 음 ${d.md.ld}일 · ${mulWord(d.md.name)}`+(d.rg!=null?` · 조차 ${d.rg.toFixed(2)}m (${d.str})`:''));
+    return `<li class="${today?'today':''}" data-i="${i}"><div class="l1"><span>${dstr(d.d)} ${mulWord(d.md.name)}${d.rg!=null?` · 조차 ${d.rg.toFixed(1)}m`:''}</span>`
+      +`<span>${bw?`${bw.gold?'<span class="gold">⭐</span> ':''}승부 ${hhmm(bw.s)}~${hhmm(bw.t)}`:''}</span></div>`
+      +`<div class="l2">${d.str?d.str+' · ':''}${l2}</div><div class="det">${det.join('<br><br>')}</div></li>`;}).join('');
+}
+async function buildPlan(){
+  if(PLAN.busy)return; const bases=planBases(), k=$('#planBase').value||'center', b=bases.find(x=>x.k===k)||bases[0];
+  if(!CONF.realData){$('#planSub').textContent='공공데이터 키를 ⚙ 설정에 넣으면 실제 조석 예보로 계획을 만들어요';$('#planList').innerHTML='';return;}
+  PLAN.busy=true; PLAN.prog=0; $('#planSub').textContent='조석 관측소 확인 중…';
+  try{
+    if(!(await tideStations())){$('#planSub').textContent='조석: '+(TIDE.err||'관측소를 못 찾았어요');return;}
+    const st=nearestStation(b.la,b.lo), d0=tideDay();
+    const ex=await tideExDays(st.c,d0,PLAN.days);
+    if(ex.length<4){$('#planSub').textContent='조석 예보를 받지 못했어요 (인터넷 확인)';return;}
+    PLAN.res={base:b,st,days:planDays(ex,d0,PLAN.days,b.la,b.lo)}; renderPlan();
+  }finally{PLAN.busy=false;}
+}
+function openPlan(){
+  const bases=planBases(), cur=$('#planBase').value;
+  $('#planBase').innerHTML=bases.map(b=>`<option value="${b.k}">${b.n}</option>`).join('');
+  $('#planBase').value=bases.find(b=>b.k===cur)?cur:(sel?'sel':'center');
+  $('#planPanel').classList.add('show'); buildPlan();
+}
+$('#planBtn').onclick=openPlan;
+// ================= 조과 기록장 (REQ-44, 강의자료 2부 7장 '나만의 물때표') =================
+const LOGK='fishmap.log.v1';
+const loadLog=()=>{try{return JSON.parse(localStorage.getItem(LOGK)||'[]');}catch(e){return [];}};
+const saveLog=a=>{try{localStorage.setItem(LOGK,JSON.stringify(a));}catch(e){}};
+// 지금 이 순간의 상황을 모아 한 줄 기록
+function biteRecord(lat,lng,name){
+  const now=Date.now(), th=(now-t0.getTime())/3600000, md=mulddae(now,isWestSea(lat,lng)), ph=tidePhase();
+  let rg=null; if(TIDE.cur){const ex=tideExtremes(TIDE.cur.ser,now-14*3600e3,now+14*3600e3);for(let j=0;j<ex.length-1;j++)if(ex[j].hi!==ex[j+1].hi){const r=Math.abs(ex[j].h-ex[j+1].h);if(rg==null||r>rg)rg=r;}}
+  const v=realAt(lat,lng,th), w=WIND.data?windAt(th):null;
+  return {t:now,lat:+lat.toFixed(5),lng:+lng.toFixed(5),name:name||'',ld:md.ld,mul:mulWord(md.name),
+    phase:ph?ph.name:'',st:TIDE.cur?TIDE.cur.st.n:'',rg:rg!=null?+rg.toFixed(2):null,
+    sp:v?+Math.hypot(v.vE,v.vN).toFixed(2):null,dir:v?dirName(bearing(v.vE,v.vN)):'',
+    wind:w?+Math.hypot(w.u,w.v).toFixed(1):null,wdir:w?dirName(bearing(-w.u,-w.v)):'',fish:'',memo:''};
+}
+$('#biteBtn').onclick=()=>{if(!sel)return; const a=loadLog(); a.unshift(biteRecord(sel.lat,sel.lng,sel.name)); saveLog(a); drawLogPins();
+  toast(`🎣 ${hhmm(a[0].t)} 입질 기록! · 📅 → 📓 기록에서 어종·메모를 적어요`,3000);};
+const phaseGroup=p=>/들물/.test(p)?'들물':/날물/.test(p)?'날물':/정조/.test(p)?'물 멈춤':'';
+function logLine(r){return [r.mul,r.phase,r.rg!=null?`조차 ${r.rg}m`:'',r.sp!=null?`유속 ${r.sp.toFixed(1)}노트 ${r.dir}`:'',r.wind!=null?`바람 ${r.wdir} ${r.wind}m/s`:''].filter(Boolean).join(' · ');}
+function renderLog(){
+  const a=loadLog(), L=$('#logList');
+  const g={};for(const r of a){const k=phaseGroup(r.phase);if(k)g[k]=(g[k]||0)+1;}
+  const mc={};for(const r of a)mc[r.mul]=(mc[r.mul]||0)+1; const topm=Object.entries(mc).sort((x,y)=>y[1]-x[1]).slice(0,3);
+  $('#logSum').textContent=a.length?`입질 ${a.length}번`+(Object.keys(g).length?' · '+Object.entries(g).map(([k,n])=>`${k} ${n}`).join(' · '):'')+(topm.length?' · 많이 온 물때: '+topm.map(([k,n])=>`${k}(${n})`).join(' '):''):'아직 기록이 없어요';
+  L.innerHTML=a.map((r,i)=>`<li data-i="${i}"><div class="l1"><span>${dstr(r.t)} ${hhmm(r.t)} · ${r.name||'이름 없는 지점'}</span><span>${r.fish?'🐟 '+r.fish:''}</span></div>`
+    +`<div class="l2">${logLine(r)}</div><div class="det lg">`
+    +`<input data-f="fish" placeholder="어종 (예: 갑오징어)" value="${(r.fish||'').replace(/"/g,'&quot;')}"><input data-f="memo" placeholder="메모 (채비·크기·자리 등)" value="${(r.memo||'').replace(/"/g,'&quot;')}">`
+    +`<div class="row"><button data-go>🗺 지도에서 보기</button><button data-del>🗑 지우기</button></div></div></li>`).join('');
+}
+let logPinLayer=L.layerGroup().addTo(map);
+function drawLogPins(){logPinLayer.clearLayers(); if(pref('logPins','0')!=='1')return;
+  loadLog().forEach(r=>L.marker([r.lat,r.lng],{icon:L.divIcon({className:'',html:'<div class="logpin">🎣</div>',iconSize:[18,18],iconAnchor:[9,9]})})
+    .on('click',ev=>{L.DomEvent.stopPropagation(ev);toast(`${dstr(r.t)} ${hhmm(r.t)} ${r.name} · ${r.fish||''} ${logLine(r)}`,4000);}).addTo(logPinLayer));}
+$('#logPins').onchange=()=>{setPref('logPins',$('#logPins').checked?'1':'0');drawLogPins();};
+$('#logCsv').onclick=()=>{const a=loadLog(); if(!a.length){toast('보낼 기록이 없어요');return;}
+  const q=v=>`"${String(v==null?'':v).replace(/"/g,'""')}"`, d=ms=>{const x=new Date(ms);return `${x.getFullYear()}-${pad2(x.getMonth()+1)}-${pad2(x.getDate())}`;};
+  const rows=[['날짜','시각','장소','위도','경도','음력','물때','들물/날물','조차(m)','유속(노트)','유향','바람(m/s)','풍향','어종','메모','조위관측소']]
+    .concat(a.map(r=>[d(r.t),hhmm(r.t),r.name,r.lat,r.lng,r.ld,r.mul,r.phase,r.rg,r.sp,r.dir,r.wind,r.wdir,r.fish,r.memo,r.st]));
+  const csv='﻿'+rows.map(x=>x.map(q).join(',')).join('\n');
+  if(NATIVE&&NATIVE.shareText)NATIVE.shareText(csv); else {window.__shared=csv;toast('CSV를 만들었어요');}};
+$('#logList').addEventListener('change',e=>{const f=e.target.dataset.f; if(!f)return; const li=e.target.closest('li'),a=loadLog(),r=a[+li.dataset.i]; if(!r)return;
+  r[f]=e.target.value.trim(); saveLog(a); li.querySelector('.l1 span:last-child').textContent=r.fish?'🐟 '+r.fish:'';});
+$('#logList').addEventListener('click',e=>{const li=e.target.closest('#logList>li'); if(!li)return; const i=+li.dataset.i;
+  if(e.target.closest('[data-del]')){const b=e.target.closest('[data-del]'); if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='한 번 더 누르면 지워요';return;}
+    const a=loadLog();a.splice(i,1);saveLog(a);renderLog();drawLogPins();return;}
+  if(e.target.closest('[data-go]')){const r=loadLog()[i];$('#planPanel').classList.remove('show');map.flyTo([r.lat,r.lng],14,{duration:1});select(r.lat,r.lng,r.name||'기록 지점');return;}
+  if(e.target.closest('.det'))return; li.classList.toggle('open');});
+// ================= 안전 알림 (REQ-45, 강의자료 2부 8장): 만조·바위 잠김 전에 휴대폰 알림 =================
+// 한 번에 한 곳만: 누른 지점의 '다음 만조' 1번 + 300m 안 간출암이 '다음에 잠기는 때' 1번 (24시간 안)
+const ALERT_R=300;
+function loadAlert(){try{return JSON.parse(pref('alertSet','null'));}catch(e){return null;}}
+function alertHere(lat,lng){const a=loadAlert(); if(!a||!a.items.some(x=>x.at>Date.now()-60000))return null;
+  return Math.hypot(a.lat-lat,(a.lng-lng)*0.82)*111000<100?a:null;}
+const distM=(la1,lo1,la2,lo2)=>Math.hypot(la1-la2,(lo1-lo2)*Math.cos(la1*Math.PI/180))*111320;
+// 바위가 '드러남 → 잠김'으로 바뀌는 다음 시각 (실제 지금부터 24시간)
+function rockSubmergeAfter(d,from){
+  if(!TIDE.cur||d>=0)return null; const ser=TIDE.cur.ser; let prev=rockExposed(d,tideAtMs(ser,from));
+  for(let ms=from+600000;ms<=from+24*3600e3;ms+=600000){const e=rockExposed(d,tideAtMs(ser,ms)); if(e==null)return null;
+    if(prev===true&&e===false)return ms; prev=e;}
+  return null;
+}
+async function alertEvents(lat,lng){
+  const now=Date.now(), out=[];
+  if(TIDE.cur){const hi=tideExtremes(TIDE.cur.ser,now,now+24*3600e3).find(e=>e.hi);
+    if(hi)out.push({kind:'hi',ms:hi.ms,title:`🌊 만조 ${hhmm(hi.ms)} — 나오는 길 확인`,text:`${TIDE.cur.st.n} 기준 만조 ${hhmm(hi.ms)} (${hi.h.toFixed(1)}m). 물이 차오르기 전에 짐을 챙겨 안전한 곳으로 나오세요.`});}
+  await rockEnsure();
+  if(ROCK.data&&TIDE.cur){let best=null;
+    for(const r of ROCK.data){if(r[2]!==1||r[3]==null||r[3]>=0)continue; if(Math.abs(r[0]-lat)>0.004||Math.abs(r[1]-lng)>0.005)continue;
+      const dm=distM(lat,lng,r[0],r[1]); if(dm>ALERT_R)continue; const ms=rockSubmergeAfter(r[3],now); if(ms&&(!best||ms<best.ms))best={ms,dm,d:r[3]};}
+    if(best)out.push({kind:'rock',ms:best.ms,title:`🪨 바위 잠김 ${hhmm(best.ms)} — 고립 주의`,text:`${Math.round(best.dm)}m 옆 간출암(약 ${(-best.d).toFixed(1)}m)이 ${hhmm(best.ms)}쯤 물에 잠겨요. 바위 위라면 미리 빠져나오세요.`});}
+  return out.sort((a,b)=>a.ms-b.ms);
+}
+function alertCancelAll(){const a=loadAlert(); if(a)for(const x of a.items){if(NATIVE&&NATIVE.cancelAlarm)NATIVE.cancelAlarm(x.id); else if(window.__alarms)delete window.__alarms[x.id];}
+  setPref('alertSet','null');}
+$('#alertBtn').onclick=async()=>{
+  if(!sel)return;
+  if(alertHere(sel.lat,sel.lng)){alertCancelAll();updateUI();toast('🔕 안전 알림을 껐어요');return;}
+  if(!CONF.realData||!TIDE.cur){toast(TIDE.err||'조석 예보를 받은 뒤에 알림을 켤 수 있어요',3000);return;}
+  const perm=NATIVE&&NATIVE.notifyPrep?NATIVE.notifyPrep():'ok';
+  if(perm==='off'){toast('휴대폰 설정에서 이 앱의 알림이 꺼져 있어요. 켜고 다시 눌러 주세요',4000);return;}
+  const lead=+pref('alertLead','60'), now=Date.now(), ev=await alertEvents(sel.lat,sel.lng);
+  if(!ev.length){toast('24시간 안에 알릴 만조·바위 잠김이 없어요',3000);return;}
+  alertCancelAll();
+  const items=[],msg=[]; let k=0, inexact=false;
+  for(const e of ev){
+    let at=e.ms-lead*60000; if(e.ms<=now+60000)continue; if(at<now+5000)at=now+5000; // 이미 알림 시각이 지났으면 바로
+    const id=(Math.floor(now/1000)%100000)*10+(k++);
+    if(NATIVE&&NATIVE.scheduleAlarm){const r=NATIVE.scheduleAlarm(id,String(Math.round(at)),e.title,e.text); if(r==='inexact')inexact=true;}
+    else{(window.__alarms=window.__alarms||{})[id]={at,title:e.title,text:e.text};}
+    items.push({id,at,ms:e.ms,kind:e.kind,title:e.title}); msg.push(`${e.kind==='hi'?'만조':'바위 잠김'} ${hhmm(e.ms)} → ${hhmm(at)} 알림`);
+  }
+  if(!items.length){toast('곧 만조예요. 지금 바로 나올 준비를 하세요',3500);return;}
+  setPref('alertSet',JSON.stringify({lat:sel.lat,lng:sel.lng,name:sel.name,items}));
+  updateUI(); toast(`🔔 ${msg.join(' · ')}`+(perm==='asked'?' · 알림 허용을 눌러 주세요':'')+(inexact?' · (몇 분 늦을 수 있어요)':''),5000);
+};
+$('#alertLead').value=pref('alertLead','60'); $('#alertLead').onchange=()=>setPref('alertLead',$('#alertLead').value);
+// ================= 시·군·구 추천 장소 (REQ-46, 강의자료 1부 3·4장 + 2부 1장) =================
+// 해안선 점(400m 간격)마다 점수: 승부 시간 유속이 알맞은가(0.4) + 300m 안 바위(0.3) + 주변보다 센 물길(물골, 0.15) + 오늘 물때와 장소 성격(0.15)
+const REC={data:null,layer:L.layerGroup().addTo(map),res:null,busy:false};
+async function recLoad(){if(REC.data)return REC.data;try{const r=await fetch('sgg.json');REC.data=await r.json();}catch(e){REC.data=null;}return REC.data;}
+async function recInit(){
+  const d=await recLoad(); if(!d){$('#recSub').textContent='행정구역 자료를 못 읽었어요';return;}
+  if(!$('#recSido').options.length){const ss=[...new Set(d.map(r=>r.s))];
+    $('#recSido').innerHTML=ss.map(x=>`<option>${x}</option>`).join('');
+    const c=map.getCenter(); let best=null,bd=1e9; for(const r of d){const la=(r.b[0]+r.b[2])/2,lo=(r.b[1]+r.b[3])/2,dd=(la-c.lat)**2+(lo-c.lng)**2;if(dd<bd){bd=dd;best=r;}}
+    const last=pref('recSgg',''), pick=d.find(r=>r.c===last)||best;
+    $('#recSido').value=pick.s; recSggOpts(); $('#recSgg').value=pick.c;}
+}
+function recSggOpts(){const s=$('#recSido').value;$('#recSgg').innerHTML=REC.data.filter(r=>r.s===s).map(r=>`<option value="${r.c}">${r.n} (해안 ${r.km}km)</option>`).join('');}
+$('#recSido').onchange=recSggOpts;
+const fitScore=sp=>sp<0.15?0:sp<0.3?(sp-0.15)/0.15:sp<=1.0?1:sp<RED.kn?1-(sp-1)/(RED.kn-1):0;
+// 오늘 물 세기 (음력): 사리 쪽 / 조금 쪽 / 중간
+function tideStrength(ms){const m=((lunarDay(ms)-1)%15)+1;return (m<=4||m>=13)?'strong':(m>=7&&m<=10)?'weak':'mid';}
+function recScore(sg,wins){
+  const P=sg.p, n=P.length/2, now=Date.now(), str=tideStrength(now), cand=[];
+  for(let i=0;i<n;i++){const la=P[2*i],lo=P[2*i+1]; let best=null,mx=0,ok=false; const per=[];
+    for(const w of wins){let su=0,k=0;for(const dm of [-45,0,45]){const v=realAt(la,lo,(w.ms+dm*60000-t0.getTime())/3600000);if(v){su+=Math.hypot(v.vE,v.vN);k++;}}
+      if(!k){per.push(null);continue;} ok=true; const sp=su/k; per.push(sp); mx=Math.max(mx,sp); const f=fitScore(sp), hr=new Date(w.ms).getHours(), key=f+(hr>=6&&hr<=19?0.05:0); if(!best||key>best.key||(key===best.key&&sp>best.sp))best={f,sp,w,key};} // 같은 점수면 낮 시간 먼저
+    if(!ok)continue;
+    let rocks=0,gan=0; if(ROCK.data)for(const r of ROCK.data){if(Math.abs(r[0]-la)>0.003||Math.abs(r[1]-lo)>0.004)continue;if(distM(la,lo,r[0],r[1])<=300){rocks++;if(r[2]===1)gan++;}}
+    cand.push({la,lo,best,mx,per,rocks,gan});}
+  for(const c of cand){ // 물골: 1.5km 안 이웃보다 얼마나 센가 (대표 승부 시간 기준)
+    let su=0,k=0; for(const o of cand){if(o===c||Math.abs(o.la-c.la)>0.015||Math.abs(o.lo-c.lo)>0.018)continue; if(distM(c.la,c.lo,o.la,o.lo)>1500)continue; if(o.best){su+=o.best.sp;k++;}}
+    c.ch=k&&c.best&&su>0?Math.max(0,Math.min(1,(c.best.sp/(su/k)-1)/0.5)):0;
+    c.kind=c.mx>=1.2?'센 곳':c.mx<0.35?'잔잔한 곳':'보통';
+    const rule={strong:{'잔잔한 곳':1,'보통':0.6,'센 곳':0.1},weak:{'센 곳':1,'보통':0.6,'잔잔한 곳':0.2},mid:{'센 곳':0.6,'보통':0.6,'잔잔한 곳':0.6}}[str][c.kind];
+    c.rule=rule; c.score=0.4*(c.best?c.best.f:0)+0.3*Math.min(c.rocks,4)/4+0.15*c.ch+0.15*rule;}
+  cand.sort((a,b)=>b.score-a.score); const pick=[];
+  for(const c of cand){if(pick.length>=5)break; if(pick.some(p=>distM(p.la,p.lo,c.la,c.lo)<1200))continue; pick.push(c);}
+  return {pick,str,n,cov:cand.length};
+}
+function recWindows(){const now=Date.now(),W=[];
+  if(TIDE.cur)for(const e of tideExtremes(TIDE.cur.ser,now,now+24*3600e3))W.push({ms:e.ms,hi:e.hi,s:e.ms-90*60000,t:e.ms+90*60000});
+  if(!W.length)for(let h=1;h<=24;h+=3)W.push({ms:now+h*3600e3,hi:null,s:now+h*3600e3-90*60000,t:now+h*3600e3+90*60000});
+  return W.filter(w=>w.s>=now-90*60000);}
+async function recRun(){
+  if(REC.busy)return; const d=await recLoad(); const sg=d&&d.find(r=>r.c===$('#recSgg').value); if(!sg)return;
+  if(!CONF.realData){$('#recSub').textContent='공공데이터 키를 ⚙ 설정에 넣어야 유속으로 추천할 수 있어요';return;}
+  REC.busy=true; setPref('recSgg',sg.c); $('#recList').innerHTML=''; REC.layer.clearLayers();
+  try{
+    $('#recSub').textContent=`${sg.n}로 지도를 옮기고 유속 예보를 받는 중…`;
+    map.fitBounds([[sg.b[0],sg.b[1]],[sg.b[2],sg.b[3]]],{animate:false}); if(map.getZoom()<REAL_MIN_ZOOM+1)map.setZoom(REAL_MIN_ZOOM+1,{animate:false});
+    tideEnsure(); requestReal();
+    await new Promise(r=>setTimeout(r,1500));
+    for(let k=0;k<240&&(RD.loading||tideBusy);k++)await new Promise(r=>setTimeout(r,250));
+    await rockEnsure();
+    const R=recScore(sg,recWindows()); REC.res={sg,...R};
+    if(!R.pick.length){$('#recSub').textContent='이 지역은 유속 예보가 없어 추천할 수 없어요 (예보 지점이 없는 곳일 수 있어요)';return;}
+    const sw={strong:'사리 쪽 (물살 셈) → 잔잔한 곳 유리',weak:'조금 쪽 (물살 약함) → 물살 센 곳 유리',mid:'중간 물때'}[R.str];
+    $('#recSub').textContent=`${sg.s} ${sg.n} · 해안 ${R.cov}/${R.n}곳 계산 · 오늘 ${sw}${TIDE.cur?' · 조석 '+TIDE.cur.st.n:''}`;
+    const cla=(sg.b[0]+sg.b[2])/2,clo=(sg.b[1]+sg.b[3])/2, num='①②③④⑤';
+    $('#recList').innerHTML=R.pick.map((c,i)=>{const w=c.best&&c.best.w, km=distM(cla,clo,c.la,c.lo)/1000, dir=dirName(bearing((c.lo-clo)*Math.cos(cla*Math.PI/180),c.la-cla));
+      const why=[c.best?`유속 ${c.best.sp.toFixed(1)}노트${c.best.f>=1?' (알맞음)':c.best.sp<0.3?' (약함)':' (셈)'}`:'',c.rocks?`바위 ${c.rocks}개${c.gan?`(간출암 ${c.gan})`:''}`:'',c.ch>=0.4?'물골 흐름':'',`${c.kind}`].filter(Boolean).join(' · ');
+      return `<li data-i="${i}"><div class="l1"><span>${num[i]} ${sg.n} ${dir}쪽 해안 (중심에서 ${km.toFixed(0)}km)</span><span>${Math.round(c.score*100)}점</span></div>`
+        +`<div class="l2">${w?`${w.hi==null?'':w.hi?'만조':'간조'} ${hhmm(w.ms)} 앞뒤 ${hhmm(w.s)}~${hhmm(w.t)} · `:''}${why}</div></li>`;}).join('');
+    R.pick.forEach((c,i)=>L.marker([c.la,c.lo],{icon:L.divIcon({className:'',html:`<div class="recpin">${i+1}</div>`,iconSize:[22,22],iconAnchor:[11,11]})})
+      .on('click',ev=>{L.DomEvent.stopPropagation(ev);select(c.la,c.lo,`추천 ${num[i]} ${sg.n}`);}).addTo(REC.layer));
+  }catch(e){$('#recSub').textContent='추천 계산 중 오류: '+(e&&e.message||e);}finally{REC.busy=false;}
+}
+$('#recGo').onclick=recRun;
+$('#recClear').onclick=()=>{REC.layer.clearLayers();$('#recList').innerHTML='';$('#recSub').textContent='';};
+$('#recList').addEventListener('click',e=>{const li=e.target.closest('#recList>li'); if(!li||!REC.res)return; const c=REC.res.pick[+li.dataset.i];
+  $('#planPanel').classList.remove('show'); map.flyTo([c.la,c.lo],14,{duration:1}); select(c.la,c.lo,`추천 ${'①②③④⑤'[+li.dataset.i]} ${REC.res.sg.n}`);});
+function showTab(t){document.querySelectorAll('.ptabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
+  $('#tabPlan').style.display=t==='plan'?'':'none'; $('#tabLog').style.display=t==='log'?'':'none'; $('#tabRec').style.display=t==='rec'?'':'none';
+  if(t==='rec')recInit();
+  if(t==='log'){$('#logPins').checked=pref('logPins','0')==='1';renderLog();}}
+document.querySelector('.ptabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b)showTab(b.dataset.tab);});
+drawLogPins();
+$('#planBase').onchange=buildPlan;
+$('#planClose').onclick=()=>$('#planPanel').classList.remove('show');
+$('#planPanel').addEventListener('click',e=>{if(e.target.id==='planPanel'){$('#planPanel').classList.remove('show');return;}
+  if(e.target.closest('#planList .det'))return; const li=e.target.closest('#planList>li'); if(li)li.classList.toggle('open');});
 $('#tidePanel').onclick=e=>{if(e.target.id==='tidePanel')$('#tidePanel').classList.remove('show');};
 // 지금(슬라이더 시각) 조위(m, 약최저저조면 기준). 없으면 null
 function tideNow(){return TIDE.cur?tideAtMs(TIDE.cur.ser,t0.getTime()+tMin*60000):null;}
@@ -1445,6 +1754,9 @@ function updateUI(){
   if(ROCK.on&&TIDE.cur&&!updateUI._rt){updateUI._rt=1;setTimeout(()=>{updateUI._rt=0;drawRocks();},800);}
   if(!sel)return;
   $('#iname').textContent=sel.name;
+  // 저장·알림 버튼 상태는 유속 자료가 없는 곳에서도 갱신 (11-16: 자료 없는 곳에서 버튼이 안 바뀌던 문제)
+  const fav=findFav(sel.lat,sel.lng); $('#starBtn').textContent=fav?'★ 저장됨':'☆ 저장'; $('#starBtn').classList.toggle('on',!!fav);
+  const al=alertHere(sel.lat,sel.lng); $('#alertBtn').textContent=al?'🔔 켜짐':'🔔'; $('#alertBtn').classList.toggle('on',!!al);
   { const w=WIND.on&&WIND.data?windAt(tH()):null;
     $('#iWind').textContent=w?`🌬 ${windText(tH())} · 표층 물이 약 ${(Math.hypot(w.u,w.v)*DRIFT*1.9438).toFixed(2)}kn로 바람 따라 밀려요${CONF.realData?' (바깥 바다 예보엔 이미 반영)':''}`:''; }
   const v=flowAt(sel.lat,sel.lng,tH());
@@ -1457,7 +1769,6 @@ function updateUI(){
   $('#iDir').textContent=dirName(deg)+'쪽';
   $('#iState').innerHTML=`<span class="tag ${cls}">${st}</span>`;
   const ns=EV.slack.find(x=>x>tMin); $('#iSlack').textContent=ns!=null?(Math.floor(ns/1440)!==Math.floor(tMin/1440)?dayTag(ns)+' ':'')+fmt(ns):'-';
-  const fav=findFav(sel.lat,sel.lng); $('#starBtn').textContent=fav?'★ 저장됨':'☆ 저장'; $('#starBtn').classList.toggle('on',!!fav);
   $('#iTide').innerHTML=tideSummary();
   drawTide();
 }
@@ -1640,7 +1951,7 @@ $('#keyTest').onclick=async()=>{saveSettings();const o=$('#testOut');o.textConte
   try{const r=await ROMS.test();o.textContent=(r.n?`✅ 성공: ${r.n}건 받음 (전체 ${r.total??'?'}건)\n인식한 칸: 유향=${r.fields.dir}, 유속=${r.fields.speed}, 시간=${r.fields.time.join('+')}\n첫 자료: ${JSON.stringify(r.first)}`:'⚠ 연결은 됐지만 자료가 0건이에요\n'+r.raw);}
   catch(e){o.textContent='❌ '+e.message;}};
 window.__onBack=()=>{
-  for(const id of ['setPanel','favPanel','tidePanel'])if($('#'+id).classList.contains('show')){$('#'+id).classList.remove('show');return true;}
+  for(const id of ['setPanel','favPanel','tidePanel','planPanel'])if($('#'+id).classList.contains('show')){$('#'+id).classList.remove('show');return true;}
   if(res.style.display==='block'){showResults('');return true;}
   if(sel){$('#closeInfo').click();return true;}
   return false;

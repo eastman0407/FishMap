@@ -125,6 +125,20 @@ public class MainActivity extends Activity {
             try { android.content.pm.PackageInfo pi = getPackageManager().getPackageInfo(getPackageName(), 0);
                 @SuppressWarnings("deprecation") int vc = pi.versionCode; return pi.versionName + " (" + vc + ")"; } catch (Throwable e) { return "?"; }
         }
+        /** 안전 알림: 알림 권한 확인(없으면 요청). "ok" / "asked"(지금 물어봄) / "off"(꺼져 있음) */
+        @JavascriptInterface public String notifyPrep() {
+            AlarmReceiver.ensureChannel(MainActivity.this);
+            if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                runOnUiThread(() -> requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 8));
+                return "asked";
+            }
+            android.app.NotificationManager nm = (android.app.NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            return nm.areNotificationsEnabled() ? "ok" : "off";
+        }
+        @JavascriptInterface public String scheduleAlarm(int id, String atMs, String title, String text) {
+            try { return AlarmReceiver.schedule(MainActivity.this, id, Long.parseLong(atMs), title, text); } catch (Exception e) { return "err:" + e.getMessage(); }
+        }
+        @JavascriptInterface public void cancelAlarm(int id) { AlarmReceiver.cancel(MainActivity.this, id); }
         @JavascriptInterface public String getPref(String k) { return prefs().getString(k, ""); }
         @JavascriptInterface public void setPref(String k, String v) { prefs().edit().putString(k, v).apply(); }
 
