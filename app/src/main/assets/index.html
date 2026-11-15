@@ -43,6 +43,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 .topchips>*{pointer-events:auto}
 .tchip{font-size:11.5px;padding:3px 9px;border-radius:99px;background:rgba(10,21,32,.88);color:#cfe6ff;border:1px solid #2a4a6a;display:none;white-space:nowrap}
 .tchip.tide{cursor:pointer;color:#9fe7ff} .tchip.phase{color:#ffe08a;border-color:#5a4a1c}
+.tidest{white-space:nowrap;font-size:11px;padding:2px 6px;border-radius:99px;background:rgba(10,21,32,.85);color:#9fe7ff;border:1px solid #2a6a8a;transform:translate(-4px,-50%);display:inline-block;cursor:pointer}
 .tidelist{list-style:none;margin:8px 0 0;padding:0} .tidelist li{display:flex;justify-content:space-between;padding:9px 4px;border-bottom:1px solid var(--line);font-size:15px}
 .tidelist li.past{opacity:.45} .tidelist li.next{color:var(--accent);font-weight:700}
 .samplebadge{font-size:11px;padding:3px 8px;border-radius:99px;background:#3a2a12;color:#ffc874;border:1px solid #6a4a1c}
@@ -183,7 +184,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
     <h3 id="tideTitle">오늘 조석 <button class="x" id="tideClose">×</button></h3>
     <div class="empty" id="tideSub" style="padding:0"></div>
     <ul class="tidelist" id="tideList"></ul>
-    <div class="empty" style="padding:10px 0 0;font-size:12px">국립해양조사원 조석예보 기준 · 지도 가운데에서 가장 가까운 조위 관측소 · 시각은 지도 아래 시간(슬라이더) 기준</div>
+    <div class="empty" style="padding:10px 0 0;font-size:12px">국립해양조사원 조석예보(고,저조) · 보고 있는 화면 가운데에서 가장 가까운 조위 관측소(지도에 🌊 표시) · 실제 지금 시각 기준</div>
   </div>
 </div>
 <div class="panel" id="favPanel">
@@ -1188,7 +1189,7 @@ async function tideEnsure(){
     if(!(await tideStations()))return;
     const c=map.getCenter(),st=nearestStation(c.lat,c.lng); if(!st)return;
     if(!TIDE.cur||TIDE.cur.st.c!==st.c||Date.now()-TIDE.cur.ser.at>6*3600e3){
-      const ser=await tideSeries(st.c); if(ser){TIDE.cur={st,ser};drawRocks();updateTideChips();if(sel)updateUI();}
+      const ser=await tideSeries(st.c); if(ser){TIDE.cur={st,ser};drawRocks();updateTideChips();drawTideStation();if(sel)updateUI();}
     }
   }catch(e){}finally{tideBusy=false;}
 }
@@ -1205,10 +1206,11 @@ function tideExtremes(ser,from,to){
 const MUL_WORD=['한','두','세','네','다섯','여섯','일곱','여덟','아홉','열','열한','열두','열셋','열넷'];
 const mulWord=n=>{const m=/^(\d+)물$/.exec(n);return m?MUL_WORD[+m[1]-1]+'물':n;};
 const hhmm=ms=>{const d=new Date(ms);return pad2(d.getHours())+':'+pad2(d.getMinutes());};
-function tideDay(){const ms=t0.getTime()+tMin*60000,d=new Date(ms);d.setHours(0,0,0,0);return d.getTime();}
+// 조석 칩·물 상태·조석표는 '실제 지금' 기준 (11-15 요청). 아래 정보카드 물높이·그래프만 시간 막대 기준
+function tideDay(){const d=new Date();d.setHours(0,0,0,0);return d.getTime();}
 // 지금 물 상태: 직전·다음 만조/간조 사이를 셋으로 나눠 초·중·끝 들물/날물, 전후 20분은 만조·간조(정조)
 function tidePhase(){
-  if(!TIDE.cur)return null; const now=t0.getTime()+tMin*60000, ex=tideExtremes(TIDE.cur.ser,now-14*3600e3,now+14*3600e3);
+  if(!TIDE.cur)return null; const now=Date.now(), ex=tideExtremes(TIDE.cur.ser,now-14*3600e3,now+14*3600e3);
   let prev=null,next=null; for(const e of ex){if(e.ms<=now)prev=e;else if(!next)next=e;}
   if(!prev||!next)return null;
   if(now-prev.ms<=20*60000)return {name:prev.hi?'만조(정조)':'간조(정조)',prev,next};
@@ -1217,7 +1219,7 @@ function tidePhase(){
   return {name:k+(prev.hi?'날물':'들물'),prev,next};
 }
 function updateTideChips(){
-  const tc=$('#tideChip'), pc=$('#phaseChip'), now=t0.getTime()+tMin*60000;
+  const tc=$('#tideChip'), pc=$('#phaseChip'), now=Date.now();
   const c=map.getCenter(), md=mulddae(now,isWestSea(c.lat,c.lng)), mw=mulWord(md.name);
   if(!CONF.realData||!TIDE.cur){const scanning=CONF.realData&&TIDE.scan;tc.style.display=CONF.realData&&(TIDE.err||scanning)?'inline-block':'none';
     tc.textContent=scanning?`🌊 조석 관측소 찾는 중 ${TIDE.prog||0}/${TIDE_CODES.length}`:TIDE.err?'🌊 조석: '+TIDE.err:'';
@@ -1229,7 +1231,7 @@ function updateTideChips(){
 }
 function openTidePanel(){
   if(!TIDE.cur){toast(TIDE.err||'조석 예보를 아직 못 받았어요',3000);return;}
-  const d0=tideDay(), now=t0.getTime()+tMin*60000, ex=tideExtremes(TIDE.cur.ser,d0,d0+86400e3);
+  const d0=tideDay(), now=Date.now(), ex=tideExtremes(TIDE.cur.ser,d0,d0+86400e3);
   const nx=tideExtremes(TIDE.cur.ser,now,now+30*3600e3)[0], dd=new Date(d0), c=map.getCenter(), md=mulddae(now,isWestSea(c.lat,c.lng));
   $('#tideTitle').firstChild.nodeValue=`${dd.getMonth()+1}/${dd.getDate()}(${'일월화수목금토'[dd.getDay()]}) ${TIDE.cur.st.n} 조석 `;
   const ph=tidePhase();
@@ -1238,6 +1240,15 @@ function openTidePanel(){
   $('#tidePanel').classList.add('show');
 }
 $('#tideChip').onclick=openTidePanel;
+setInterval(updateTideChips,60000); // 1분마다 갱신
+// 지금 쓰는 조위 관측소 위치를 지도에 표시 (누르면 조석표)
+let tideStMarker=null;
+function drawTideStation(){
+  if(tideStMarker){map.removeLayer(tideStMarker);tideStMarker=null;}
+  if(!CONF.realData||!TIDE.cur)return; const st=TIDE.cur.st;
+  tideStMarker=L.marker([st.la,st.lo],{icon:L.divIcon({className:'',html:`<div class="tidest">🌊 ${st.n}</div>`,iconSize:[10,10],iconAnchor:[5,5]})})
+    .on('click',ev=>{L.DomEvent.stopPropagation(ev);openTidePanel();}).addTo(map);
+}
 $('#tideClose').onclick=()=>$('#tidePanel').classList.remove('show');
 $('#tidePanel').onclick=e=>{if(e.target.id==='tidePanel')$('#tidePanel').classList.remove('show');};
 // 지금(슬라이더 시각) 조위(m, 약최저저조면 기준). 없으면 null
