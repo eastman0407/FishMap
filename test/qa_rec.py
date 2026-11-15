@@ -34,7 +34,6 @@ exec(src+'''
         if E("!__QA.REC.busy&&!!__QA.REC.res"): break
         pg.wait_for_timeout(300)
     took=(E("Date.now()")-t)/1000
-    print('DBG',E("[__QA.REC.busy,!!__QA.REC.res,__QA.RD.loading,__QA.RD.prog,document.querySelector('#recSub').textContent,__QA.RD.pts.length]"))
     R=E("(()=>{const R=__QA.REC.res;return R&&{n:R.n,cov:R.cov,str:R.str,b:R.sg.b,pick:R.pick.map(c=>({la:c.la,lo:c.lo,s:c.score,sp:c.best&&c.best.sp,rocks:c.rocks,kind:c.kind}))}})()")
     items=E("[...document.querySelectorAll('#recList>li')].map(l=>l.textContent)")
     check('R2 추천 5곳 (사천시 안, 서로 1.2km 이상 떨어짐) + 목록', R and len(R['pick'])==5 and len(items)==5 and all(R['b'][0]-0.01<=p['la']<=R['b'][2]+0.01 and R['b'][1]-0.01<=p['lo']<=R['b'][3]+0.01 for p in R['pick']), [took, R and R['cov'], R and R['n'], items[:2]])
@@ -53,6 +52,25 @@ exec(src+'''
     E("document.querySelector('#recList>li').click()"); pg.wait_for_timeout(400)
     check('R6 누르면 패널 닫고 그 지점 선택', not E("document.querySelector('#planPanel').classList.contains('show')") and (E("__QA.sel()&&__QA.sel().name") or '').startswith('추천 ①'), E("__QA.sel()&&__QA.sel().name"))
     check('R7 지도에 ①~⑤ 핀', E("__QA.REC.layer.getLayers?__QA.REC.layer.getLayers().length:5")==5 or m1>=5, m1)
+    # 11-16 수정 확인
+    lines=E("[...document.querySelectorAll('#recList .l2')].map(x=>x.textContent)")
+    names=E("__QA.REC.res.pick.map(c=>c.dong)")
+    d0=E("(()=>{const d=new Date(__QA.REC.res.day0);return (d.getMonth()+1)+'/'+d.getDate()})()")
+    check('R9 날짜·관측소가 줄마다 표시', all(d0+'(' in l and '(' in l.split('~')[1] for l in lines), lines[:2])
+    check('R10 위치는 읍·면·동 이름 (사천시 안의 동네)', all(n and n in ['향촌동','동서금동','동서동','남양동','서포면','곤양면','선구동','용현면','사남면','축동면'] for n in names) and all(n in t for n,t in zip(names,items)), names)
+    kinds=E("__QA.REC.res.pick.map(c=>c.kind)"); st=E("__QA.REC.res.str")
+    allk=E("(()=>{const R=__QA.REC.res;return R.pick.length})()")
+    check('R11 센 곳·잔잔한 곳은 지역 안 비교 → 조금 날엔 센 곳이, 사리 날엔 잔잔한 곳이 위로', (st=='weak' and kinds.count('센 곳')>=kinds.count('잔잔한 곳')) or (st=='strong' and kinds.count('잔잔한 곳')>=kinds.count('센 곳')) or st=='mid', [st,kinds])
+    E("document.querySelector('#planBtn').click()"); E("document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(500)
+    opts=E("[...document.querySelectorAll('#recDay option')].map(o=>o.textContent)")
+    E("const s=document.querySelector('#recDay');s.value='2';"); E("document.querySelector('#recGo').click()")
+    for _ in range(200):
+        pg.wait_for_timeout(300)
+        if E("!__QA.REC.busy"): break
+    d2=E("(()=>{const d=new Date(__QA.tideDay()+2*86400000);return (d.getMonth()+1)+'/'+d.getDate()})()")
+    l2=E("[...document.querySelectorAll('#recList .l2')].map(x=>x.textContent)")
+    check('R12 날짜 고르기 (오늘부터 7일) → 고른 날 승부 시간으로 추천', len(opts)==7 and '오늘' in opts[0] and l2 and all(d2+'(' in x for x in l2), [opts[:2], l2[:1]])
+    check('R13 제목·탭이 스크롤해도 위에 고정', E("getComputedStyle(document.querySelector('#planPanel .pbox h3')).position")=='sticky' and E("getComputedStyle(document.querySelector('.ptabs')).position")=='sticky')
     check('R8 스크립트 오류 없음', not errs, errs[:2])
     br.close()
 print(f"결과: {sum(res)}/{len(res)}")
