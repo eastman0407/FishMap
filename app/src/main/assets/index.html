@@ -1119,56 +1119,63 @@ $('#rockBtn').onclick=async()=>{
 };
 
 
-// ================= 조위 (국립해양조사원 조석예보 시계열) =================
+// ================= 조위 (국립해양조사원 조석예보 고·저조) =================
 // 간출암의 '드러나는 높이'와 조위를 비교해서 지금 잠겼는지/드러났는지 표시
 const TIDE={st:null,scan:false,series:new Map(),cur:null,err:'',warned:false};
-const TIDE_URL='https://apis.data.go.kr/1192136/tideFcstTime';
+
 const pad2=n=>String(n).padStart(2,'0');
 const ymd=d=>`${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}`;
+// ── 조석 (11-15 수정): 국립해양조사원 '조석예보(고,저조)' API로 만조·간조를 직접 받음 ──
+// 예전: '조석예보(시계열)' 주소에 기능 이름(/GetTideFcstTimeApiService)이 빠져 있어 모든 요청이 실패했고,
+//       지점 코드도 DT_0001~0099만 훑어 SO_(작은 항) 지점은 아예 몰랐음 → 활용가이드(261106)의 지점 166곳 목록을 그대로 씀
+const TIDE_HL_URL='https://apis.data.go.kr/1192136/tideFcstHghLw/GetTideFcstHghLwApiService';
+const TIDE_CODES=[["DT_0001","인천"],["SO_0566","송공항"],["DT_0002","평택"],["SO_0567","쉬미항"],["DT_0003","영광"],["SO_0568","백야도"],["DT_0004","제주"],["SO_0569","남포항"],["DT_0005","부산"],["SO_0570","광암항"],["DT_0006","묵호"],["SO_0571","거제외포"],["DT_0007","목포"],["SO_0572","읍천항"],["DT_0008","안산"],["SO_0573","양포항"],["DT_0010","서귀포"],["SO_0574","백사장항"],["DT_0011","후포"],["SO_0576","화봉리"],["DT_0012","속초"],["SO_0577","가거도"],["DT_0013","울릉도"],["SO_0578","소매물도"],["DT_0014","통영"],["SO_0581","강양항"],["DT_0016","여수"],["SO_0631","암태도"],["DT_0017","대산"],["SO_0699","천리포항"],["DT_0018","군산"],["SO_0700","호도"],["DT_0020","울산"],["SO_0701","홍도항"],["DT_0021","추자도"],["SO_0702","진도옥도"],["DT_0022","성산포"],["SO_0703","땅끝항"],["DT_0023","모슬포"],["SO_0704","소안항"],["DT_0024","장항"],["SO_0705","마량항"],["DT_0025","보령"],["SO_0706","청산도"],["DT_0026","고흥발포"],["SO_0707","시산항"],["DT_0027","완도"],["SO_0708","안도항"],["DT_0028","진도"],["SO_0709","두문포"],["DT_0029","거제도"],["SO_0710","봉우항"],["DT_0031","거문도"],["SO_0711","창선도"],["DT_0032","강화대교"],["SO_0712","능양항"],["DT_0035","흑산도"],["SO_0731","대진항"],["DT_0036","대청도"],["SO_0732","남애항"],["DT_0037","어청도"],["SO_0733","강릉항"],["DT_0038","굴업도"],["SO_0734","궁촌항"],["DT_0039","왕돌초"],["SO_0735","죽변항"],["DT_0903","독도"],["SO_0736","축산항"],["DT_0041","복사초"],["SO_0737","강구항"],["DT_0042","교본초"],["SO_0739","도장항"],["DT_0043","영흥도"],["SO_0740","보옥항"],["DT_0044","영종대교"],["SO_0752","검산항"],["DT_0046","쌍정초"],["SO_0753","하의도웅곡"],["DT_0047","도농탄"],["SO_0754","평호리"],["DT_0048","속초등표"],["SO_0755","원동항"],["DT_0049","광양"],["SO_0756","사초항"],["DT_0050","태안"],["SO_0757","안남리"],["DT_0051","서천마량"],["SO_0758","달천도"],["DT_0052","인천송도"],["SO_0759","장문리"],["DT_0054","진해"],["SO_0760","오산항"],["DT_0056","부산항신항"],["SO_0761","녹동항"],["DT_0057","동해항"],["SO_1248","신안옥도"],["DT_0058","경인항"],["SO_1249","독거도"],["DT_0059","백령도"],["SO_1250","평도"],["DT_0060","연평도"],["SO_1251","낙월도"],["DT_0061","삼천포"],["SO_1252","외연도항"],["DT_0062","마산"],["SO_1253","상왕등도"],["DT_0063","가덕도"],["SO_1254","만재도"],["DT_0064","교동대교"],["SO_1255","상태도"],["DT_0065","덕적도"],["SO_1256","어류정항"],["DT_0066","향화도"],["SO_1257","강화하리"],["DT_0067","안흥"],["SO_1258","잠진도"],["DT_0068","위도"],["SO_1259","자월도"],["DT_0091","포항"],["SO_1260","방포항"],["DT_0092","여호항"],["SO_1261","무창포항"],["DT_0093","소무의도"],["SO_1262","격포항"],["DT_0094","서거차도"],["SO_1263","구시포항"],["IE_0060","이어도"],["SO_1264","계마항"],["IE_0061","신안가거초"],["SO_1265","송이도"],["IE_0062","옹진소청초"],["SO_1266","남열항"],["SO_0326","미조항"],["SO_1267","구룡포항"],["SO_0537","벽파진"],["SO_1268","궁평항"],["SO_0538","안마도"],["SO_1269","연도항"],["SO_0539","강화외포"],["SO_1270","삼길포항"],["SO_0540","호산항"],["SO_1271","어은돌항"],["SO_0547","말도"],["SO_1272","다대포항"],["SO_0548","우이도"],["SO_1273","장호항"],["SO_0549","초도"],["SO_1274","거진항"],["SO_0550","나로도"],["SO_1275","공현진항"],["SO_0551","여서도"],["SO_1276","아야진항"],["SO_0552","고현항"],["SO_1277","화순항"],["SO_0553","해운대"],["SO_1278","원평항"],["SO_0554","영종왕산"],["SO_1279","어란진항"],["SO_0555","서망항"],["SO_1280","덕산항"],["SO_0562","승봉도"],["SO_1281","임원항"],["SO_0563","울도"],["SO_1282","선재도"],["SO_0564","국화도"],["SO_1283","사천진항"]];
+const kstMs=s=>{const m=/(\d{4})-?(\d\d)-?(\d\d)[ T]?(\d\d):?(\d\d)/.exec(String(s));return m?Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5])-9*3600e3:null;};
+// 지점 위치(위도·경도)는 목록에 없어서, 처음 한 번만 지점마다 1줄씩 물어보고 폰에 저장
 async function tideStations(){
   if(TIDE.st)return TIDE.st;
-  try{const c=JSON.parse(pref('tideStations','null'));if(c&&c.length){TIDE.st=c;return c;}}catch(e){}
+  try{const c=JSON.parse(pref('tideSt2','null'));if(c&&c.length){TIDE.st=c;return c;}}catch(e){}
   if(TIDE.scan)return null;
-  if(Date.now()-(+pref('tideScanFailAt','0'))<30*60000)return null; // 실패 후 30분은 재시도 안 함
-  TIDE.scan=true;
-  // 지점 코드 목록이 공개 안 돼 있어서, DT_0001~DT_0099를 한 번만 훑어서 있는 지점을 찾아 저장
-  const codes=[];for(let i=1;i<=99;i++)codes.push('DT_'+String(i).padStart(4,'0'));
-  const found=[],today=ymd(new Date());let idx=0,auth=0;
-  async function w(){while(idx<codes.length){const c=codes[idx++];
-    try{const r=await nget(`${TIDE_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=2&obsCode=${c}&reqDate=${today}&min=60`,0);
-      if(/NOT_REGISTERED|SERVICE ERROR/i.test(r.text))auth++;
-      const js=JSON.parse(r.text);const it=ROMS.findItems(js);if(!it||!it.length)continue;
-      const f=it[0],ks=Object.keys(f);
-      const la=+f[ks.find(k=>/^(lat|la)$/i.test(k))], lo=+f[ks.find(k=>/^(lot|lon|lo)$/i.test(k))];
-      const nk=ks.find(k=>/(name|nm)/i.test(k));
-      if(isFinite(la)&&isFinite(lo))found.push({c,la,lo,n:nk?String(f[nk]):c});
-    }catch(e){}}}
+  if(Date.now()-(+pref('tideScanFailAt2','0'))<24*3600e3){TIDE.err=pref('tideScanErr','')||'조석 관측소를 못 찾았어요';return null;} // 실패하면 하루 뒤 다시
+  TIDE.scan=true; TIDE.prog=0;
+  const found=[],today=ymd(new Date());let idx=0,auth=0,other='';
+  async function w(){while(idx<TIDE_CODES.length){const [c,n]=TIDE_CODES[idx++];
+    try{const r=await nget(`${TIDE_HL_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=1&obsCode=${c}&reqDate=${today}`,0);
+      if(/NOT_REGISTERED|SERVICE_KEY|SERVICE ERROR/i.test(r.text))auth++;
+      const js=JSON.parse(r.text);const it=ROMS.findItems(js);
+      if(it&&it.length){const la=+it[0].lat, lo=+it[0].lot; if(isFinite(la)&&isFinite(lo)&&la)found.push({c,la,lo,n:it[0].obsvtrNm||n});}
+    }catch(e){other=e.message||'';}
+    TIDE.prog++; if(TIDE.prog%10===0)updateTideChips();}}
   await Promise.all([w(),w(),w(),w()]);
   TIDE.scan=false;
-  if(found.length){TIDE.st=found;setPref('tideStations',JSON.stringify(found));setPref('tideScanFailAt','0');}
-  else{setPref('tideScanFailAt',String(Date.now()));TIDE.err=auth>30?'조석예보(시계열) 활용신청이 필요해요':'조석예보 지점을 못 찾았어요';
-    if(!TIDE.warned){TIDE.warned=true;toast('바위 잠김 표시엔 공공데이터포털에서 "조석예보(시계열)" 활용신청이 필요해요',4500);}}
+  if(found.length){TIDE.st=found;setPref('tideSt2',JSON.stringify(found));setPref('tideScanFailAt2','0');TIDE.err='';}
+  else{TIDE.err=auth>TIDE_CODES.length/2?'조석예보(고,저조) 활용신청이 필요해요':'조석 관측소를 못 찾았어요'+(other?' ('+other+')':'');
+    setPref('tideScanFailAt2',String(Date.now()));setPref('tideScanErr',TIDE.err);}
+  updateTideChips();
   return TIDE.st;
 }
 function nearestStation(la,lo){let b=null,bd=1e9;for(const s of TIDE.st||[]){const d=(s.la-la)**2+((s.lo-lo)*0.82)**2;if(d<bd){bd=d;b=s;}}
   return b?{...b,km:Math.sqrt(bd)*111}:null;}
+// 만조·간조(극치) → 그 사이 물높이는 코사인 곡선으로 이어 10분 간격 곡선을 만듦 (바위 잠김·물높이 표시용)
 async function tideSeries(code){
   const c=TIDE.series.get(code); if(c&&Date.now()-c.at<6*3600e3)return c;
-  const out={at:Date.now(),t:[],h:[]};
-  for(let day=0;day<3;day++){
+  const ex=[];
+  for(let day=-1;day<=2;day++){
     const rd=ymd(new Date(t0.getTime()+day*86400e3));
-    const turl=`${TIDE_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=300&obsCode=${code}&reqDate=${rd}&min=10`;
-    const r=await nget(turl,180);
-    let js;try{js=JSON.parse(r.text);}catch(e){if(NATIVE)NATIVE.dropCache(turl);continue;}
-    const items=ROMS.findItems(js)||[]; if(!items.length){if(NATIVE)NATIVE.dropCache(turl);continue;}
-    const ks=Object.keys(items[0]);
-    const tks=ks.filter(k=>/(dt|date|ymd|tm|time|hour)/i.test(k));
-    const cand=ks.filter(k=>!tks.includes(k)&&!/(lat|lot|lon|name|nm|code|obs|no)/i.test(k));
-    const hk=cand.find(k=>/(tide|level|height|wl|pre)/i.test(k))||cand.find(k=>items[0][k]!==''&&!isNaN(+items[0][k]));
-    for(const it of items){const t=ROMS.time(it,tks),h=+it[hk];if(t!=null&&isFinite(h)){out.t.push(t);out.h.push(h);}}
+    const url=`${TIDE_HL_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=10&obsCode=${code}&reqDate=${rd}`;
+    const r=await nget(url,720);
+    let js;try{js=JSON.parse(r.text);}catch(e){if(NATIVE)NATIVE.dropCache(url);continue;}
+    const items=ROMS.findItems(js)||[]; if(!items.length){if(NATIVE)NATIVE.dropCache(url);continue;}
+    for(const it of items){const ms=kstMs(it.predcDt),h=+it.predcTdlvVl,se=+it.extrSe;
+      if(ms!=null&&isFinite(h)&&se>=1&&se<=4)ex.push({ms,h,hi:se===1||se===3});}
   }
-  if(out.h.length){const mx=Math.max(...out.h.map(Math.abs));out.unit=mx>30?0.01:1;TIDE.series.set(code,out);}
-  return out.h.length?out:null;
+  ex.sort((a,b)=>a.ms-b.ms); const E=ex.filter((e,i)=>!i||e.ms-ex[i-1].ms>60000);
+  if(E.length<2)return null;
+  const out={at:Date.now(),t:[],h:[],unit:0.01,ex:E};
+  for(let i=0;i<E.length-1;i++){const a=E[i],b=E[i+1];
+    for(let ms=a.ms;ms<b.ms;ms+=600000){const f=(ms-a.ms)/(b.ms-a.ms);out.t.push(ms);out.h.push((a.h+b.h)/2+(a.h-b.h)/2*Math.cos(Math.PI*f));}}
+  out.t.push(E[E.length-1].ms); out.h.push(E[E.length-1].h);
+  TIDE.series.set(code,out); return out;
 }
 function tideAtMs(ser,ms){const T=ser.t;if(!T||!T.length||ms<T[0]||ms>T[T.length-1])return null;
   let lo=0,hi=T.length-1;while(hi-lo>1){const m=(lo+hi)>>1;T[m]<=ms?lo=m:hi=m;}
@@ -1186,7 +1193,9 @@ async function tideEnsure(){
   }catch(e){}finally{tideBusy=false;}
 }
 // ── 만조·간조 시각 (11-14 요청): 10분 간격 조위에서 꼭대기·바닥을 찾고 앞뒤 3점 포물선으로 분 단위까지 다듬음 ──
-function tideExtremes(ser,from,to){const T=ser.t,Hh=ser.h,out=[];
+function tideExtremes(ser,from,to){
+  if(ser.ex)return ser.ex.filter(e=>e.ms>=from&&e.ms<to).map(e=>({ms:e.ms,h:e.h*ser.unit,hi:e.hi})); // 고·저조 API 값 그대로
+  const T=ser.t,Hh=ser.h,out=[];
   for(let i=1;i<T.length-1;i++){if(T[i]<from-3600e3||T[i]>to+3600e3)continue;const a=Hh[i-1],b=Hh[i],c=Hh[i+1];
     const hi=b>a&&b>=c, lo=b<a&&b<=c; if(!hi&&!lo)continue;
     const den=a-2*b+c, off=den?0.5*(a-c)/den:0, dt=(T[i+1]-T[i-1])/2, ms=T[i]+off*dt, h=(b-0.25*(a-c)*off)*ser.unit;
@@ -1210,7 +1219,8 @@ function tidePhase(){
 function updateTideChips(){
   const tc=$('#tideChip'), pc=$('#phaseChip'), now=t0.getTime()+tMin*60000;
   const c=map.getCenter(), md=mulddae(now,isWestSea(c.lat,c.lng)), mw=mulWord(md.name);
-  if(!CONF.realData||!TIDE.cur){tc.style.display=CONF.realData&&TIDE.err?'inline-block':'none';tc.textContent=TIDE.err?'🌊 조석: '+TIDE.err:'';
+  if(!CONF.realData||!TIDE.cur){const scanning=CONF.realData&&TIDE.scan;tc.style.display=CONF.realData&&(TIDE.err||scanning)?'inline-block':'none';
+    tc.textContent=scanning?`🌊 조석 관측소 찾는 중 ${TIDE.prog||0}/${TIDE_CODES.length}`:TIDE.err?'🌊 조석: '+TIDE.err:'';
     pc.style.display='inline-block';pc.textContent=mw;return;}
   const ex=tideExtremes(TIDE.cur.ser,now,now+30*3600e3), nx=ex[0];
   tc.style.display=nx?'inline-block':'none';
@@ -1286,6 +1296,7 @@ async function runDiag(){
      try{const c=emp[0], r=await ROMS.page(c.b,1,0); o.push(`  └ ${c.key} 지금 새로 물어봄: 결과코드 ${ROMS.findNum(r.raw,/^resultCode$/i)}, 전체 ${r.total??'-'}건, 받음 ${r.items.length}줄`);}
      catch(e){o.push('  └ 새로 물어봄 실패: '+e.message);}
    }}
+  o.push(`조석: 관측소 ${TIDE.st?TIDE.st.length:0}곳${TIDE.scan?' (찾는 중 '+TIDE.prog+')':''}, 지금 ${TIDE.cur?TIDE.cur.st.n+'('+TIDE.cur.st.c+', 약 '+TIDE.cur.st.km.toFixed(1)+'km)':'-'}, 만조·간조 ${TIDE.cur&&TIDE.cur.ser.ex?TIDE.cur.ser.ex.length:0}개`+(TIDE.err?' · ⚠ '+TIDE.err:''));
   {const cr=(pref('cleanRes','')||'').split(','), ca=+(pref('cleanAt','0'))||0;
    o.push(`지난 자료 청소: ${ca?new Date(ca).toLocaleString('ko-KR'):'아직 안 함'}`+(ca?` · ${cr[0]||0}개 ${Math.round((+cr[1]||0)/1024)}KB 지움, 계산 결과 ${pref('cleanSim','0')}개`:''));}
   // 화면 격자 25곳 중 흐름값 있는 곳
@@ -1609,7 +1620,7 @@ function saveSettings(){
   if(vw0!==$('#vwIn').value.trim())rebuildLayers();
   setPref('dataKey',$('#keyIn').value.trim()); setPref('romsUrl',$('#urlIn').value.trim()===ROMS.DEF_URL?'':$('#urlIn').value.trim());
   setPref('field_dir',$('#f_dir').value.trim()); setPref('field_speed',$('#f_speed').value.trim()); setPref('dirIsFrom',$('#dirFrom').checked?'true':'false');
-  ROMS.mem.clear(); if(NATIVE)NATIVE.clearCache(); setPref('tideScanFailAt','0'); TIDE.err='';
+  ROMS.mem.clear(); if(NATIVE)NATIVE.clearCache(); setPref('tideScanFailAt2','0'); setPref('tideSt2',''); TIDE.st=null; TIDE.err='';
   CONF.realData=!!ROMS.key(); RD.box=null; RD.have=null; RD.pts=[]; RD.times=[];
   $('#slackLbl').textContent=CONF.realData?'물 약해짐':'다음 정조'; updateBadge(); requestReal(); if(sel){computeEvents();updateUI();}
 }

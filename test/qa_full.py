@@ -17,13 +17,16 @@ window.__calls=[];
 window.AndroidBridge={_p:__PREFS__,shareText(t){window.__shared=t},getPref(k){return this._p[k]||''},setPref(k,v){this._p[k]=v},dropCache(u){__calls.push('drop:'+u.slice(0,60))},clearCache(){},
  httpGet(url,id,m){ __calls.push(url.split('?')[0].split('/').slice(-1)[0]+'|'+m);
   const reply=(c,b)=>setTimeout(()=>window.__nativeCb(id,c,b),5);
-  if(url.includes('tideFcstTime')){
-    const u=new URL(url),code=u.searchParams.get('obsCode'),rd=u.searchParams.get('reqDate'),min=+u.searchParams.get('min')||60;
-    if(code!=='DT_0005')return reply(200,JSON.stringify({response:{header:{resultCode:'03',resultMsg:'NO_DATA'},body:{}}}));
-    const items=[];for(let mm=0;mm<1440;mm+=min){const hh=String(Math.floor(mm/60)).padStart(2,'0'),mi=String(mm%60).padStart(2,'0');
-      const ms=Date.parse(`${rd.slice(0,4)}-${rd.slice(4,6)}-${rd.slice(6,8)}T${hh}:${mi}:00+09:00`);
-      items.push({obsName:'삼천포',lat:'34.934',lot:'128.069',predcYmd:rd,predcTm:hh+mi,tideLevel:(150+150*Math.sin(ms/3.6e6/12.42*2*Math.PI)).toFixed(0)});}
-    return reply(200,JSON.stringify({response:{header:{resultCode:'00'},body:{totalCount:items.length,items:{item:items}}}}));}
+  // 조석예보(고,저조) — 활용가이드(261106) 응답 모양 그대로 (예전 시험은 짐작한 '시계열' 모양이라 실기기 결함을 못 잡았음)
+  if(url.includes('tideFcstHghLw')){
+    const u=new URL(url),code=u.searchParams.get('obsCode'),rd=u.searchParams.get('reqDate');
+    if(code!=='DT_0061')return reply(200,JSON.stringify({response:{header:{resultCode:'03',resultMsg:'NODATA_ERROR'},body:{}}}));
+    const day0=Date.parse(`${rd.slice(0,4)}-${rd.slice(4,6)}-${rd.slice(6,8)}T00:00:00+09:00`),P=12.42*3600e3,items=[],p2=v=>String(v).padStart(2,'0');
+    const k0=Math.floor(day0/P);for(let k=k0-2;k<=k0+3;k++)for(const hi of [true,false]){const t=k*P+(hi?P/4:-P/4); if(t<day0||t>=day0+86400e3)continue;
+      const d=new Date(t+9*3600e3),pm=d.getUTCHours()>=12;
+      items.push({obsvtrNm:'삼천포',lot:'128.069',lat:'34.934',predcDt:`${d.getUTCFullYear()}-${p2(d.getUTCMonth()+1)}-${p2(d.getUTCDate())} ${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}`,predcTdlvVl:(hi?300:0).toFixed(1),extrSe:String(hi?(pm?3:1):(pm?4:2))});}
+    items.sort((a,b)=>a.predcDt<b.predcDt?-1:1);
+    return reply(200,JSON.stringify({response:{header:{resultCode:'00'},body:{totalCount:items.length,items:{item:items.slice(0,+u.searchParams.get('numOfRows')||10)}}}}));}
   if(url.includes('VilageFcst')){const items=[];const d=new Date();d.setMinutes(0,0,0);
     for(let h=-30;h<72;h++){const t=new Date(d.getTime()+h*3600e3);const p=n=>String(n).padStart(2,'0');const fd=`${t.getFullYear()}${p(t.getMonth()+1)}${p(t.getDate())}`,ft=p(t.getHours())+'00';
       items.push({category:'UUU',fcstDate:fd,fcstTime:ft,fcstValue:'6'},{category:'VVV',fcstDate:fd,fcstTime:ft,fcstValue:'0'});}
@@ -77,7 +80,7 @@ with sync_playwright() as p:
     check('B4 광역 8단계 표시(REQ-18)', E(pg,"__QA.RD.pts.length")>0 and '자료 없음' not in pg.inner_text('.samplebadge'), pg.inner_text('.samplebadge'))
     E(pg,"_map._z=11;_map.fire('moveend')"); pg.wait_for_timeout(2500)
     # REQ-19 → REQ-37(11-14 사용자 결정): 색은 낚시 기준 고정 7단계(빨강=2.0노트), 약한 흐름은 움직임 속도(VIEW.G)로 구분
-    check('B5 색 단계 고정(빨강 2.0) + 약한 흐름 움직임 확대(REQ-19→37)', E(pg,"__QA.VIEW.breaks")==[0.3,0.6,1,1.4,1.7,2] and E(pg,"__QA.VIEW.G")>=1, [E(pg,"__QA.VIEW.breaks"),E(pg,"__QA.VIEW.G")])
+    check('B5 색 단계 고정(빨강 2.0) + 움직임 속도만 화면에 맞춤(REQ-19→37)', E(pg,"__QA.VIEW.breaks")==[0.3,0.6,1,1.4,1.7,2] and 0<E(pg,"__QA.VIEW.G")<=3, [E(pg,"__QA.VIEW.breaks"),E(pg,"__QA.VIEW.G")])
     # 지점 선택·정보카드
     E(pg,"_map.fire('click',{latlng:{lat:34.9,lng:128.05}})"); pg.wait_for_timeout(800)
     check('B6 지점 정보카드', pg.is_visible('#info') and 'kn' in pg.inner_text('#iSpeed'), pg.inner_text('#iSpeed')+' '+pg.inner_text('#iDir'))
@@ -168,19 +171,19 @@ with sync_playwright() as p:
     check('F2 전체 시험 중 스크립트 오류 없음', not errs, errs[:3])
     pg.close()
     print('\n[G] 조석예보 미신청 상태 (결함 회귀 시험)')
-    G_BRIDGE=BRIDGE.replace("if(url.includes('tideFcstTime')){","if(url.includes('tideFcstTime')){return reply(200,'<OpenAPI_ServiceResponse><cmmMsgHeader><returnAuthMsg>SERVICE_KEY_IS_NOT_REGISTERED_ERROR</returnAuthMsg></cmmMsgHeader></OpenAPI_ServiceResponse>');")
+    G_BRIDGE=BRIDGE.replace("if(url.includes('tideFcstHghLw')){","if(url.includes('tideFcstHghLw')){return reply(200,'<OpenAPI_ServiceResponse><cmmMsgHeader><returnAuthMsg>SERVICE_KEY_IS_NOT_REGISTERED_ERROR</returnAuthMsg></cmmMsgHeader></OpenAPI_ServiceResponse>');")
     BR0=BRIDGE; BRIDGE=G_BRIDGE
     pg,errs=page(br,{'dataKey':'TESTKEY','rockOn':'1'})
     BRIDGE=BR0
     E(pg,"_map._z=13;_map.fire('moveend')"); pg.wait_for_timeout(5000)
-    calls=E(pg,"__calls.filter(c=>c.startsWith('tideFcstTime'))")
+    calls=E(pg,"__calls.filter(c=>c.startsWith('GetTideFcstHghLwApiService'))")
     check('G1 미신청 응답을 저장하지 않음(저장시간 0)', calls and all(c.endswith('|0') for c in calls), f"{len(calls)}회, 예:{calls[:1]}")
     check('G2 미신청 안내 표시', '활용신청' in E(pg,"__QA.TIDE.err"), E(pg,"__QA.TIDE.err"))
     n1=len(calls); E(pg,"_map.panBy(50,0)"); pg.wait_for_timeout(2500)
-    n2=E(pg,"__calls.filter(c=>c.startsWith('tideFcstTime')).length")
-    check('G3 실패 후 지도 이동해도 재탐색 안 함(30분)', n2==n1, f"{n1}→{n2}")
+    n2=E(pg,"__calls.filter(c=>c.startsWith('GetTideFcstHghLwApiService')).length")
+    check('G3 실패 후 지도 이동해도 재탐색 안 함(하루)', n2==n1, f"{n1}→{n2}")
     pg.click('#setBtn'); pg.click('#keySave'); pg.wait_for_timeout(300)
-    check('G4 설정 저장하면 재탐색 허용', E(pg,"AndroidBridge.getPref('tideScanFailAt')")=='0')
+    check('G4 설정 저장하면 재탐색 허용', E(pg,"AndroidBridge.getPref('tideScanFailAt2')")=='0')
     check('G5 스크립트 오류 없음', not errs, errs[:2])
     pg.close()
     print('\n[H] 개선 5종 (REQ-22~26)')
