@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>물흐름 지도 · 브라우저 직접 호출 시험</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#0a1520;color:#e6eef5;margin:0;padding:16px;line-height:1.5}
+h1{font-size:18px;margin:0 0 8px}
+p{font-size:13px;color:#9fb3c4;margin:0 0 12px}
+input{width:100%;box-sizing:border-box;height:44px;border-radius:10px;border:1px solid #2a4458;background:#122233;color:#e6eef5;padding:0 10px;font-size:14px}
+button{width:100%;height:48px;margin-top:10px;border:none;border-radius:10px;background:#4fd1c5;color:#04211d;font-size:16px;font-weight:700}
+ul{list-style:none;padding:0;margin:16px 0 0}
+li{background:#122233;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:14px}
+li small{display:block;color:#9fb3c4;font-size:12px;margin-top:3px;word-break:break-all}
+.sum{margin-top:12px;font-size:15px;font-weight:700}
+</style>
+</head>
+<body>
+<h1>브라우저 직접 호출 시험 (2판)</h1>
+<p>서버 없이 HTML만으로 공공데이터를 받을 수 있는지 확인해요. 공공데이터 키를 넣고 시험을 누르세요. 키는 이 페이지 안에서만 쓰이고 어디에도 저장하지 않아요.</p>
+<input id="key" placeholder="공공데이터포털 인증키 (일반 인증키)" autocomplete="off">
+<button id="go">시험 시작</button>
+<ul id="out"></ul>
+<div class="sum" id="sum"></div>
+<script>
+const pad=n=>String(n).padStart(2,'0');
+function ymd(d){return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());}
+function kmaBase(){ // 단기예보 발표: 02,05,08,11,14,17,20,23시 (+10분 뒤 제공)
+  const d=new Date(Date.now()-15*60000), hs=[2,5,8,11,14,17,20,23];
+  let h=hs.filter(x=>x<=d.getHours()).pop();
+  if(h==null){d.setDate(d.getDate()-1);h=23;}
+  return {date:ymd(d),time:pad(h)+'00'};
+}
+const tests=k=>{const e=encodeURIComponent(k),t=ymd(new Date()),b=kmaBase();return [
+  {n:'🌊 조류 예보 (국립해양조사원 ROMS)',u:`https://apis.data.go.kr/1192136/roms/GetRomsApiService?serviceKey=${e}&type=json&numOfRows=5&pageNo=1&ymin=34.90&ymax=34.95&xmin=128.03&xmax=128.08`},
+  {n:'📈 조석 예보 고·저조 (국립해양조사원)',u:`https://apis.data.go.kr/1192136/tideFcstHghLw/GetTideFcstHghLwApiService?serviceKey=${e}&type=json&numOfRows=4&obsCode=DT_0061&reqDate=${t}`},
+  {n:'🌬 바람 예보 (기상청 단기예보)',u:`https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst?serviceKey=${e}&dataType=JSON&numOfRows=10&pageNo=1&base_date=${b.date}&base_time=${b.time}&nx=80&ny=66`},
+  {n:'🗺 지도 물색 읽기 (OpenStreetMap 타일)',u:'https://tile.openstreetmap.org/12/3505/1626.png',img:true},
+];};
+async function run(T){
+  const li=document.createElement('li'); li.textContent=T.n+' … 확인 중'; $out.appendChild(li);
+  try{
+    if(T.img){
+      const ok=await new Promise(r=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>{try{const c=document.createElement('canvas');c.width=c.height=8;const x=c.getContext('2d');x.drawImage(im,0,0,8,8);x.getImageData(0,0,1,1);r('ok');}catch(e){r('tainted');}};im.onerror=()=>r('err');im.src=T.u+'?t='+Date.now();});
+      li.innerHTML=ok==='ok'?`✅ ${T.n}<small>그림을 읽을 수 있어요</small>`:`❌ ${T.n}<small>${ok==='tainted'?'그림은 보이지만 색을 읽는 게 막혀요':'타일을 못 받았어요'}</small>`;
+      return ok==='ok';
+    }
+    const r=await fetch(T.u,{cache:'no-store'}); const txt=await r.text();
+    let note=`응답 ${r.status} · ${txt.length}자`;
+    if(/SERVICE_KEY_IS_NOT_REGISTERED|SERVICE KEY IS NOT REGISTERED/i.test(txt))note+=' · ⚠ 키가 이 서비스에 등록 안 됨 (연결 자체는 됨) · '+txt.slice(0,120).replace(/</g,'&lt;');
+    else if(/resultCode"?\s*[:>]\s*"?00/.test(txt))note+=' · 자료 받음';
+    else note+=' · 내용: '+txt.slice(0,80).replace(/</g,'&lt;');
+    li.innerHTML=`✅ ${T.n}<small>${note}</small>`; return true;
+  }catch(e){
+    li.innerHTML=`❌ ${T.n}<small>막힘: ${String(e.message||e)} (브라우저가 응답을 읽지 못하게 막았어요 = CORS)</small>`; return false;
+  }
+}
+const $out=document.getElementById('out');
+document.getElementById('go').onclick=async()=>{
+  const k=document.getElementById('key').value.replace(/\s+/g,''); // 중간 띄어쓰기·줄바꿈 제거 if(!k){alert('키를 넣어 주세요');return;}
+  $out.innerHTML=''; document.getElementById('sum').textContent='';
+  const T=tests(k); let ok=0; for(const t of T)if(await run(t))ok++;
+  document.getElementById('sum').textContent=ok===T.length?'🎉 모두 됨 → 서버 없이 HTML만으로 가능해요':`${T.length-ok}개 막힘 → 이 결과 화면을 캡처해서 보내 주세요`;
+};
+</script>
+</body>
+</html>

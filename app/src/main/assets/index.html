@@ -185,6 +185,16 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
       <button class="btn" id="keyTest" style="flex:1">연결 시험</button>
       <button class="btn" id="diagBtn" style="flex:1">🔍 진단 보내기</button>
     </div>
+    <div class="namebox" style="margin-top:12px">
+      <button class="btn" id="bakOut" style="flex:1">💾 백업 내보내기</button>
+      <button class="btn" id="bakIn" style="flex:1">📥 백업 가져오기</button>
+    </div>
+    <div id="bakBox" style="display:none;margin-top:8px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">백업 파일(.json)을 고르거나, 백업 글을 붙여넣고 '넣기'를 누르세요. 키·설정·즐겨찾기·조과 기록이 들어가요.</div>
+      <input type="file" id="bakFile" accept=".json,.txt,application/json,text/plain" style="width:100%;height:auto;padding:6px 0">
+      <textarea id="bakText" style="width:100%;height:80px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:8px;box-sizing:border-box;margin-top:6px" placeholder="물흐름지도-백업:{...}"></textarea>
+      <button class="btn" id="bakApply" style="width:100%;margin-top:6px;background:var(--accent);color:#06221f;border:none;font-weight:700">넣기</button>
+    </div>
     <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">빨강(낚시 어려움) 시작 유속</span><input id="redKn" type="number" step="0.1" min="1.2" max="3" style="width:80px;flex:none"> <span style="font-size:13px;color:var(--muted)">노트</span></div>
     <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">🔔 안전 알림 시각</span><select id="alertLead" style="height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"><option value="30">30분 전</option><option value="60">1시간 전</option><option value="120">2시간 전</option></select></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="tidalChk" style="width:auto;height:auto"> 갯벌 범위 점선 표시 <span style="font-size:12px;color:var(--muted)">(11단계 이상 · 일부 지역만)</span></label></div>
@@ -327,8 +337,39 @@ const NATIVE=window.AndroidBridge||null;
 const nativeCbs={}; window.__nativeCb=(id,code,body)=>{const f=nativeCbs[id];delete nativeCbs[id];if(f)f(code,body);};
 // 앱이 인터넷 없이 '저장된 자료'를 돌려주면 상태코드 1000+경과분 → stale(분)로 표시
 const NET={staleMin:0};
+// ── 웹(HTML) 버전: 안드로이드 앱이 하던 '받은 자료 저장'을 브라우저 저장소(IndexedDB)로 (REQ-50) ──
+const WEBCACHE={db:null,
+  open(){if(this.db)return this.db;this.db=new Promise((r,j)=>{try{const q=indexedDB.open('fishmap_http',1);q.onupgradeneeded=()=>q.result.createObjectStore('h');q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);}catch(e){j(e);}});return this.db;},
+  cat(u){return u.includes('/roms/')?'roms':u.includes('tideFcst')?'tide':u.includes('VilageFcst')?'wind':'misc';},
+  async tx(mode,f){const db=await this.open();return new Promise((r,j)=>{const t=db.transaction('h',mode),st=t.objectStore('h');let out;const q=f(st);if(q)q.onsuccess=()=>{out=q.result;};t.oncomplete=()=>r(out);t.onerror=()=>j(t.error);});},
+  get(u){return this.tx('readonly',st=>st.get(u)).catch(()=>null);},
+  put(u,body){return this.tx('readwrite',st=>st.put({t:Date.now(),b:body,c:this.cat(u)},u)).catch(()=>{});},
+  del(u){return this.tx('readwrite',st=>st.delete(u)).catch(()=>{});},
+  clear(){return this.tx('readwrite',st=>st.clear()).catch(()=>{});},
+  async clean(rules){const R={};rules.split(',').forEach(x=>{const [k,v]=x.split(':');R[k]=+v;});const now=Date.now();let n=0,bytes=0;
+    const db=await this.open();await new Promise(res=>{const t=db.transaction('h','readwrite'),st=t.objectStore('h');const q=st.openCursor();
+      q.onsuccess=()=>{const c=q.result;if(!c)return;const v=c.value,lim=R[v.c]!=null?R[v.c]:R.misc;if((now-v.t)/60000>lim){n++;bytes+=(v.b||'').length;c.delete();}c.continue();};t.oncomplete=res;t.onerror=res;});
+    return n+','+bytes;}
+};
+// HTML 한 파일 버전은 바위·갯벌·행정구역 자료를 파일 안(window.__EMBED)에 넣어 둠
+async function loadAsset(n){if(window.__EMBED&&window.__EMBED[n])return window.__EMBED[n];const r=await fetch(n);return r.json();}
+// 공유: 앱은 안드로이드 공유, 웹은 폰 공유 창(파일) → 안 되면 내려받기
+async function webShare(text,name,mime){
+  try{const f=new File([text],name,{type:mime||'text/plain'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return true;}}catch(e){if(e&&e.name==='AbortError')return true;}
+  try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:mime||'text/plain'}));a.download=name;document.body.appendChild(a);a.click();a.remove();toast('파일로 내려받았어요: '+name,3000);return true;}catch(e){return false;}
+}
+const cacheDrop=u=>{if(NATIVE)NATIVE.dropCache(u);else WEBCACHE.del(u);};
+async function webGet(url,maxAge){
+  const c=await WEBCACHE.get(url), age=c?(Date.now()-c.t)/60000:1e9;
+  if(c&&maxAge>0&&age<maxAge)return {status:200,text:c.b,stale:0,cached:true,ageMin:Math.round(age)}; // 기간 안의 저장본
+  try{const r=await fetch(url,{cache:'no-store'});const text=await r.text();
+    if(r.status===200&&text&&!/SERVICE_KEY_IS_NOT|NODATA_ERROR|"resultCode"\s*:\s*"0?3"/.test(text))WEBCACHE.put(url,text);
+    return {status:r.status,text,stale:0};}
+  catch(e){if(c){const st=Math.max(1,Math.round(age));NET.staleMin=Math.max(NET.staleMin,st);return {status:200,text:c.b,stale:st,cached:true,ageMin:st};} // 인터넷 없을 때 저장본
+    return {status:-1,text:String(e),stale:0};}
+}
 function nget(url,maxAge){
-  if(!NATIVE) return fetch(url).then(async r=>({status:r.status,text:await r.text(),stale:0})).catch(e=>({status:-1,text:String(e),stale:0}));
+  if(!NATIVE) return webGet(url,maxAge||0);
   return new Promise(res=>{const id='c'+Date.now()+Math.random();
     nativeCbs[id]=(c,b)=>{
       if(c>=2000000){res({status:200,text:b,stale:0,cached:true,ageMin:c-2000000});return;} // 기간 안의 저장본
@@ -340,8 +381,9 @@ function nget(url,maxAge){
 // 바람 3일(예보 길이), 기타 30일, 옛 형식 파일(이름표 없음)은 바로 삭제
 const CLEAN_RULES='roms:11520,tide:11520,wind:4320,misc:43200,legacy:0';
 function cleanOld(force){
-  try{ if(!NATIVE||!NATIVE.cleanCache)return null;
-    const last=+(pref('cleanAt','0'))||0; if(!force&&Date.now()-last<20*3600000)return null;
+  try{ const last=+(pref('cleanAt','0'))||0; if(!force&&Date.now()-last<20*3600000)return null;
+    if(!NATIVE){WEBCACHE.clean(CLEAN_RULES).then(r=>{setPref('cleanAt',String(Date.now()));setPref('cleanRes',r);});SIMDB.clean(8,300).then(n=>setPref('cleanSim',String(n)));return null;} // 웹: 브라우저 저장소 청소
+    if(!NATIVE.cleanCache)return null;
     const r=NATIVE.cleanCache(CLEAN_RULES).split(','); setPref('cleanAt',String(Date.now())); setPref('cleanRes',r.join(','));
     SIMDB.clean(8,300).then(n=>setPref('cleanSim',String(n))); // 저장된 항내 계산 결과도 8일 지나면 삭제
     return {n:+r[0],bytes:+r[1]};
@@ -380,11 +422,11 @@ const ROMS={
   async page(b,p,maxAge){
     const url=ROMS.pageUrl(b,p); const r=await nget(url,maxAge);
     if(r.status===-1)throw new Error('인터넷 연결 확인 ('+r.text+')');
-    let js; try{js=JSON.parse(r.text);}catch(e){if(NATIVE)NATIVE.dropCache(url);
+    let js; try{js=JSON.parse(r.text);}catch(e){cacheDrop(url);
       const m=r.text.match(/<returnAuthMsg>([^<]+)|<resultMsg>([^<]+)/); throw new Error('응답 오류 '+r.status+(m?' '+(m[1]||m[2]):'')+' — 키·주소 확인');}
     const code=ROMS.findNum(js,/^resultCode$/i);
     if(code===3)return {items:[],total:0,raw:js,cached:r.cached,ageMin:r.ageMin,url}; // 자료 없음(육지 구역 등)은 오류가 아님
-    if(code!=null&&code!==0){if(NATIVE)NATIVE.dropCache(url);throw new Error('공공데이터포털 오류 '+code+' ('+({20:'권한 없음',22:'호출 한도 초과',30:'등록 안 된 키',31:'기한 만료 키'}[code]||'')+')');}
+    if(code!=null&&code!==0){cacheDrop(url);throw new Error('공공데이터포털 오류 '+code+' ('+({20:'권한 없음',22:'호출 한도 초과',30:'등록 안 된 키',31:'기한 만료 키'}[code]||'')+')');}
     return {items:ROMS.findItems(js)||[],total:ROMS.findNum(js,/^totalCount$/i),raw:js,cached:r.cached,ageMin:r.ageMin,url};
   },
   // ── 받기 방식 (실기기 진단 2026-11-14 기준) ──
@@ -408,12 +450,12 @@ const ROMS={
     let run=f.all.length?ROMS.runOf(f.all):0;
     // 저장본이 비었거나(빈 대답 6시간 저장 결함) 옛 회차면 → 저장본 버리고 서버에 새로 물어봄
     if(f.cached&&(!f.all.length||(run&&run<ROMS.run))){
-      if(NATIVE)f.urls.forEach(u=>NATIVE.dropCache(u));
+      f.urls.forEach(u=>cacheDrop(u));
       retried=f.all.length?'옛 회차→새로':'빈 저장본→새로';
       f=await ROMS.fetchCell(b,maxPages,ROMS.CACHE_MIN); run=f.all.length?ROMS.runOf(f.all):0;
     }
     // 빈 대답은 저장하지 않음 (다음에 다시 물어봄), 기억도 10분만
-    if(!f.all.length&&NATIVE)f.urls.forEach(u=>NATIVE.dropCache(u));
+    if(!f.all.length)f.urls.forEach(u=>cacheDrop(u));
     if(run>ROMS.run){ // 새 회차 등장 → 옛 회차 칸은 버림 (다음 화면 갱신 때 새로 받음)
       const old=ROMS.run; ROMS.run=run;
       if(old){for(const [k,v] of ROMS.mem)if(v.run&&v.run<run)ROMS.mem.delete(k); RD.have=null; ROMS.newRun=true;}
@@ -676,8 +718,8 @@ async function windLoad(lat,lon){
     for(let pg=1;pg<=2;pg++){
       const url=`https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst?serviceKey=${encodeURIComponent(ROMS.key())}&dataType=JSON&numOfRows=1000&pageNo=${pg}&base_date=${b.date}&base_time=${b.time}&nx=${g.nx}&ny=${g.ny}`;
       const r=await nget(url,60); let js;
-      try{js=JSON.parse(r.text);}catch(e){if(NATIVE)NATIVE.dropCache(url);const m=r.text.match(/<returnAuthMsg>([^<]+)/);throw new Error(m?(m[1].includes('NOT_REGISTERED')?'기상청 단기예보 키가 아직 적용 전이에요 (신청 후 1~2시간)':m[1]):'응답 오류');}
-      const code=ROMS.findNum(js,/^resultCode$/i); if(code!=null&&code!==0){if(NATIVE)NATIVE.dropCache(url);throw new Error('기상청 오류 '+code);}
+      try{js=JSON.parse(r.text);}catch(e){cacheDrop(url);const m=r.text.match(/<returnAuthMsg>([^<]+)/);throw new Error(m?(m[1].includes('NOT_REGISTERED')?'기상청 단기예보 키가 아직 적용 전이에요 (신청 후 1~2시간)':m[1]):'응답 오류');}
+      const code=ROMS.findNum(js,/^resultCode$/i); if(code!=null&&code!==0){cacheDrop(url);throw new Error('기상청 오류 '+code);}
       const it=ROMS.findItems(js)||(js.response&&js.response.body&&js.response.body.items&&js.response.body.items.item)||[];
       items=items.concat(it); const total=ROMS.findNum(js,/^totalCount$/i); if(total==null||items.length>=total)break;
     }
@@ -1115,7 +1157,7 @@ async function drawTidal(){
   tidalLayer.clearLayers();
   if(!TIDAL.on||map.getZoom()<TIDAL.MIN)return;
   if(!TIDAL.data){ if(TIDAL.loading)return; TIDAL.loading=true;
-    try{TIDAL.data=await (await fetch('tidal.json')).json();}catch(e){TIDAL.data=[];} TIDAL.loading=false;
+    try{TIDAL.data=await loadAsset('tidal.json');}catch(e){TIDAL.data=[];} TIDAL.loading=false;
     if(!TIDAL.on||map.getZoom()<TIDAL.MIN)return; }
   const b=map.getBounds().pad(0.2);
   for(const t of TIDAL.data){
@@ -1132,7 +1174,7 @@ const ROCK_ZOOM=12;
 async function rockEnsure(){
   if(ROCK.data||ROCK.loading)return;
   ROCK.loading=true;
-  try{const r=await fetch('rocks.json');ROCK.data=await r.json();}
+  try{ROCK.data=await loadAsset('rocks.json');}
   catch(e){toast('바위 자료를 못 읽었어요');ROCK.on=false;$('#rockBtn').classList.remove('on');}
   finally{ROCK.loading=false;}
 }
@@ -1220,8 +1262,8 @@ async function tideSeries(code){
     const rd=ymd(new Date(t0.getTime()+day*86400e3));
     const url=`${TIDE_HL_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=10&obsCode=${code}&reqDate=${rd}`;
     const r=await nget(url,720);
-    let js;try{js=JSON.parse(r.text);}catch(e){if(NATIVE)NATIVE.dropCache(url);continue;}
-    const items=ROMS.findItems(js)||[]; if(!items.length){if(NATIVE)NATIVE.dropCache(url);continue;}
+    let js;try{js=JSON.parse(r.text);}catch(e){cacheDrop(url);continue;}
+    const items=ROMS.findItems(js)||[]; if(!items.length){cacheDrop(url);continue;}
     for(const it of items){const ms=kstMs(it.predcDt),h=+it.predcTdlvVl,se=+it.extrSe;
       if(ms!=null&&isFinite(h)&&se>=1&&se<=4)ex.push({ms,h,hi:se===1||se===3});}
   }
@@ -1321,9 +1363,9 @@ async function tideExDays(code,d0,n){
   const out=[],days=[];for(let i=-1;i<=n;i++)days.push(i);let k=0;
   async function w(){while(k<days.length){const i=days[k++];
     const url=`${TIDE_HL_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=10&obsCode=${code}&reqDate=${ymd(new Date(d0+i*DAY+3600e3))}`;
-    try{const r=await nget(url,720);const it=ROMS.findItems(JSON.parse(r.text))||[];if(!it.length&&NATIVE)NATIVE.dropCache(url);
+    try{const r=await nget(url,720);const it=ROMS.findItems(JSON.parse(r.text))||[];if(!it.length&&true)cacheDrop(url);
       for(const x of it){const ms=kstMs(x.predcDt),h=+x.predcTdlvVl,se=+x.extrSe;if(ms!=null&&isFinite(h)&&se>=1&&se<=4)out.push({ms,h:h/100,hi:se===1||se===3});}
-    }catch(e){if(NATIVE)NATIVE.dropCache(url);}
+    }catch(e){cacheDrop(url);}
     PLAN.prog++; if(PLAN.prog%4===0&&PLAN.busy)$('#planSub').textContent=`조석 예보 받는 중 ${PLAN.prog}/${days.length}`;}}
   await Promise.all([w(),w(),w(),w()]);
   out.sort((a,b)=>a.ms-b.ms); return out.filter((e,i)=>!i||e.ms-out[i-1].ms>60000);
@@ -1436,7 +1478,7 @@ $('#logCsv').onclick=()=>{const a=loadLog(); if(!a.length){toast('보낼 기록�
   const rows=[['날짜','시각','장소','위도','경도','음력','물때','들물/날물','조차(m)','유속(노트)','유향','바람(m/s)','풍향','어종','메모','조위관측소']]
     .concat(a.map(r=>[d(r.t),hhmm(r.t),r.name,r.lat,r.lng,r.ld,r.mul,r.phase,r.rg,r.sp,r.dir,r.wind,r.wdir,r.fish,r.memo,r.st]));
   const csv='﻿'+rows.map(x=>x.map(q).join(',')).join('\n');
-  if(NATIVE&&NATIVE.shareText)NATIVE.shareText(csv); else {window.__shared=csv;toast('CSV를 만들었어요');}};
+  if(NATIVE&&NATIVE.shareText)NATIVE.shareText(csv); else {window.__shared=csv; if(!NATIVE)webShare(csv,`조과기록_${new Date().toISOString().slice(0,10)}.csv`,'text/csv'); else toast('CSV를 만들었어요');}};
 $('#logList').addEventListener('change',e=>{const f=e.target.dataset.f; if(!f)return; const li=e.target.closest('li'),a=loadLog(),r=a[+li.dataset.i]; if(!r)return;
   r[f]=e.target.value.trim(); saveLog(a); li.querySelector('.l1 span:last-child').textContent=r.fish?'🐟 '+r.fish:'';});
 $('#logList').addEventListener('click',e=>{const li=e.target.closest('#logList>li'); if(!li)return; const i=+li.dataset.i;
@@ -1473,7 +1515,7 @@ function alertCancelAll(){const a=loadAlert(); if(a)for(const x of a.items){if(N
   setPref('alertSet','null');}
 $('#alertBtn').onclick=async()=>{
   if(!sel)return;
-  if(alertHere(sel.lat,sel.lng)){alertCancelAll();updateUI();toast('🔕 안전 알림을 껐어요');return;}
+  if(alertHere(sel.lat,sel.lng)){alertCancelAll();updateUI();toast(NATIVE?'🔕 안전 알림을 껐어요':'🔕 껐어요 · 달력에 넣은 일정은 달력에서 지워 주세요',4000);return;}
   if(!CONF.realData||!TIDE.cur){toast(TIDE.err||'조석 예보를 받은 뒤에 알림을 켤 수 있어요',3000);return;}
   const perm=NATIVE&&NATIVE.notifyPrep?NATIVE.notifyPrep():'ok';
   if(perm==='off'){toast('휴대폰 설정에서 이 앱의 알림이 꺼져 있어요. 켜고 다시 눌러 주세요',4000);return;}
@@ -1490,13 +1532,21 @@ $('#alertBtn').onclick=async()=>{
   }
   if(!items.length){toast('곧 만조예요. 지금 바로 나올 준비를 하세요',3500);return;}
   setPref('alertSet',JSON.stringify({lat:sel.lat,lng:sel.lng,name:sel.name,items}));
-  updateUI(); toast(`🔔 ${msg.join(' · ')}`+(perm==='asked'?' · 알림 허용을 눌러 주세요':'')+(inexact?' · (몇 분 늦을 수 있어요)':''),5000);
+  if(!NATIVE){ // 웹: 브라우저가 꺼져도 울리도록 폰 달력 일정(.ics, 알림 포함)으로 (11-16 시험에서 삼성 캘린더 알림 확인)
+    const f=d=>new Date(d).toISOString().replace(/[-:]/g,'').replace(/\.\d+/,''), esc=t=>String(t).replace(/[,;\\]/g,m=>'\\'+m).replace(/\n/g,'\\n');
+    const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//fishmap//safety//KO','CALSCALE:GREGORIAN'];
+    for(const it of items){const e=ev.find(x=>x.ms===it.ms)||{};L.push('BEGIN:VEVENT','UID:fishmap-'+it.id+'@fishmap','DTSTAMP:'+f(Date.now()),'DTSTART:'+f(it.ms),'DTEND:'+f(it.ms+30*60000),
+      'SUMMARY:'+esc(it.title),'DESCRIPTION:'+esc((e.text||'')+' (물흐름 지도 · '+(sel.name||'')+')'),'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+esc(it.title),
+      'TRIGGER:-PT'+Math.max(0,Math.round((it.ms-it.at)/60000))+'M','END:VALARM','END:VEVENT');}
+    L.push('END:VCALENDAR'); webShare(L.join('\r\n'),'물흐름지도_알림_'+hhmm(items[0].ms).replace(':','')+'.ics','text/calendar');
+  }
+  updateUI(); toast(`🔔 ${msg.join(' · ')}`+(perm==='asked'?' · 알림 허용을 눌러 주세요':'')+(inexact?' · (몇 분 늦을 수 있어요)':'')+(!NATIVE?' · 받은 일정 파일을 달력으로 열어 저장하세요':''),6000);
 };
 $('#alertLead').value=pref('alertLead','60'); $('#alertLead').onchange=()=>setPref('alertLead',$('#alertLead').value);
 // ================= 시·군·구 추천 장소 (REQ-46, 강의자료 1부 3·4장 + 2부 1장) =================
 // 해안선 점(400m 간격)마다 점수: 승부 시간 유속이 알맞은가(0.4) + 300m 안 바위(0.3) + 주변보다 센 물길(물골, 0.15) + 오늘 물때와 장소 성격(0.15)
 const REC={data:null,layer:L.layerGroup().addTo(map),res:null,busy:false};
-async function recLoad(){if(REC.data)return REC.data;try{const r=await fetch('sgg.json');REC.data=await r.json();}catch(e){REC.data=null;}return REC.data;}
+async function recLoad(){if(REC.data)return REC.data;try{REC.data=await loadAsset('sgg.json');}catch(e){REC.data=null;}return REC.data;}
 async function recInit(){
   const d=await recLoad(); if(!d){$('#recSub').textContent='행정구역 자료를 못 읽었어요';return;}
   { const cur=$('#recDay').value, d0=tideDay(); // 오늘부터 7일 (유속 예보가 있는 기간)
@@ -1676,7 +1726,7 @@ function rockNextChange(d){
 // ================= 진단 (실제 데이터 모양 측정 → 공유) =================
 async function runDiag(){
   const o=[], c=map.getCenter(), z=map.getZoom(), th=tH();
-  const ver=(()=>{try{return NATIVE&&NATIVE.appVersion?NATIVE.appVersion():'웹'}catch(e){return '?'}})();
+  const ver=(()=>{try{return NATIVE&&NATIVE.appVersion?NATIVE.appVersion():('웹 '+(window.__WEBVER||''))}catch(e){return '?'}})();
   o.push(`[물흐름지도 진단] v${ver} ${new Date().toLocaleString('ko-KR')}`);
   o.push(`상태: ${RD.loading?'조류 받는 중 '+(RD.prog||''):'받기 끝'}, 배지="${$('.samplebadge').textContent}", 항내추정 ${SIMMODE.on?'ON':'OFF'}(${SIM.on?(SIM.done?'계산완료':'계산중'):'꺼짐'}, 단계 ${SIM.sz||'-'} ${SIM.on?simLevelText():''})`);
   o.push(`화면: 확대 ${z.toFixed(1)}, 중심 ${c.lat.toFixed(4)},${c.lng.toFixed(4)}, 크기 ${W}x${H}`);
@@ -2005,6 +2055,22 @@ function renderFavList(){
 }
 $('#favBtn').onclick=()=>{renderFavList();$('#favImportBox').style.display='none';$('#favPanel').classList.add('show');};
 // 백업: 즐겨찾기를 글(텍스트)로 만들어 카톡·메모 등으로 보내기 → 새 폰/재설치 후 붙여넣어 복원
+// ── 백업 내보내기·가져오기 (REQ-50): 안드로이드 앱 ↔ HTML 버전 사이 옮기기 ──
+const BAK_PREFIX='물흐름지도-백업:', BAK_PREFS=['dataKey','romsUrl','vworldKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
+function bakMake(){const P={},S={};for(const k of BAK_PREFS){const v=pref(k,null);if(v!=null&&v!=='')P[k]=v;}for(const k of BAK_LS){try{const v=localStorage.getItem(k);if(v)S[k]=v;}catch(e){}}
+  return BAK_PREFIX+JSON.stringify({v:1,at:new Date().toISOString(),from:NATIVE?'app':'web',prefs:P,ls:S});}
+function bakApply(txt){txt=String(txt||'').trim(); const i=txt.indexOf('{'); if(i<0)throw new Error('백업 내용이 아니에요');
+  const o=JSON.parse(txt.slice(i)); if(!o||o.v!==1||!o.prefs)throw new Error('백업 형식이 아니에요');
+  for(const [k,v] of Object.entries(o.prefs))if(BAK_PREFS.includes(k))setPref(k,String(v));
+  for(const [k,v] of Object.entries(o.ls||{}))if(BAK_LS.includes(k))localStorage.setItem(k,v);
+  return {prefs:Object.keys(o.prefs).length,favs:(()=>{try{return JSON.parse(o.ls['fishmap.favs.v1']||'[]').length}catch(e){return 0}})(),logs:(()=>{try{return JSON.parse(o.ls['fishmap.log.v1']||'[]').length}catch(e){return 0}})()};}
+$('#bakOut').onclick=async()=>{const t=bakMake(); window.__backup=t;
+  if(NATIVE&&NATIVE.shareText){NATIVE.shareText(t);toast('백업 글을 카톡 나에게·메모 등에 보내 두세요',3500);return;}
+  await webShare(t,`물흐름지도_백업_${new Date().toISOString().slice(0,10)}.json`,'application/json');};
+$('#bakIn').onclick=()=>{const b=$('#bakBox');b.style.display=b.style.display==='none'?'block':'none';};
+$('#bakFile').onchange=async e=>{const f=e.target.files&&e.target.files[0];if(f)$('#bakText').value=await f.text();};
+$('#bakApply').onclick=()=>{try{const r=bakApply($('#bakText').value);toast(`넣었어요: 설정 ${r.prefs}개 · 즐겨찾기 ${r.favs}곳 · 조과 기록 ${r.logs}건 → 다시 불러와요`,3500);setTimeout(()=>location.reload(),1500);}
+  catch(e){toast('넣기 실패: '+e.message,3500);}};
 const FAV_PREFIX='물흐름지도-즐겨찾기:';
 $('#favExport').onclick=async()=>{
   const a=loadFavs(); if(!a.length){toast('저장된 즐겨찾기가 없어요');return;}
@@ -2039,7 +2105,7 @@ function saveSettings(){
   if(vw0!==$('#vwIn').value.trim())rebuildLayers();
   setPref('dataKey',$('#keyIn').value.trim()); setPref('romsUrl',$('#urlIn').value.trim()===ROMS.DEF_URL?'':$('#urlIn').value.trim());
   setPref('field_dir',$('#f_dir').value.trim()); setPref('field_speed',$('#f_speed').value.trim()); setPref('dirIsFrom',$('#dirFrom').checked?'true':'false');
-  ROMS.mem.clear(); if(NATIVE)NATIVE.clearCache(); setPref('tideScanFailAt2','0'); setPref('tideSt2',''); TIDE.st=null; TIDE.err='';
+  ROMS.mem.clear(); if(NATIVE)NATIVE.clearCache(); else WEBCACHE.clear(); setPref('tideScanFailAt2','0'); setPref('tideSt2',''); TIDE.st=null; TIDE.err='';
   CONF.realData=!!ROMS.key(); RD.box=null; RD.have=null; RD.pts=[]; RD.times=[];
   $('#slackLbl').textContent=CONF.realData?'물 약해짐':'다음 정조'; updateBadge(); requestReal(); if(sel){computeEvents();updateUI();}
 }
@@ -2047,6 +2113,8 @@ $('#keySave').onclick=()=>{saveSettings();$('#setPanel').classList.remove('show'
 $('#keyTest').onclick=async()=>{saveSettings();const o=$('#testOut');o.textContent='시험 중… (사천·삼천포 앞바다)';
   try{const r=await ROMS.test();o.textContent=(r.n?`✅ 성공: ${r.n}건 받음 (전체 ${r.total??'?'}건)\n인식한 칸: 유향=${r.fields.dir}, 유속=${r.fields.speed}, 시간=${r.fields.time.join('+')}\n첫 자료: ${JSON.stringify(r.first)}`:'⚠ 연결은 됐지만 자료가 0건이에요\n'+r.raw);}
   catch(e){o.textContent='❌ '+e.message;}};
+// 웹: 폰 뒤로가기 버튼 → 창 닫기 (앱의 __onBack과 같은 동작)
+if(!NATIVE){try{history.pushState({fm:1},'');window.addEventListener('popstate',()=>{if(window.__onBack&&window.__onBack())history.pushState({fm:1},'');});}catch(e){}}
 window.__onBack=()=>{
   for(const id of ['setPanel','favPanel','tidePanel','planPanel'])if($('#'+id).classList.contains('show')){$('#'+id).classList.remove('show');return true;}
   if(res.style.display==='block'){showResults('');return true;}

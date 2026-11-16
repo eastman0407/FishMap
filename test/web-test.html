@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>물흐름 지도 · HTML 기능 시험 (3판)</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#0a1520;color:#e6eef5;margin:0;padding:16px;line-height:1.5}
+h1{font-size:18px;margin:0 0 6px}
+p{font-size:13px;color:#9fb3c4;margin:0 0 12px}
+button{width:100%;height:46px;margin-top:8px;border:none;border-radius:10px;background:#4fd1c5;color:#04211d;font-size:15px;font-weight:700}
+button.sub{background:#1d3347;color:#e6eef5}
+ul{list-style:none;padding:0;margin:14px 0 0}
+li{background:#122233;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:14px}
+li small{display:block;color:#9fb3c4;font-size:12px;margin-top:3px;word-break:break-all}
+.box{background:#0f2030;border:1px solid #2a4458;border-radius:10px;padding:10px 12px;margin-top:14px;font-size:13px}
+</style>
+</head>
+<body>
+<h1>HTML 기능 시험 (3판)</h1>
+<p>HTML 파일로 열었을 때 앱 기능이 되는지 확인해요. ① 아래 '자동 시험'을 누르고 ② 이 페이지를 닫았다가 다시 열어 저장 유지를 확인하고 ③ 달력 알림을 시험해 주세요.</p>
+<div class="box" id="prev"></div>
+<button id="go">① 자동 시험</button>
+<ul id="out"></ul>
+<button class="sub" id="ics">③ 달력 알림 시험 (.ics 받기)</button>
+<button class="sub" id="noti">앱 켜져 있을 때 알림 시험 (10초 뒤)</button>
+<div class="box" id="icsNote" style="display:none"></div>
+<script>
+const $=s=>document.querySelector(s), out=$('#out');
+function row(ok,name,note){const li=document.createElement('li');li.innerHTML=`${ok===true?'✅':ok===false?'❌':'⚠️'} ${name}<small>${note||''}</small>`;out.appendChild(li);}
+const now=new Date(), stamp=now.toLocaleString('ko-KR');
+// 이전에 저장한 값 보여주기 (② 다시 열었을 때 확인용)
+(async()=>{
+  let ls=null; try{ls=localStorage.getItem('fm_test');}catch(e){ls='(읽기 오류: '+e.message+')';}
+  let idb=null; try{idb=await idbGet();}catch(e){idb='(읽기 오류: '+e.message+')';}
+  $('#prev').innerHTML=`<b>② 저장 유지 확인</b><br>지난번에 저장된 값<br>· 기본 저장소: ${ls||'없음 (처음 열었거나 저장이 안 남음)'}<br>· 큰 저장소(IndexedDB): ${idb||'없음'}<br><span style="color:#9fb3c4">페이지 주소: ${location.href.slice(0,60)}…</span>`;
+})();
+function idbOpen(){return new Promise((r,j)=>{const q=indexedDB.open('fm_test',1);q.onupgradeneeded=()=>q.result.createObjectStore('k');q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error);});}
+async function idbGet(){const db=await idbOpen();return new Promise((r,j)=>{const t=db.transaction('k').objectStore('k').get('v');t.onsuccess=()=>r(t.result);t.onerror=()=>j(t.error);});}
+async function idbPut(v){const db=await idbOpen();return new Promise((r,j)=>{const t=db.transaction('k','readwrite');t.objectStore('k').put(v,'v');t.oncomplete=()=>r();t.onerror=()=>j(t.error);});}
+$('#go').onclick=async()=>{
+  out.innerHTML='';
+  // 1 저장
+  try{localStorage.setItem('fm_test','저장 시각 '+stamp);row(true,'기본 저장소 쓰기 (설정·즐겨찾기·기록용)','방금 저장했어요. 페이지를 닫았다 다시 열면 위 칸에 이 시각이 보여야 해요');}catch(e){row(false,'기본 저장소 쓰기',e.message);}
+  try{await idbPut('저장 시각 '+stamp+' · '+'x'.repeat(200000).length+'자');row(true,'큰 저장소 쓰기 (예보 자료·계산 결과용)','20만 자 저장 성공');}catch(e){row(false,'큰 저장소 쓰기',e.message);}
+  try{if(navigator.storage&&navigator.storage.persist){const p=await navigator.storage.persist();row(p?true:null,'저장소 오래 보관 요청',p?'허용됨 (브라우저가 마음대로 안 지움)':'허용 안 됨 (공간 부족하면 지워질 수 있음)');}else row(null,'저장소 오래 보관 요청','이 브라우저엔 기능 없음');}catch(e){row(null,'저장소 오래 보관 요청',e.message);}
+  // 2 위치
+  row(null,'현재 위치','확인 중… (허용 창이 뜨면 허용해 주세요)'); const locLi=out.lastChild;
+  if(!navigator.geolocation){locLi.innerHTML='❌ 현재 위치<small>기능 없음</small>';}
+  else navigator.geolocation.getCurrentPosition(p=>{locLi.innerHTML=`✅ 현재 위치<small>${p.coords.latitude.toFixed(3)}, ${p.coords.longitude.toFixed(3)} (±${Math.round(p.coords.accuracy)}m)</small>`;},
+    e=>{locLi.innerHTML=`❌ 현재 위치<small>${e.code===1?'거부됨/허용 안 됨':e.code===2?'위치를 못 찾음':'시간 초과'} · ${e.message} · 안전한 주소(https)가 아니라서일 수 있어요</small>`;},{enableHighAccuracy:true,timeout:15000});
+  // 3 백그라운드 계산 (⚓ 항내 계산용)
+  try{const src='onmessage=e=>{let s=0;for(let i=0;i<5e6;i++)s+=i%7;postMessage(s)}';const w=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));
+    const t0=performance.now(); const r=await new Promise((res,rej)=>{w.onmessage=e=>res(e.data);w.onerror=e=>rej(new Error(e.message||'오류'));w.postMessage(0);setTimeout(()=>rej(new Error('시간 초과')),8000);});
+    row(true,'백그라운드 계산 (⚓ 항내 계산용)',`결과 ${r} · ${Math.round(performance.now()-t0)}ms`);w.terminate();}catch(e){row(false,'백그라운드 계산 (⚓ 항내 계산용)',e.message);}
+  // 4 공유·내려받기
+  row(!!navigator.share,'공유 창 (CSV 보내기)',navigator.share?'있음'+(navigator.canShare&&navigator.canShare({files:[new File(['a'],'a.csv',{type:'text/csv'})]})?' · 파일 공유도 됨':' · 파일 공유는 안 됨 → 내려받기로'):'없음 → 내려받기로 대신해요');
+  // 5 알림 권한
+  if(!('Notification' in window))row(false,'화면 알림','기능 없음 → 앱 안 알림창+진동으로 대신');
+  else{try{const p=await Notification.requestPermission();row(p==='granted'?true:null,'화면 알림 권한',p==='granted'?'허용됨':p==='denied'?'거부됨 → 앱 안 알림창+진동으로 대신':'묻지 않음/보류');}catch(e){row(null,'화면 알림 권한',e.message);}}
+  row(!!navigator.vibrate,'진동',navigator.vibrate?'있음':'없음');
+  // 6 화면 꺼짐 방지 (낚시 중 화면 유지)
+  try{if('wakeLock' in navigator){const l=await navigator.wakeLock.request('screen');row(true,'화면 꺼짐 방지','됨');l.release();}else row(null,'화면 꺼짐 방지','기능 없음');}catch(e){row(null,'화면 꺼짐 방지',e.message);}
+};
+// 달력 알림 (.ics): 지금부터 5분 뒤 일정, 1분 전 알림
+$('#ics').onclick=()=>{
+  const f=d=>d.toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');
+  const s=new Date(Date.now()+5*60000), e=new Date(s.getTime()+30*60000);
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//fishmap//test//KO','CALSCALE:GREGORIAN','BEGIN:VEVENT',
+    'UID:fishmap-test-'+Date.now()+'@fishmap','DTSTAMP:'+f(new Date()),'DTSTART:'+f(s),'DTEND:'+f(e),
+    'SUMMARY:🌊 [시험] 만조 — 나오는 길 확인','DESCRIPTION:물흐름 지도 달력 알림 시험입니다. 이 알림이 울리면 성공!',
+    'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:🌊 [시험] 만조 1분 전','TRIGGER:-PT1M','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar'})); a.download='fishmap-alarm-test.ics'; document.body.appendChild(a); a.click(); a.remove();
+  $('#icsNote').style.display=''; $('#icsNote').innerHTML=`<b>③ 달력 알림 시험</b><br>'fishmap-alarm-test.ics'를 받았어요. 알림창이나 내 파일 → 다운로드에서 눌러 <b>삼성 캘린더</b>(또는 구글 캘린더)로 열고 '저장'해 주세요.<br>그다음 <b>브라우저를 완전히 닫고</b> 기다리면 <b>${s.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}의 1분 전</b>에 알림이 와야 해요.`;
+};
+$('#noti').onclick=()=>{
+  setTimeout(()=>{try{if(window.Notification&&Notification.permission==='granted')new Notification('🌊 [시험] 만조 알림',{body:'앱이 켜져 있을 때 알림 성공'});}catch(e){}
+    if(navigator.vibrate)navigator.vibrate([300,150,300]); alert('🌊 [시험] 10초 알림 (앱 안 알림창)');},10000);
+};
+</script>
+</body>
+</html>

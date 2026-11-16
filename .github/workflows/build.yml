@@ -30,6 +30,10 @@ jobs:
         run: gradle assembleDebug --no-daemon --stacktrace
       - name: Rename
         run: cp app/build/outputs/apk/debug/app-debug.apk fishmap-${{ github.run_number }}.apk
+      - name: HTML 한 파일 버전 (REQ-50, 브라우저로 여는 물흐름 지도)
+        run: |
+          V=$(grep versionName app/build.gradle | grep -o "'[^']*'" | tr -d "'")
+          python3 tools/build_web.py --version "$V (build-${{ github.run_number }})" --out fishmap-${{ github.run_number }}.html
       - uses: actions/upload-artifact@v4
         with:
           name: fishmap-apk
@@ -39,6 +43,10 @@ jobs:
         with:
           tag_name: build-${{ github.run_number }}
           name: 물흐름 지도 ${{ github.run_number }}
-          body: 이 APK를 폰에서 받아 설치하세요.
-          files: fishmap-${{ github.run_number }}.apk
+          body: |
+            - fishmap-${{ github.run_number }}.apk: 안드로이드 앱 (설치)
+            - fishmap-${{ github.run_number }}.html: 설치 없이 브라우저로 여는 HTML 한 파일 버전 (폰에 받아 내 파일 → 크롬/삼성 인터넷으로 열기)
+          files: |
+            fishmap-${{ github.run_number }}.apk
+            fishmap-${{ github.run_number }}.html
           make_latest: true
