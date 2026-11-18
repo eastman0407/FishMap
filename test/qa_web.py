@@ -109,11 +109,11 @@ with sync_playwright() as p:
     E("localStorage.removeItem('fishmap.favs.v1');localStorage.removeItem('fishmap.log.v1');localStorage.setItem('redKn','2.0');localStorage.removeItem('dataKey')")
     r=E(f"__QA.bakApply({json.dumps(bak)})")
     ok=E("[JSON.parse(localStorage.getItem('fishmap.favs.v1')||'[]').length,JSON.parse(localStorage.getItem('fishmap.log.v1')||'[]').length,localStorage.getItem('redKn'),localStorage.getItem('dataKey')]")
-    check('W6 백업 내보내기 → 가져오기 (키·설정·즐겨찾기·조과 기록)', bak.startswith('물흐름지도-백업:') and ok==[1,1,'2.4','K'], [r,ok])
+    check('W6 백업 내보내기 → 가져오기 (키·설정·즐겨찾기·조과 기록)', bak.startswith('바다흐름지도-백업:') and ok==[1,1,'2.4','K'], [r,ok])
     E("document.querySelector('#setBtn').click()"); pg.wait_for_timeout(200)
     with pg.expect_download() as dl: E("document.querySelector('#bakOut').click()")
     bname=dl.value.suggested_filename; btxt=open(dl.value.path(),encoding='utf-8').read()
-    check('W7 백업은 파일로 내려받음 (공유 창 없을 때)', bname.endswith('.json') and btxt.startswith('물흐름지도-백업:'), bname)
+    check('W7 백업은 파일로 내려받음 (공유 창 없을 때)', bname.endswith('.json') and btxt.startswith('바다흐름지도-백업:'), bname)
     E("window.__onBack()")
     # 달력 알림
     E("__QA.select(34.92,128.07,'실안 바위')"); pg.wait_for_timeout(500)

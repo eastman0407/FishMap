@@ -27,9 +27,11 @@ jobs:
           done
           ls -la app/src/main/assets/lib
       - name: Build
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: gradle assembleDebug bundleRelease --no-daemon --stacktrace
       - name: Rename
-        run: cp app/build/outputs/apk/debug/app-debug.apk fishmap-${{ github.run_number }}.apk
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk fishmap-${{ github.run_number }}.apk
+          cp app/build/outputs/bundle/release/app-release.aab fishmap-${{ github.run_number }}.aab
       - name: HTML 한 파일 버전 (REQ-50, 브라우저로 여는 물흐름 지도)
         run: |
           V=$(grep versionName app/build.gradle | grep -o "'[^']*'" | tr -d "'")
@@ -42,11 +44,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: 물흐름 지도 ${{ github.run_number }}
+          name: 바다흐름지도 ${{ github.run_number }}
           body: |
             - fishmap-${{ github.run_number }}.apk: 안드로이드 앱 (설치)
+            - fishmap-${{ github.run_number }}.aab: Play Console 내부 테스트에 올리는 파일
             - fishmap-${{ github.run_number }}.html: 설치 없이 브라우저로 여는 HTML 한 파일 버전 (폰에 받아 내 파일 → 크롬/삼성 인터넷으로 열기)
           files: |
             fishmap-${{ github.run_number }}.apk
             fishmap-${{ github.run_number }}.html
+            fishmap-${{ github.run_number }}.aab
           make_latest: true

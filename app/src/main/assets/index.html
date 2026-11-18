@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
-<title>물흐름 지도</title>
+<title>바다흐름지도</title>
 <link rel="stylesheet" href="lib/leaflet.min.css" onerror="this.onerror=null;this.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'">
 <script src="lib/leaflet.min.js"></script>
 <script>if(!window.L)document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>');</script>
@@ -192,7 +192,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
     <div id="bakBox" style="display:none;margin-top:8px">
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px">백업 파일(.json)을 고르거나, 백업 글을 붙여넣고 '넣기'를 누르세요. 키·설정·즐겨찾기·조과 기록이 들어가요.</div>
       <input type="file" id="bakFile" accept=".json,.txt,application/json,text/plain" style="width:100%;height:auto;padding:6px 0">
-      <textarea id="bakText" style="width:100%;height:80px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:8px;box-sizing:border-box;margin-top:6px" placeholder="물흐름지도-백업:{...}"></textarea>
+      <textarea id="bakText" style="width:100%;height:80px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:8px;box-sizing:border-box;margin-top:6px" placeholder="바다흐름지도-백업:{...}"></textarea>
       <button class="btn" id="bakApply" style="width:100%;margin-top:6px;background:var(--accent);color:#06221f;border:none;font-weight:700">넣기</button>
     </div>
     <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">빨강(낚시 어려움) 시작 유속</span><input id="redKn" type="number" step="0.1" min="1.2" max="3" style="width:80px;flex:none"> <span style="font-size:13px;color:var(--muted)">노트</span></div>
@@ -1478,7 +1478,7 @@ $('#logCsv').onclick=()=>{const a=loadLog(); if(!a.length){toast('보낼 기록�
   const rows=[['날짜','시각','장소','위도','경도','음력','물때','들물/날물','조차(m)','유속(노트)','유향','바람(m/s)','풍향','어종','메모','조위관측소']]
     .concat(a.map(r=>[d(r.t),hhmm(r.t),r.name,r.lat,r.lng,r.ld,r.mul,r.phase,r.rg,r.sp,r.dir,r.wind,r.wdir,r.fish,r.memo,r.st]));
   const csv='﻿'+rows.map(x=>x.map(q).join(',')).join('\n');
-  if(NATIVE&&NATIVE.shareText)NATIVE.shareText(csv); else {window.__shared=csv; if(!NATIVE)webShare(csv,`조과기록_${new Date().toISOString().slice(0,10)}.csv`,'text/csv'); else toast('CSV를 만들었어요');}};
+  if(NATIVE&&NATIVE.shareText)NATIVE.shareText(csv); else {window.__shared=csv; if(!NATIVE)webShare(csv,`바다흐름지도_조과기록_${new Date().toISOString().slice(0,10)}.csv`,'text/csv'); else toast('CSV를 만들었어요');}};
 $('#logList').addEventListener('change',e=>{const f=e.target.dataset.f; if(!f)return; const li=e.target.closest('li'),a=loadLog(),r=a[+li.dataset.i]; if(!r)return;
   r[f]=e.target.value.trim(); saveLog(a); li.querySelector('.l1 span:last-child').textContent=r.fish?'🐟 '+r.fish:'';});
 $('#logList').addEventListener('click',e=>{const li=e.target.closest('#logList>li'); if(!li)return; const i=+li.dataset.i;
@@ -1519,6 +1519,9 @@ $('#alertBtn').onclick=async()=>{
   if(!CONF.realData||!TIDE.cur){toast(TIDE.err||'조석 예보를 받은 뒤에 알림을 켤 수 있어요',3000);return;}
   const perm=NATIVE&&NATIVE.notifyPrep?NATIVE.notifyPrep():'ok';
   if(perm==='off'){toast('휴대폰 설정에서 이 앱의 알림이 꺼져 있어요. 켜고 다시 눌러 주세요',4000);return;}
+  if(NATIVE&&NATIVE.exactAlarmOk&&NATIVE.exactAlarmOk()==='no'&&pref('exactAsked','')!=='1'){ // 안드 12+: '알람 및 리마인더' 허용해야 정확한 시각
+    setPref('exactAsked','1'); toast('정확한 시각에 알리려면 다음 화면에서 "알람 및 리마인더"를 허용한 뒤 🔔를 다시 눌러 주세요',5000);
+    setTimeout(()=>{try{NATIVE.openExactAlarmSettings();}catch(e){}},1800); return;}
   const lead=+pref('alertLead','60'), now=Date.now(), ev=await alertEvents(sel.lat,sel.lng);
   if(!ev.length){toast('24시간 안에 알릴 만조·바위 잠김이 없어요',3000);return;}
   alertCancelAll();
@@ -1536,9 +1539,9 @@ $('#alertBtn').onclick=async()=>{
     const f=d=>new Date(d).toISOString().replace(/[-:]/g,'').replace(/\.\d+/,''), esc=t=>String(t).replace(/[,;\\]/g,m=>'\\'+m).replace(/\n/g,'\\n');
     const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//fishmap//safety//KO','CALSCALE:GREGORIAN'];
     for(const it of items){const e=ev.find(x=>x.ms===it.ms)||{};L.push('BEGIN:VEVENT','UID:fishmap-'+it.id+'@fishmap','DTSTAMP:'+f(Date.now()),'DTSTART:'+f(it.ms),'DTEND:'+f(it.ms+30*60000),
-      'SUMMARY:'+esc(it.title),'DESCRIPTION:'+esc((e.text||'')+' (물흐름 지도 · '+(sel.name||'')+')'),'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+esc(it.title),
+      'SUMMARY:'+esc(it.title),'DESCRIPTION:'+esc((e.text||'')+' (바다흐름지도 · '+(sel.name||'')+')'),'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+esc(it.title),
       'TRIGGER:-PT'+Math.max(0,Math.round((it.ms-it.at)/60000))+'M','END:VALARM','END:VEVENT');}
-    L.push('END:VCALENDAR'); webShare(L.join('\r\n'),'물흐름지도_알림_'+hhmm(items[0].ms).replace(':','')+'.ics','text/calendar');
+    L.push('END:VCALENDAR'); webShare(L.join('\r\n'),'바다흐름지도_알림_'+hhmm(items[0].ms).replace(':','')+'.ics','text/calendar');
   }
   updateUI(); toast(`🔔 ${msg.join(' · ')}`+(perm==='asked'?' · 알림 허용을 눌러 주세요':'')+(inexact?' · (몇 분 늦을 수 있어요)':'')+(!NATIVE?' · 받은 일정 파일을 달력으로 열어 저장하세요':''),6000);
 };
@@ -1727,7 +1730,7 @@ function rockNextChange(d){
 async function runDiag(){
   const o=[], c=map.getCenter(), z=map.getZoom(), th=tH();
   const ver=(()=>{try{return NATIVE&&NATIVE.appVersion?NATIVE.appVersion():('웹 '+(window.__WEBVER||''))}catch(e){return '?'}})();
-  o.push(`[물흐름지도 진단] v${ver} ${new Date().toLocaleString('ko-KR')}`);
+  o.push(`[바다흐름지도 진단] v${ver} ${new Date().toLocaleString('ko-KR')}`);
   o.push(`상태: ${RD.loading?'조류 받는 중 '+(RD.prog||''):'받기 끝'}, 배지="${$('.samplebadge').textContent}", 항내추정 ${SIMMODE.on?'ON':'OFF'}(${SIM.on?(SIM.done?'계산완료':'계산중'):'꺼짐'}, 단계 ${SIM.sz||'-'} ${SIM.on?simLevelText():''})`);
   o.push(`화면: 확대 ${z.toFixed(1)}, 중심 ${c.lat.toFixed(4)},${c.lng.toFixed(4)}, 크기 ${W}x${H}`);
   // 1) 바다/육지 판별
@@ -2056,7 +2059,7 @@ function renderFavList(){
 $('#favBtn').onclick=()=>{renderFavList();$('#favImportBox').style.display='none';$('#favPanel').classList.add('show');};
 // 백업: 즐겨찾기를 글(텍스트)로 만들어 카톡·메모 등으로 보내기 → 새 폰/재설치 후 붙여넣어 복원
 // ── 백업 내보내기·가져오기 (REQ-50): 안드로이드 앱 ↔ HTML 버전 사이 옮기기 ──
-const BAK_PREFIX='물흐름지도-백업:', BAK_PREFS=['dataKey','romsUrl','vworldKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
+const BAK_PREFIX='바다흐름지도-백업:', BAK_PREFS=['dataKey','romsUrl','vworldKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
 function bakMake(){const P={},S={};for(const k of BAK_PREFS){const v=pref(k,null);if(v!=null&&v!=='')P[k]=v;}for(const k of BAK_LS){try{const v=localStorage.getItem(k);if(v)S[k]=v;}catch(e){}}
   return BAK_PREFIX+JSON.stringify({v:1,at:new Date().toISOString(),from:NATIVE?'app':'web',prefs:P,ls:S});}
 function bakApply(txt){txt=String(txt||'').trim(); const i=txt.indexOf('{'); if(i<0)throw new Error('백업 내용이 아니에요');
@@ -2066,12 +2069,12 @@ function bakApply(txt){txt=String(txt||'').trim(); const i=txt.indexOf('{'); if(
   return {prefs:Object.keys(o.prefs).length,favs:(()=>{try{return JSON.parse(o.ls['fishmap.favs.v1']||'[]').length}catch(e){return 0}})(),logs:(()=>{try{return JSON.parse(o.ls['fishmap.log.v1']||'[]').length}catch(e){return 0}})()};}
 $('#bakOut').onclick=async()=>{const t=bakMake(); window.__backup=t;
   if(NATIVE&&NATIVE.shareText){NATIVE.shareText(t);toast('백업 글을 카톡 나에게·메모 등에 보내 두세요',3500);return;}
-  await webShare(t,`물흐름지도_백업_${new Date().toISOString().slice(0,10)}.json`,'application/json');};
+  await webShare(t,`바다흐름지도_백업_${new Date().toISOString().slice(0,10)}.json`,'application/json');};
 $('#bakIn').onclick=()=>{const b=$('#bakBox');b.style.display=b.style.display==='none'?'block':'none';};
 $('#bakFile').onchange=async e=>{const f=e.target.files&&e.target.files[0];if(f)$('#bakText').value=await f.text();};
 $('#bakApply').onclick=()=>{try{const r=bakApply($('#bakText').value);toast(`넣었어요: 설정 ${r.prefs}개 · 즐겨찾기 ${r.favs}곳 · 조과 기록 ${r.logs}건 → 다시 불러와요`,3500);setTimeout(()=>location.reload(),1500);}
   catch(e){toast('넣기 실패: '+e.message,3500);}};
-const FAV_PREFIX='물흐름지도-즐겨찾기:';
+const FAV_PREFIX='바다흐름지도-즐겨찾기:', FAV_PREFIX_OLD='물흐름지도-즐겨찾기:'; // 11-19 이름 바꿈 (예전 백업도 받음)
 $('#favExport').onclick=async()=>{
   const a=loadFavs(); if(!a.length){toast('저장된 즐겨찾기가 없어요');return;}
   const txt=FAV_PREFIX+JSON.stringify(a.map(f=>({n:f.name,a:f.lat,o:f.lng})));
@@ -2081,7 +2084,7 @@ $('#favExport').onclick=async()=>{
 };
 $('#favImportOpen').onclick=()=>{const b=$('#favImportBox');b.style.display=b.style.display==='none'?'block':'none';$('#favImportText').value='';};
 $('#favImport').onclick=()=>{
-  let t=$('#favImportText').value.trim(); const i=t.indexOf(FAV_PREFIX); if(i>=0)t=t.slice(i+FAV_PREFIX.length);
+  let t=$('#favImportText').value.trim(); for(const P of [FAV_PREFIX,FAV_PREFIX_OLD]){const i=t.indexOf(P); if(i>=0){t=t.slice(i+P.length);break;}}
   let arr; try{arr=JSON.parse(t);}catch(e){toast('백업 글이 아니에요. 통째로 붙여넣어 주세요');return;}
   if(!Array.isArray(arr)){toast('백업 글이 아니에요');return;}
   const cur=loadFavs(); let add=0;

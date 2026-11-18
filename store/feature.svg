@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0A1520"/><stop offset="1" stop-color="#0F2A3F"/></linearGradient></defs>
+<rect width="1024" height="500" fill="url(#g)"/>
+<g fill="none" stroke-linecap="round" opacity="0.18" stroke="#4FD1C5" stroke-width="3">
+<path d="M520,90 C580,50 640,130 700,90 S820,50 880,90 S1000,130 1060,90"/>
+<path d="M520,410 C580,370 640,450 700,410 S820,370 880,410 S1000,450 1060,410"/>
+</g>
+<g transform="translate(70,110) scale(2.6)" fill="none" stroke-width="5" stroke-linecap="round">
+<path stroke="#4FD1C5" d="M8,24 C16,16 24,32 32,24 C40,16 48,32 56,24"/>
+<path stroke="#9BE15D" d="M8,36 C16,28 24,44 32,36 C40,28 48,44 56,36"/>
+<path stroke="#F6C445" d="M8,48 C16,40 24,56 32,48 C40,40 48,56 56,48"/>
+</g>
+<text x="290" y="225" font-family="Noto Sans CJK KR" font-weight="900" font-size="84" fill="#E8F0F7">바다흐름지도</text>
+<text x="292" y="290" font-family="Noto Sans CJK KR" font-weight="500" font-size="34" fill="#8BA4B9">워킹낚시용 물흐름 · 조석 · 물때 한눈에</text>
+<text x="292" y="345" font-family="Noto Sans CJK KR" font-weight="500" font-size="28" fill="#4FD1C5">조류 예보 · 항내 흐름 추정 · 출조 도우미</text>
+</svg>

@@ -8,7 +8,11 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
+import android.view.WindowInsets;
+import android.widget.FrameLayout;
 import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
@@ -51,7 +55,20 @@ public class MainActivity extends Activity {
                 .build();
 
         web = new WebView(this);
-        setContentView(web);
+        // 안드 15+(목표 36)는 화면이 상태 표시줄·아래 버튼 줄 밑까지 그려짐 → 그만큼 여백 (REQ-51)
+        FrameLayout root = new FrameLayout(this);
+        root.setBackgroundColor(0xFF0A1520);
+        root.addView(web);
+        setContentView(root);
+        root.setOnApplyWindowInsetsListener((v, ins) -> {
+            if (Build.VERSION.SDK_INT >= 30) {
+                android.graphics.Insets b = ins.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout() | WindowInsets.Type.ime());
+                v.setPadding(b.left, b.top, b.right, b.bottom);
+                return WindowInsets.CONSUMED;
+            }
+            v.setPadding(ins.getSystemWindowInsetLeft(), ins.getSystemWindowInsetTop(), ins.getSystemWindowInsetRight(), ins.getSystemWindowInsetBottom());
+            return ins.consumeSystemWindowInsets();
+        });
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -139,6 +156,16 @@ public class MainActivity extends Activity {
             try { return AlarmReceiver.schedule(MainActivity.this, id, Long.parseLong(atMs), title, text); } catch (Exception e) { return "err:" + e.getMessage(); }
         }
         @JavascriptInterface public void cancelAlarm(int id) { AlarmReceiver.cancel(MainActivity.this, id); }
+        /** 정확한 시각 알람 허용 여부: "yes" / "no"(안드 12+에서 '알람 및 리마인더' 꺼짐) */
+        @JavascriptInterface public String exactAlarmOk() {
+            if (Build.VERSION.SDK_INT < 31) return "yes";
+            android.app.AlarmManager am = (android.app.AlarmManager) getSystemService(Context.ALARM_SERVICE);
+            return am.canScheduleExactAlarms() ? "yes" : "no";
+        }
+        @JavascriptInterface public void openExactAlarmSettings() {
+            if (Build.VERSION.SDK_INT < 31) return;
+            runOnUiThread(() -> { try { startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + getPackageName()))); } catch (Exception ignored) { } });
+        }
         @JavascriptInterface public String getPref(String k) { return prefs().getString(k, ""); }
         @JavascriptInterface public void setPref(String k, String v) { prefs().edit().putString(k, v).apply(); }
 
@@ -194,7 +221,7 @@ public class MainActivity extends Activity {
                 Intent i = new Intent(Intent.ACTION_SEND);
                 i.setType("text/plain");
                 i.putExtra(Intent.EXTRA_TEXT, text);
-                i.putExtra(Intent.EXTRA_SUBJECT, "물흐름 지도 즐겨찾기 백업");
+                i.putExtra(Intent.EXTRA_SUBJECT, "바다흐름지도 백업");
                 try { startActivity(Intent.createChooser(i, "즐겨찾기 백업 보내기")); } catch (Exception ignored) {}
             });
         }

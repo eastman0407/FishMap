@@ -211,7 +211,7 @@ with sync_playwright() as p:
     pg.click('#starBtn'); pg.fill('#favName','백업시험A'); pg.click('#favSave'); pg.wait_for_timeout(200)
     pg.click('#favBtn'); pg.click('#favExport'); pg.wait_for_timeout(300)
     shared=E(pg,"window.__shared||''")
-    check('H8 즐겨찾기 백업 보내기(REQ-25)', shared.startswith('물흐름지도-즐겨찾기:') and '백업시험A' in shared, shared[:60])
+    check('H8 즐겨찾기 백업 보내기(REQ-25)', shared.startswith('바다흐름지도-즐겨찾기:') and '백업시험A' in shared, shared[:60])
     check('H9 스크립트 오류 없음', not errs, errs[:2])
     pg.close()
     # 새 폰(빈 앱)에 복원
