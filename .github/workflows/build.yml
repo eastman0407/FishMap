@@ -26,6 +26,16 @@ jobs:
             curl -fsSL -o app/src/main/assets/lib/images/$f https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/$f
           done
           ls -la app/src/main/assets/lib
+      - name: 섬 다리 자료 (REQ-60, 지도 서버가 붐비면 지난 자료 씀)
+        continue-on-error: true
+        timeout-minutes: 30
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/old
+          gh release download --pattern bridges.json --dir /tmp/old || echo "지난 자료 없음"
+          python3 tools/make_bridges.py --assets app/src/main/assets --out app/src/main/assets/bridges.json --old /tmp/old/bridges.json
+          ls -la app/src/main/assets/bridges.json
       - name: Build
         run: gradle assembleDebug bundleRelease --no-daemon --stacktrace
       - name: Rename
@@ -53,4 +63,5 @@ jobs:
             fishmap-${{ github.run_number }}.apk
             fishmap-${{ github.run_number }}.html
             fishmap-${{ github.run_number }}.aab
+            app/src/main/assets/bridges.json
           make_latest: true
