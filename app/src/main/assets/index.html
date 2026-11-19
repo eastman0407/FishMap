@@ -687,7 +687,7 @@ function updateBadge(){
     el.textContent=`📴 저장된 예보 · ${staleText(RD.staleMin)} 받음`; return;}
   el.style.cssText='background:#0f3a2e;color:#7ee0a1;border-color:#1f6b52';
   el.textContent=map.getZoom()<REAL_MIN_ZOOM?'확대하면 실제 조류가 보여요':RD.loading?('조류 불러오는 중…'+(RD.prog?' '+RD.prog:'')):RD.empty?'이 구역은 예보 자료 없음':RD.failed&&RD.failed.length?`⚠ 실제 예보 · ${RD.failed.length}칸 못 받음`:
-    (SIM.on?(simLevel()!==SIM.sz?'항내 흐름 계산 준비 중…':SIM.ready&&SIM.done?'실제 예보 + 항내 추정':SIM.rough?'항내 흐름 계산 중… (대략 표시)':'항내 흐름 계산 중…')+' · '+simLevelText():SIMMODE.on&&map.getZoom()<SIMMODE.MIN?`실제 예보 · 항내 추정은 ${SIMMODE.MIN}단계부터`:'실제 예보 · 국립해양조사원');
+    (SIM.on?(simLevel()!==SIM.sz?'항내 흐름 계산 준비 중…':SIM.nestWait&&!SIM.done?'항내 흐름 계산 중… (넓은 구역 먼저)':SIM.ready&&SIM.done?'실제 예보 + 항내 추정':SIM.rough?'항내 흐름 계산 중… (대략 표시)':'항내 흐름 계산 중…')+' · '+simLevelText():SIMMODE.on&&map.getZoom()<SIMMODE.MIN?`실제 예보 · 항내 추정은 ${SIMMODE.MIN}단계부터`:'실제 예보 · 국립해양조사원');
 }
 // 지금 항내 추정 계산 단계 표시 (11-14 요청): 단계 이름 + 칸 한 변 길이(m) + 구역 한 변(km)
 // 단계 16 = 칸 약 23m·구역 4km(15단계 이상) / 14 = 약 94m·16km(⚓ON 13~15) / 12 = 약 375m(11~13) / 11(10~11)
@@ -889,7 +889,8 @@ const SIM_ZOOM=15, SC=12, DOM=171*SC, OVC=24, STRIDE=DOM-OVC*SC;   // 구역 171
 // 계산 단계(칸 크기)는 확대 범위별로 고정: 15단계 이상=16(칸 약 23m, 구역 4km) / ⚓ON 13~15=14(약 94m) / 11~13=12(약 375m) / 10~11=11
 const SIMMODE={on:false, MIN:10};
 function simLevel(){const z=map.getZoom(); if(z>=SIM_ZOOM)return 16; if(!SIMMODE.on||z<SIMMODE.MIN)return 0; return z>=13?14:z>=11?12:11;}
-const SIM={sz:16,on:false,ready:false,done:false,wantT:-1,pendingAt:0,lastSend:0,tiles:new Map(),view:[],fb:[],queue:[],job:null,u:null};
+const NEST_LV=16, NEST_PARENT=14;
+const SIM={par:[],sz:16,on:false,ready:false,done:false,wantT:-1,pendingAt:0,lastSend:0,tiles:new Map(),view:[],fb:[],queue:[],job:null,u:null};
 // ── 4) 계산 결과 폰에 저장 (앱 안 저장소 IndexedDB): 열쇠 = 구역|예보 시각|경계값 지문 → 다시 켜도 본 곳은 바로
 //     값은 16비트 정수로 줄여 저장(구역 1개 약 120KB), 8일 지나면 '지난 자료 청소' 때 삭제, 최대 300개
 const SIMDB={db:null,ok:true,open(){if(SIMDB.db||!SIMDB.ok||!window.indexedDB)return Promise.resolve(SIMDB.db);
@@ -954,7 +955,7 @@ if(simWorker)simWorker.onmessage=e=>{const m=e.data, J=SIM.job; if(!J||m.id!==J.
   const T=J.tile; T.cur={u:m.u,v:m.v,scale:J.scale,t:J.t,done:m.done,partial:!m.done}; T.steps=m.steps;
   if(m.done){simCache.set(T.key+'|'+J.t,{h:J.h,u:m.u,v:m.v,scale:J.scale});if(simCache.size>60)simCache.delete(simCache.keys().next().value);
     SIMDB.put(simKey(T,J.t,J.h),{u:q16(m.u),v:q16(m.v),scale:J.scale,at:Date.now()});
-    SIM.job=null; simPump();}
+    SIM.job=null; if(SIM.nestWait&&SIM.par.includes(T.key)&&SIM.par.every(k=>{const P=SIM.tiles.get(k);return !P||P.state!=='ready'||P.nodata||(P.cur&&P.cur.done&&P.cur.t===tMin);})){SIM.pendingAt=0;simTimeChanged(true);} else simPump();}
   simStatus(); if(sel)updateUI(); updateBadge();};
 const blockedRGB=(r,g,b)=>{ if(isWaterRGB(r,g,b))return false; const mx=Math.max(r,g,b),mn=Math.min(r,g,b),av=(r+g+b)/3;
   if(mn>=250)return false;                 // 흰 도로·다리 상판은 물을 막지 않음
@@ -964,8 +965,8 @@ const blockedRGB=(r,g,b)=>{ if(isWaterRGB(r,g,b))return false; const mx=Math.max
   if(b>g&&b>r&&b-mn>25)return false;       // 파란 선(항로 표시 등)
   return true; };
 // 항내 추정 구역들이 덮는 위경도 범위 (구역 테두리 예보까지 받기 위해)
-function simExtent(){const lv=simLevel(); if(!lv)return null; const T=simViewTiles(lv); if(!T.length)return null;
-  let s=90,n=-90,w=180,e=-180; for(const t of T){const a=map.unproject([t.ox,t.oy],lv),b=map.unproject([t.ox+DOM,t.oy+DOM],lv);
+function simExtent(){const lv=simLevel(); if(!lv)return null; const T=simViewTiles(lv).concat(lv===NEST_LV?simViewTiles(NEST_PARENT):[]); if(!T.length)return null;
+  let s=90,n=-90,w=180,e=-180; for(const t of T){const a=map.unproject([t.ox,t.oy],t.lv),b=map.unproject([t.ox+DOM,t.oy+DOM],t.lv);
     s=Math.min(s,b.lat);n=Math.max(n,a.lat);w=Math.min(w,a.lng);e=Math.max(e,b.lng);} return {s,n,w,e};}
 function simTileInView(T){const s=map.getSize(),a=map.project(map.containerPointToLatLng([0,0]),T.lv),b=map.project(map.containerPointToLatLng([s.x,s.y]),T.lv);
   return !(T.ox+DOM<=a.x||T.ox>=b.x||T.oy+DOM<=a.y||T.oy>=b.y);}
@@ -983,11 +984,13 @@ let simEnsureTimer=null;
 function simEnsureSoon(){clearTimeout(simEnsureTimer);simEnsureTimer=setTimeout(()=>{if(!moving)simEnsure();},800);}
 function simEnsure(){
   const lv=simLevel();
-  if(!simWorker||!lv){ if(SIM.view.length){SIM.view=[];SIM.queue=[];SIM.job=null;SIM.lastTile=null;simJob++;if(simWorker)simWorker.postMessage({type:'stop'});simStatus();updateBadge();} return; }
+  if(!simWorker||!lv){ SIM.par=[]; if(SIM.view.length){SIM.view=[];SIM.queue=[];SIM.job=null;SIM.lastTile=null;simJob++;if(simWorker)simWorker.postMessage({type:'stop'});simStatus();updateBadge();} return; }
   SIM.sz=lv; const vt=simViewTiles(lv); SIM.view=vt.map(t=>t.key);
-  // 다른 단계에서 이미 계산해 둔, 화면에 걸치는 구역 → 계산 중 '대략 표시'와 이어서 계산의 출발값으로 사용
-  SIM.fb=[...SIM.tiles.values()].filter(T=>T.lv!==lv&&T.solid&&simTileInView(T)).map(T=>T.key);
-  for(const t of vt)if(!SIM.tiles.has(t.key)){const T=Object.assign({},t,{gx:DOM/SC,gy:DOM/SC,state:'new',cur:null});SIM.tiles.set(t.key,T);simBuildTile(T);}
+  // 둥지 계산 (11-19, REQ-55): 정밀(16)은 화면을 감싸는 보통(14) 구역을 먼저 계산하고, 그 결과를 정밀 구역 테두리 값으로 씀
+  const pt=lv===NEST_LV?simViewTiles(NEST_PARENT):[]; SIM.par=pt.map(t=>t.key);
+  // 다른 단계에서 이미 계산해 둔, 화면에 걸치는 구역 → 계산 중 '대략 표시'
+  SIM.fb=[...new Set(SIM.par.concat([...SIM.tiles.values()].filter(T=>T.lv!==lv&&T.solid&&simTileInView(T)).map(T=>T.key)))];
+  for(const t of pt.concat(vt))if(!SIM.tiles.has(t.key)){const T=Object.assign({},t,{gx:DOM/SC,gy:DOM/SC,state:'new',cur:null});SIM.tiles.set(t.key,T);simBuildTile(T);}
   // 오래 안 본 구역은 메모리에서 내림 (계산 결과는 simCache에 남아 다시 오면 바로 씀)
   if(SIM.tiles.size>16)for(const k of [...SIM.tiles.keys()])if(!SIM.view.includes(k)&&!SIM.fb.includes(k)&&SIM.tiles.size>16)SIM.tiles.delete(k);
   SIM.wantT=-1; simTimeChanged(true);
@@ -1060,12 +1063,21 @@ async function simDepth(T){
   const c={kz,kzSum:sum,hmed}; DEPTH.cache.set(T.key,c); if(DEPTH.cache.size>40)DEPTH.cache.delete(DEPTH.cache.keys().next().value);
   T.kz=kz; T.kzSum=sum; T.hmed=hmed;
 }
+// 부모(보통) 구역 계산 결과에서 이 위치 흐름(노트). 부모가 아직이거나 육지 칸이면 null
+function nestAt(lat,lon){
+  for(const k of SIM.par){const T=SIM.tiles.get(k); if(!T||!T.cur||T.cur.t!==tMin||!T.cur.done||!T.solid)continue;
+    const P=map.project([lat,lon],T.lv), fx=(P.x-T.ox)/SC-0.5, fy=(P.y-T.oy)/SC-0.5, X=Math.floor(fx), Y=Math.floor(fy);
+    if(X<1||Y<1||X>=T.gx-2||Y>=T.gy-2)continue;
+    let su=0,sv=0,sw=0; for(const [dx,dy] of [[0,0],[1,0],[0,1],[1,1]]){const i=(Y+dy)*T.gx+X+dx; if(T.solid[i])continue;
+      const w=(dx?fx-X:1-(fx-X))*(dy?fy-Y:1-(fy-Y))+1e-6; su+=T.cur.u[i]/T.cur.scale*w; sv+=-T.cur.v[i]/T.cur.scale*w; sw+=w;}
+    if(sw>0.3)return {vE:su/sw,vN:sv/sw,real:true,nest:true};}
+  return null;}
 // 구역 가장자리 물 칸에 넣을 바깥 흐름(실제 예보) → {bcU,bcV,bcIn,scale}
 // 바깥 예보가 없는 경계 칸은 '물이 자유롭게 드나드는 열린 경계'로 둠 (예전: 평균값을 지어서 넣음)
 function simBC(T,th){
   const n=T.bcIdx.length, vE=new Float32Array(n), vN=new Float32Array(n), has=new Uint8Array(n); let mx=0.3,got=0;
   for(let q=0;q<n;q++){const i=T.bcIdx[q],X=i%T.gx,Y=(i/T.gx)|0;
-    const ll=map.unproject([T.ox+(X+0.5)*SC,T.oy+(Y+0.5)*SC],T.lv); const v=simBaseAt(ll.lat,ll.lng,th);
+    const ll=map.unproject([T.ox+(X+0.5)*SC,T.oy+(Y+0.5)*SC],T.lv); const v=(T.lv===NEST_LV&&nestAt(ll.lat,ll.lng))||simBaseAt(ll.lat,ll.lng,th);
     if(v){vE[q]=v.vE;vN[q]=v.vN;has[q]=1;got++;mx=Math.max(mx,Math.hypot(v.vE,v.vN));}}
   if(got<n*0.1)return null; // 바깥 예보가 거의 없으면 계산하지 않음 (지어낸 값 방지)
   const dr=WIND.on?(()=>{const w=windAt(th);return w?{vE:w.u*DRIFT*1.9438,vN:w.v*DRIFT*1.9438}:null;})():null;
@@ -1074,7 +1086,7 @@ function simBC(T,th){
   if(CONF.realData&&CF.on&&CF.st){const ms=t0.getTime()+th*3600e3;
     for(const s of CF.st){const S=CF.ser.get(s.c); if(!S||!S.t||!S.t.length)continue; const v=cfAt(S,ms); if(!v)continue;
       const P=map.project([s.la,s.lo],T.lv), cx=Math.floor((P.x-T.ox)/SC), cy=Math.floor((P.y-T.oy)/SC);
-      if(cx<2||cy<2||cx>=T.gx-2||cy>=T.gy-2||T.solid[cy*T.gx+cx])continue; if(realAt(s.la,s.lo,th))continue;
+      if(cx<2||cy<2||cx>=T.gx-2||cy>=T.gy-2||T.solid[cy*T.gx+cx])continue;
       AN.push({cx,cy,vE:v.vE,vN:v.vN}); mx=Math.max(mx,Math.hypot(v.vE,v.vN)); T.anchors++;}}
   const scale=0.07/mx, bcU=new Float32Array(n), bcV=new Float32Array(n), bcIn=new Uint8Array(n);
   const kfr=dr?0.003:0, fwx=dr?kfr*dr.vE*scale:0, fwy=dr?-kfr*dr.vN*scale:0;
@@ -1108,7 +1120,10 @@ function simTimeChanged(first){
   if(CONF.realData&&RD.loading){SIM.pendingAt=performance.now();SIM.wantT=-1;return;}
   SIM.wantT=tMin; SIM.pendingAt=0; SIM.lastSend=performance.now();
   const th=tH(); let missing=false; SIM.queue=[];
-  for(const k of SIM.view){const T=SIM.tiles.get(k); if(!T||T.state!=='ready')continue;
+  const parDone=k=>{const T=SIM.tiles.get(k);return !T||T.state==='skip'||T.nodata||(T.state==='ready'&&T.cur&&T.cur.t===tMin&&T.cur.done);};
+  const keys=SIM.par.concat(SIM.view); SIM.nestWait=false;
+  for(const k of keys){const T=SIM.tiles.get(k); if(!T||T.state!=='ready')continue;
+    if(T.lv===NEST_LV&&SIM.par.length&&!SIM.par.every(parDone)){SIM.nestWait=true;missing=true;continue;} // 보통 구역 먼저
     const b=simBC(T,th); T.nodata=!b; if(!b){missing=true;T.cur=null;continue;}
     if(T.farVer!==RD.ver)simFar(T,th);
     const h=bcHash(b,T), c=simCache.get(k+'|'+tMin);
@@ -1119,9 +1134,9 @@ function simTimeChanged(first){
   // 지금 계산 중인 일이 더 이상 필요 없으면 멈추고 다음으로
   if(SIM.job&&!SIM.queue.some(q=>q.tile===SIM.job.tile&&q.h===SIM.job.h&&q.t===SIM.job.t)){SIM.job=null;if(!SIM.queue.length){simWorker.postMessage({type:'stop'});SIM.lastTile=null;}}
   else if(SIM.job)SIM.queue=SIM.queue.filter(q=>!(q.tile===SIM.job.tile&&q.t===SIM.job.t));
-  // 화면 가운데 구역부터
-  const c=map.project(map.getCenter(),SIM.sz);
-  SIM.queue.sort((a,b)=>Math.hypot(a.tile.ox+DOM/2-c.x,a.tile.oy+DOM/2-c.y)-Math.hypot(b.tile.ox+DOM/2-c.x,b.tile.oy+DOM/2-c.y));
+  // 보통(부모) 구역 먼저, 그다음 화면 가운데 구역부터
+  const cc=map.getCenter(), dq=q=>{const c=map.project(cc,q.tile.lv);return (q.tile.lv===NEST_LV?1e9:0)+Math.hypot(q.tile.ox+DOM/2-c.x,q.tile.oy+DOM/2-c.y);};
+  SIM.queue.sort((a,b)=>dq(a)-dq(b));
   simStatus(); updateBadge(); if(sel)updateUI();
   // 폰 저장소에 같은 결과가 있으면 계산 없이 꺼내 씀 → 없는 것만 계산
   const gen=SIM.gen=(SIM.gen||0)+1, look=SIM.queue.slice();
@@ -1129,6 +1144,7 @@ function simTimeChanged(first){
     if(gen!==SIM.gen)return;
     for(const [q,r] of rs)if(r&&r.u){const u=f16(r.u),v=f16(r.v);q.tile.cur={u,v,scale:r.scale,t:q.t,done:true};
       simCache.set(q.tile.key+'|'+q.t,{h:q.h,u,v,scale:r.scale});SIM.queue=SIM.queue.filter(x=>x!==q);}
+    if(SIM.nestWait&&rs.some(([q,r])=>r&&r.u&&SIM.par.includes(q.tile.key))){SIM.pendingAt=0;setTimeout(()=>simTimeChanged(true),0);}
     simPump(); simStatus(); updateBadge(); if(sel)updateUI();});
 }
 // (시험 후 제외) 성긴 단계 결과에서 출발하는 '이어서 계산'은 32% 빨랐지만, 출발값에 따라 같은 곳 결과가 최대 40% 달라져서
