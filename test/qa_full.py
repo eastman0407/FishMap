@@ -38,6 +38,8 @@ results=[]
 def check(name,cond,detail=''):
     results.append((name,bool(cond),detail)); print(('✅' if cond else '❌'),name,('— '+str(detail) if detail else ''))
 
+def tool(q):  # build-36: 도구 버튼은 레이어 시트 안에 있음 → 시트를 열고 누름
+    E(pg,"document.querySelector('#layerPanel').classList.add('show')"); pg.click(q); E(pg,"document.querySelector('#layerPanel').classList.remove('show')")
 def page(br,prefs):
     ctx=br.new_context(viewport={'width':390,'height':760},geolocation={'latitude':34.915,'longitude':128.06},permissions=['geolocation'])
     pg=ctx.new_page(); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
@@ -112,17 +114,17 @@ with sync_playwright() as p:
     r=E(pg,"window.__onBack()")
     check('B17 뒤로가기 → 정보창 닫기', r is True and not E(pg,"!!__QA.sel()"))
     # 지도 순환
-    m0=E(pg,"__QA.mode()"); pg.click('#layerBtn'); m1=E(pg,"__QA.mode()"); pg.click('#layerBtn'); m2=E(pg,"__QA.mode()")
+    m0=E(pg,"__QA.mode()"); tool('#layerBtn'); m1=E(pg,"__QA.mode()"); tool('#layerBtn'); m2=E(pg,"__QA.mode()")
     check('B18 지도 전환(REQ-03/20)', m0!=m1 and m1!=m2 or (m0!=m1), f"{m0}→{m1}→{m2}")
     pg.close()
 
     # ===== C. 바람 =====
     print('\n[C] 바람 (REQ-12)')
     pg,errs=page(br,{'dataKey':'TESTKEY','vworldKey':'VW'})
-    pg.click('#windBtn'); pg.wait_for_timeout(2500)
+    tool('#windBtn'); pg.wait_for_timeout(2500)
     check('C1 바람 예보 수신', E(pg,"!!__QA.WIND.data"), pg.inner_text('#windChip'))
     check('C2 바람 칩 표시', '서풍' in pg.inner_text('#windChip'), pg.inner_text('#windChip'))
-    pg.click('#layerBtn'); m1=E(pg,"__QA.mode()"); pg.click('#layerBtn'); m2=E(pg,"__QA.mode()"); pg.click('#layerBtn'); m3=E(pg,"__QA.mode()")
+    tool('#layerBtn'); m1=E(pg,"__QA.mode()"); tool('#layerBtn'); m2=E(pg,"__QA.mode()"); tool('#layerBtn'); m3=E(pg,"__QA.mode()")
     check('C3 브이월드 키 있을 때 3단 순환', [m1,m2,m3]==['esri','street','sat'], [m1,m2,m3])
     pg.close()
 
@@ -165,7 +167,7 @@ with sync_playwright() as p:
     # ===== F. 오류 상황 =====
     print('\n[F] 오류 상황')
     pg,errs=page(br,{'dataKey':'TESTKEY'})
-    pg.click('#setBtn'); pg.click('#keyTest'); pg.wait_for_timeout(2000)
+    tool('#setBtn'); pg.click('#keyTest'); pg.wait_for_timeout(2000)
     check('F1 연결 시험 버튼', '성공' in pg.inner_text('#testOut'), pg.inner_text('#testOut')[:50])
     pg.click('#setClose')
     check('F2 전체 시험 중 스크립트 오류 없음', not errs, errs[:3])
@@ -182,7 +184,7 @@ with sync_playwright() as p:
     n1=len(calls); E(pg,"_map.panBy(50,0)"); pg.wait_for_timeout(2500)
     n2=E(pg,"__calls.filter(c=>c.startsWith('GetTideFcstHghLwApiService')).length")
     check('G3 실패 후 지도 이동해도 재탐색 안 함(하루)', n2==n1, f"{n1}→{n2}")
-    pg.click('#setBtn'); pg.click('#keySave'); pg.wait_for_timeout(300)
+    tool('#setBtn'); pg.click('#keySave'); pg.wait_for_timeout(300)
     check('G4 설정 저장하면 재탐색 허용', E(pg,"AndroidBridge.getPref('tideScanFailAt2')")=='0')
     check('G5 스크립트 오류 없음', not errs, errs[:2])
     pg.close()

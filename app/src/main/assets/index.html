@@ -35,11 +35,22 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 .legend{position:absolute;left:10px;bottom:22px;z-index:1000;background:rgba(10,21,32,.85);border:1px solid var(--line);border-radius:10px;padding:6px 8px;font-size:10.5px;color:var(--muted)}
 .legend .bar{display:flex;margin-top:4px}.legend .bar span{width:22px;height:6px}
 .legend .ticks{display:flex;justify-content:space-between;width:154px;margin-top:2px}
-.toast{position:absolute;left:50%;top:64px;transform:translateX(-50%);z-index:1100;background:rgba(10,21,32,.95);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font-size:13px;display:none;max-width:86%;text-align:center}
+.toast{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:1100;background:rgba(10,21,32,.95);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font-size:13px;display:none;max-width:86%;text-align:center}
 .windchip{font-size:11.5px;padding:3px 9px;border-radius:99px;background:rgba(10,21,32,.88);color:#cfe6ff;border:1px solid #2a4a6a;display:none;align-items:center;gap:5px}
 .windchip .wa{display:inline-block;transition:transform .3s}
 .winfo{font-size:12px;color:var(--muted);margin-top:6px}
 .topchips{position:absolute;left:10px;top:62px;right:66px;z-index:1000;display:flex;flex-wrap:wrap;gap:5px;align-items:center;pointer-events:none}
+.nowcard{flex-direction:column;align-items:stretch;gap:2px;right:auto;max-width:calc(100% - 76px);background:rgba(10,21,32,.92);border:1px solid var(--line);border-radius:12px;padding:6px 10px 7px}
+.nowcard .nchead{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;cursor:pointer;padding-bottom:2px}
+.nowcard .nchead span{color:var(--accent);font-size:12px}
+.nowcard .tchip,.nowcard .windchip{border:none;background:none;padding:1px 0;font-size:13.5px;border-radius:0}
+.nowcard .samplebadge{align-self:flex-start;font-size:11px}
+.biteFab{position:absolute;right:12px;bottom:22px;z-index:1000;width:58px;height:58px;border-radius:50%;border:2px solid var(--accent);background:rgba(10,21,32,.94);color:var(--accent);font-size:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4)}
+.biteFab small{font-size:11px;font-weight:700;margin-top:2px}
+#layerPanel .lsheet{position:absolute;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);border-radius:16px 16px 0 0;padding:14px 14px calc(16px + env(safe-area-inset-bottom))}
+#layerPanel h3{margin:0 0 12px;font-size:16px;display:flex;justify-content:space-between;align-items:center}
+.lgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 8px}
+.lcell{display:flex;flex-direction:column;align-items:center;gap:4px}.lcell .ibtn{width:52px;height:52px}.lcell .ibtn span{font-size:21px}.lcell small{font-size:12px;color:var(--muted)}
 .topchips>*{pointer-events:auto}
 .tchip{font-size:11.5px;padding:3px 9px;border-radius:99px;background:rgba(10,21,32,.88);color:#cfe6ff;border:1px solid #2a4a6a;display:none;white-space:nowrap}
 .tchip.tide{cursor:pointer;color:#9fe7ff} .tchip.phase{color:#ffe08a;border-color:#5a4a1c}
@@ -125,21 +136,18 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
 
     <div class="side">
       <button class="ibtn" id="locBtn" title="현위치"><span>◎</span></button>
-      <button class="ibtn" id="layerBtn" title="지도 종류"><span>🛰</span></button>
-      <button class="ibtn on" id="flowBtn" title="흐름선"><span>〰</span></button>
-      <button class="ibtn" id="windBtn" title="바람 영향"><span>🌬</span></button>
-      <button class="ibtn" id="simBtn" title="항내 추정 (섬·항구 주변 흐름 계산)"><span>⚓</span></button>
-      <button class="ibtn" id="rockBtn" title="갯바위·간출암"><span>🪨</span></button>
-      <button class="ibtn" id="planBtn" title="출조 계획·기록·추천"><span>📅</span></button>
-      <button class="ibtn" id="setBtn" title="설정"><span>⚙</span></button>
+      <button class="ibtn" id="layersBtn" title="레이어·도구"><span>☰</span>레이어</button>
     </div>
-    <div class="topchips">
+    <!-- 지금 카드 (11-19, REQ-57): 칩 여러 개를 카드 하나로. 머리를 누르면 출조 도우미 -->
+    <div class="topchips nowcard" id="nowCard">
+      <div class="nchead" id="nowHead"><b>📍 지금</b><span>출조 도우미 ›</span></div>
       <span class="samplebadge">흐름: 샘플 데이터</span>
       <span class="tchip tide" id="tideChip" title="오늘 만조·간조 시각 보기"></span>
       <span class="tchip phase" id="phaseChip"></span>
       <span class="windchip" id="windChip"></span>
     </div>
     <div class="legend"><span id="legendTitle">유속 (노트)</span><div class="bar" id="legendBar"></div><div class="ticks" id="legendTicks"></div></div>
+    <button class="biteFab" id="biteFab" title="입질 기록 (지금 시각·물때·유속 자동 저장)">🎣<small>입질</small></button>
     <div class="toast" id="toast"></div>
   </div>
 
@@ -175,6 +183,22 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
   </div>
 </div>
 
+<!-- 레이어·도구 시트 (11-19, REQ-57): 자주 안 쓰는 버튼을 한곳에 -->
+<div class="panel" id="layerPanel">
+  <div class="lsheet">
+    <h3>레이어·도구 <button class="x" id="layerClose">×</button></h3>
+    <div class="lgrid">
+      <div class="lcell"><button class="ibtn" id="layerBtn" title="지도 종류"><span>🛰</span></button><small>지도 종류</small></div>
+      <div class="lcell"><button class="ibtn on" id="flowBtn" title="흐름선"><span>〰</span></button><small>흐름선</small></div>
+      <div class="lcell"><button class="ibtn" id="windBtn" title="바람 영향"><span>🌬</span></button><small>바람</small></div>
+      <div class="lcell"><button class="ibtn" id="simBtn" title="항내 추정 (섬·항구 주변 흐름 계산)"><span>⚓</span></button><small>항내 추정</small></div>
+      <div class="lcell"><button class="ibtn" id="rockBtn" title="갯바위·간출암"><span>🪨</span></button><small>바위</small></div>
+      <div class="lcell"><button class="ibtn" id="planBtn" title="출조 계획·기록·추천"><span>📅</span></button><small>출조 도우미</small></div>
+      <div class="lcell"><button class="ibtn" id="setBtn" title="설정"><span>⚙</span></button><small>설정</small></div>
+    </div>
+    <div class="empty" style="padding:8px 0 0;font-size:12px">켜진 것은 초록 테두리 · 바깥을 누르거나 뒤로가기로 닫아요</div>
+  </div>
+</div>
 <div class="panel" id="setPanel">
   <div class="pbox">
     <h3>설정 <button class="x" id="setClose">×</button></h3>
@@ -244,7 +268,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
       <div class="namebox"><select id="recSido" style="flex:1;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"></select>
         <select id="recSgg" style="flex:1.4;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"></select></div>
       <div class="namebox kindbox" style="margin-top:8px;gap:6px;flex-wrap:wrap;font-size:13px"><label><input type="checkbox" data-k="l"> 🚗 육지</label><label><input type="checkbox" data-k="b"> 🌉 다리로 가는 섬</label><label><input type="checkbox" data-k="f"> ⛴ 배 타는 섬</label></div>
-      <div class="namebox" style="margin-top:8px;align-items:center"><span style="font-size:13px;color:var(--muted);flex:none">날짜</span><select id="recDay" style="flex:1;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"></select></div>
+      <div class="namebox" style="margin-top:8px;align-items:center"><span style="font-size:13px;color:var(--muted);flex:none">날짜</span><select id="recDay" style="flex:1;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"></select><select id="recSort" style="flex:none;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"><option value="score">점수순</option><option value="near">가까운 순</option></select></div>
       <div class="namebox" style="margin-top:8px"><button class="btn" id="recGo" style="flex:2;background:var(--accent);color:#06221f;border:none;font-weight:700">이 지역 추천 받기</button><button class="btn" id="recClear" style="flex:1">핀 지우기</button></div>
       <div class="empty" id="recSub" style="padding:8px 0 0;font-size:12.5px;text-align:left"></div>
       <ul class="plan" id="recList"></ul>
@@ -1658,6 +1682,16 @@ function biteRecord(lat,lng,name){
     sp:v?+Math.hypot(v.vE,v.vN).toFixed(2):null,dir:v?dirName(bearing(v.vE,v.vN)):'',
     wind:w?+Math.hypot(w.u,w.v).toFixed(1):null,wdir:w?dirName(bearing(-w.u,-w.v)):'',fish:'',memo:''};
 }
+// 큰 입질 버튼 (REQ-57): 고른 자리 → 그 자리, 없으면 내 위치, 둘 다 없으면 안내
+$('#biteFab').onclick=()=>{ if(sel){$('#biteBtn').click();return;}
+  if(meMarker){const p=meMarker.getLatLng(); select(p.lat,p.lng,'내 위치'); $('#biteBtn').click(); return;}
+  toast('지도에서 낚시 자리를 누르거나 ◎ 현위치를 켠 뒤 눌러 주세요',3000);};
+$('#layersBtn').onclick=()=>$('#layerPanel').classList.add('show');
+$('#layerClose').onclick=()=>$('#layerPanel').classList.remove('show');
+$('#layerPanel').addEventListener('click',e=>{if(e.target.id==='layerPanel')$('#layerPanel').classList.remove('show');});
+// 출조 도우미·설정은 레이어 시트를 닫고 열기
+['planBtn','setBtn'].forEach(id=>$('#'+id).addEventListener('click',()=>$('#layerPanel').classList.remove('show')));
+$('#nowHead').onclick=()=>openPlan();
 $('#biteBtn').onclick=()=>{if(!sel)return; const a=loadLog(); a.unshift(biteRecord(sel.lat,sel.lng,sel.name)); saveLog(a); drawLogPins();
   toast(`🎣 ${hhmm(a[0].t)} 입질 기록! · 📅 → 📓 기록에서 어종·메모를 적어요`,3000);};
 const phaseGroup=p=>/들물/.test(p)?'들물':/날물/.test(p)?'날물':/정조/.test(p)?'물 멈춤':'';
@@ -1878,16 +1912,20 @@ async function recCompute(sg,day0,say){
   return R;
 }
 const recName=(c,sg)=>c.fav?`⭐ ${c.fav}`:`${KIND_ICON[c.isl]||''} ${c.dong||sg.n}${c.isl&&c.isl!=='l'?' 섬':''} 해안`;
+// 내 위치에서 거리 (낚시GO 참고, REQ-57): 현위치가 있으면 km 표시, '가까운 순'이면 거리순
+function recMe(){try{return meMarker?meMarker.getLatLng():null;}catch(e){return null;}}
 function recRender(ul,R){
-  const sg=R.sg; ul._R=R; REC.layer.clearLayers(); let k=0;
-  ul.innerHTML=R.pick.map((c,i)=>{const w=c.best&&c.best.w;
+  const sg=R.sg, me=recMe(); ul._R=R; REC.layer.clearLayers(); let k=0;
+  for(const c of R.pick)c.km=me?distM(me.lat,me.lng,c.la,c.lo)/1000:null;
+  const P=me&&pref('recSort','score')==='near'?[...R.pick].sort((a,b)=>a.km-b.km):R.pick; ul._P=P;
+  ul.innerHTML=P.map((c,i)=>{const w=c.best&&c.best.w;
     const why=[c.best?`유속 ${c.best.sp.toFixed(1)}노트${c.best.f>=1?' (알맞음)':c.best.sp<0.3?' (약함)':' (셈)'}`:'',c.rocks?`바위 ${c.rocks}개${c.gan?`(간출암 ${c.gan})`:''}`:'',c.ch>=0.4?'물골 흐름':'',`${c.kind}`].filter(Boolean).join(' · ');
     return `<li data-i="${i}" class="${c.fav?'fav':''}"${c.isl&&c.isl!=='l'?` data-ring="${c.ring}"`:''}><div class="l1"><span>${i+1}. ${recName(c,sg)}</span><span>${Math.round(c.score*100)}점</span></div>`
-      +`<div class="l2">${c.isl&&!c.fav?`<span style="color:var(--muted)">${KIND_NAME[c.isl]}${c.isl!=='l'&&R.kindSrc!=='osm'?'(추정)':''}</span> · `:''}${w?`${dstr(w.ms)} ${w.hi==null?'':w.hi?'만조':'간조'} ${hhmm(w.ms)} 앞뒤 ${hhmm(w.s)}~${hhmm(w.t)}${c.best.st?` (${c.best.st})`:''}<br>`:''}${why}</div></li>`;}).join('');
-  R.pick.forEach((c,i)=>L.marker([c.la,c.lo],{icon:L.divIcon({className:'',html:`<div class="recpin${c.fav?' fav':''}">${c.fav?'⭐':''}${i+1}</div>`,iconSize:[22,22],iconAnchor:[11,11]})})
+      +`<div class="l2">${c.km!=null?`🧭 ${c.km<10?c.km.toFixed(1):Math.round(c.km)}km · `:''}${c.isl&&!c.fav?`<span style="color:var(--muted)">${KIND_NAME[c.isl]}${c.isl!=='l'&&R.kindSrc!=='osm'?'(추정)':''}</span> · `:''}${w?`${dstr(w.ms)} ${w.hi==null?'':w.hi?'만조':'간조'} ${hhmm(w.ms)} 앞뒤 ${hhmm(w.s)}~${hhmm(w.t)}${c.best.st?` (${c.best.st})`:''}<br>`:''}${why}</div></li>`;}).join('');
+  P.forEach((c,i)=>L.marker([c.la,c.lo],{icon:L.divIcon({className:'',html:`<div class="recpin${c.fav?' fav':''}">${c.fav?'⭐':''}${i+1}</div>`,iconSize:[22,22],iconAnchor:[11,11]})})
     .on('click',ev=>{L.DomEvent.stopPropagation(ev);select(c.la,c.lo,c.fav||`추천 ${i+1} ${c.dong||sg.n}`);}).addTo(REC.layer));
 }
-function recClick(e){if(REC.lpDone){REC.lpDone=false;return;} const ul=e.currentTarget, li=e.target.closest('li'); if(!li||!ul._R)return; const R=ul._R, i=+li.dataset.i, c=R.pick[i];
+function recClick(e){if(REC.lpDone){REC.lpDone=false;return;} const ul=e.currentTarget, li=e.target.closest('li'); if(!li||!ul._R)return; const R=ul._R, i=+li.dataset.i, c=(ul._P||R.pick)[i];
   $('#planPanel').classList.remove('show'); map.flyTo([c.la,c.lo],14,{duration:1}); select(c.la,c.lo,c.fav||`추천 ${i+1} ${c.dong||R.sg.n}`);}
 const strText={strong:'사리 쪽 (물살 셈) → 잔잔한 곳 유리',weak:'조금 쪽 (물살 약함) → 물살 센 곳 유리',mid:'중간 물때 → 물때 영향 적음'};
 async function recRun(){
@@ -1957,7 +1995,7 @@ async function todayRun(){
 $('#todayList').addEventListener('click',recClick);
 // 섬 항목을 길게 누르면 '다리로 가는 섬 ↔ 배 타는 섬' 직접 바꾸기 (폰에 저장, 백업 포함)
 function recLong(e){const li=e.target.closest('li[data-ring]'); if(!li)return; e.preventDefault();
-  const ul=e.currentTarget, R=ul._R, c=R&&R.pick[+li.dataset.i]; if(!c)return; const ov=islOv(), nk=c.isl==='b'?'f':'b'; ov[c.ring]=nk; setPref('islOv',JSON.stringify(ov));
+  const ul=e.currentTarget, R=ul._R, c=R&&(ul._P||R.pick)[+li.dataset.i]; if(!c)return; const ov=islOv(), nk=c.isl==='b'?'f':'b'; ov[c.ring]=nk; setPref('islOv',JSON.stringify(ov));
   toast(`이 섬을 '${KIND_NAME[nk]}'으로 바꿨어요. 추천을 다시 계산해요`,3000); if(ul.id==='todayList'){REC.todayKey='';todayRun();}else recRun();}
 ['#todayList','#recList'].forEach(id=>{const ul=$(id); ul.addEventListener('contextmenu',e=>{if(REC.lpDone){e.preventDefault();return;}recLong(e);});
   let tm=null; ul.addEventListener('touchstart',e=>{const t=e.target; REC.lpDone=false; tm=setTimeout(()=>{REC.lpDone=true;recLong({target:t,currentTarget:ul,preventDefault(){}});},650);},{passive:true});
@@ -1965,6 +2003,9 @@ function recLong(e){const li=e.target.closest('li[data-ring]'); if(!li)return; e
 $('#recGo').onclick=recRun;
 $('#recClear').onclick=()=>{REC.layer.clearLayers();$('#recList').innerHTML='';$('#recSub').textContent='';};
 $('#recList').addEventListener('click',recClick); kindBoxes();
+$('#recSort').value=pref('recSort','score');
+$('#recSort').onchange=()=>{setPref('recSort',$('#recSort').value); if($('#recSort').value==='near'&&!recMe())toast('◎ 현위치를 켜면 가까운 순으로 볼 수 있어요',3000);
+  const ul=$($('#tabRec').style.display==='none'?'#todayList':'#recList'); if(ul._R)recRender(ul,ul._R);};
 function showTab(t){document.querySelectorAll('.ptabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
   $('#tabPlan').style.display=t==='plan'?'':'none'; $('#tabLog').style.display=t==='log'?'':'none'; $('#tabRec').style.display=t==='rec'?'':'none'; $('#tabToday').style.display=t==='today'?'':'none';
   if(t==='rec')recInit(); if(t==='today')todayInit();
@@ -2330,7 +2371,7 @@ function renderFavList(){
 $('#favBtn').onclick=()=>{renderFavList();$('#favImportBox').style.display='none';$('#favPanel').classList.add('show');};
 // 백업: 즐겨찾기를 글(텍스트)로 만들어 카톡·메모 등으로 보내기 → 새 폰/재설치 후 붙여넣어 복원
 // ── 백업 내보내기·가져오기 (REQ-50): 안드로이드 앱 ↔ HTML 버전 사이 옮기기 ──
-const BAK_PREFIX='바다흐름지도-백업:', BAK_PREFS=['dataKey','romsUrl','vworldKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit','tideMode','cfOn','depthOn','tideSt2','cfSt1','recKinds','islOv'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
+const BAK_PREFIX='바다흐름지도-백업:', BAK_PREFS=['dataKey','romsUrl','vworldKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit','tideMode','cfOn','depthOn','tideSt2','cfSt1','recKinds','islOv','recSort'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
 function bakMake(){const P={},S={};for(const k of BAK_PREFS){const v=pref(k,null);if(v!=null&&v!=='')P[k]=v;}for(const k of BAK_LS){try{const v=localStorage.getItem(k);if(v)S[k]=v;}catch(e){}}
   return BAK_PREFIX+JSON.stringify({v:1,at:new Date().toISOString(),from:NATIVE?'app':'web',prefs:P,ls:S});}
 function bakApply(txt){txt=String(txt||'').trim(); const i=txt.indexOf('{'); if(i<0)throw new Error('백업 내용이 아니에요');
@@ -2390,7 +2431,7 @@ $('#keyTest').onclick=async()=>{saveSettings();const o=$('#testOut');o.textConte
 // 웹: 폰 뒤로가기 버튼 → 창 닫기 (앱의 __onBack과 같은 동작)
 if(!NATIVE){try{history.pushState({fm:1},'');window.addEventListener('popstate',()=>{if(window.__onBack&&window.__onBack())history.pushState({fm:1},'');});}catch(e){}}
 window.__onBack=()=>{
-  for(const id of ['setPanel','favPanel','tidePanel','planPanel'])if($('#'+id).classList.contains('show')){$('#'+id).classList.remove('show');return true;}
+  for(const id of ['setPanel','favPanel','tidePanel','planPanel','layerPanel'])if($('#'+id).classList.contains('show')){$('#'+id).classList.remove('show');return true;}
   if(res.style.display==='block'){showResults('');return true;}
   if(sel){$('#closeInfo').click();return true;}
   return false;
