@@ -28,7 +28,7 @@ jobs:
           ls -la app/src/main/assets/lib
       - name: 섬 다리 자료 (REQ-60, 지도 서버가 붐비면 지난 자료 씀)
         continue-on-error: true
-        timeout-minutes: 30
+        timeout-minutes: 15
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

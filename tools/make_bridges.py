@@ -12,6 +12,7 @@ ap.add_argument('--assets', default='app/src/main/assets')
 ap.add_argument('--out', default='app/src/main/assets/bridges.json')
 ap.add_argument('--old', default='')
 ap.add_argument('--sleep', type=float, default=2.0)
+ap.add_argument('--budget', type=float, default=720, help='전체 시간 한도(초). 넘으면 남은 곳은 지난 자료')
 a = ap.parse_args()
 
 HOSTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter',
@@ -23,14 +24,17 @@ def dist(la1, lo1, la2, lo2):
     h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
     return 2 * R * math.asin(math.sqrt(h))
 
+T0 = time.time()
 def fetch(q):
     last = ''
-    for rnd in range(3):
+    for rnd in range(2):
         for h in HOSTS:
+            if time.time() - T0 > a.budget:
+                return None, '시간 한도'
             try:
                 req = urllib.request.Request(h, data=urllib.parse.urlencode({'data': q}).encode(),
                                              headers={'User-Agent': 'FishMap-bridges/1 (github.com/eastman0407)'})
-                with urllib.request.urlopen(req, timeout=90) as r:
+                with urllib.request.urlopen(req, timeout=45) as r:
                     j = json.loads(r.read().decode('utf-8'))
                 if isinstance(j.get('elements'), list):
                     return j, ''
@@ -38,7 +42,7 @@ def fetch(q):
             except Exception as e:
                 last = h + ': ' + str(e)[:80]
             time.sleep(1)
-        time.sleep(5 * (rnd + 1))
+        time.sleep(3)
     return None, last
 
 def rings_for(sg, all_):
@@ -120,7 +124,14 @@ if a.old and os.path.exists(a.old):
     except Exception: old = {}
 out = {}; ok = 0; reused = 0; fail = []
 today = datetime.date.today().isoformat()
-for sg in all_:
+def age(c):
+    try: return (datetime.date.today() - datetime.date.fromisoformat(old[c]['d'])).days
+    except Exception: return 9999
+# 지난 자료가 없거나 오래된 곳부터 (한 번에 다 못 해도 빌드할 때마다 이어서 채움). 30일 안 자료는 그대로 씀
+order = sorted(all_, key=lambda r: -age(r['c']))
+for sg in order:
+    if sg['c'] in old and age(sg['c']) <= 30:
+        out[sg['c']] = old[sg['c']]; reused += 1; continue
     if not sg.get('is'):          # 섬이 없는 곳은 받을 필요 없음
         out[sg['c']] = {'r': [], 'd': today}; ok += 1; continue
     rs, err = rings_for(sg, all_)
@@ -133,5 +144,6 @@ for sg in all_:
     else:
         fail.append(sg['c']); print(f"{sg['s']} {sg['n']}: 실패 ({err})", flush=True)
     time.sleep(a.sleep)
+    json.dump({'made': today, 'sgg': out}, open(a.out, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))  # 중간 저장
 json.dump({'made': today, 'sgg': out}, open(a.out, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 print(f'완료: 새로 {ok}, 지난 자료 {reused}, 실패 {len(fail)}')
