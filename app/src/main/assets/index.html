@@ -43,6 +43,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 .topchips>*{pointer-events:auto}
 .tchip{font-size:11.5px;padding:3px 9px;border-radius:99px;background:rgba(10,21,32,.88);color:#cfe6ff;border:1px solid #2a4a6a;display:none;white-space:nowrap}
 .tchip.tide{cursor:pointer;color:#9fe7ff} .tchip.phase{color:#ffe08a;border-color:#5a4a1c}
+.cfst{white-space:nowrap;font-size:11px;padding:1px 6px 1px 3px;border-radius:6px;background:rgba(40,16,60,.85);color:#e2b8ff;border:1px solid #8a4ec0;transform:translate(-8px,-50%);display:inline-flex;align-items:center;gap:2px;cursor:pointer}
+.cfar{display:inline-block;font-weight:700;font-size:13px;line-height:13px}
 .tidest{white-space:nowrap;font-size:11px;padding:2px 6px;border-radius:99px;background:rgba(10,21,32,.85);color:#9fe7ff;border:1px solid #2a6a8a;transform:translate(-4px,-50%);display:inline-block;cursor:pointer}
 .ptabs{display:flex;gap:6px;margin:0 0 10px;position:sticky;top:30px;z-index:2;background:var(--panel);padding-bottom:6px}
 #planPanel .pbox h3{position:sticky;top:-14px;z-index:3;background:var(--panel);margin:-14px -14px 0;padding:14px 14px 10px}.ptabs button{flex:1;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);font-size:14px}
@@ -197,6 +199,9 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
     </div>
     <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">빨강(낚시 어려움) 시작 유속</span><input id="redKn" type="number" step="0.1" min="1.2" max="3" style="width:80px;flex:none"> <span style="font-size:13px;color:var(--muted)">노트</span></div>
     <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">🔔 안전 알림 시각</span><select id="alertLead" style="height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"><option value="30">30분 전</option><option value="60">1시간 전</option><option value="120">2시간 전</option></select></div>
+    <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="tbChk" style="width:auto;height:auto"> 조석을 이 자리 좌표로 보정 (TideBED) <span style="font-size:12px;color:var(--muted)">(끄면 예전 관측소 방식)</span></label></div>
+    <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="cfChk" style="width:auto;height:auto"> 조류예보 지점 표시 <span style="font-size:12px;color:var(--muted)">(보라색 화살표 · 10단계 이상)</span></label></div>
+    <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="depthChk" style="width:auto;height:auto"> ⚓ 항내 추정에 수심 반영 <span style="font-size:12px;color:var(--muted)">(가장 확대한 단계)</span></label></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="tidalChk" style="width:auto;height:auto"> 갯벌 범위 점선 표시 <span style="font-size:12px;color:var(--muted)">(11단계 이상 · 일부 지역만)</span></label></div>
     <details style="margin-top:12px;background:var(--panel2)"><summary style="font-size:13px">고급 (자료가 이상할 때)</summary>
       <div class="empty" style="padding:6px 0 2px">칸 이름 직접 지정 (비우면 자동)</div>
@@ -906,7 +911,7 @@ const WORKER_SRC=`
 const EX=[0,1,0,-1,0,1,-1,-1,1],EY=[0,0,1,0,-1,1,1,-1,-1],WT=[4/9,1/9,1/9,1/9,1/9,1/36,1/36,1/36,1/36],OPP=[0,3,4,1,2,7,8,5,6];
 const WARM=1800, WARM_SEED=900, AVG=800; let S=null, timer=null;
 function feq(f,i,r,u,v){const u2=1.5*(u*u+v*v),o=i*9;for(let q=0;q<9;q++){const e=3*(EX[q]*u+EY[q]*v);f[o+q]=WT[q]*r*(1+e+0.5*e*e-u2);}}
-function step(){const {gx,gy,N,solid,ux,uy}=S;let f=S.f,f2=S.f2;const inv=1/S.tau,tau=S.tau,K=S.kfr,FX=S.fwx,FY=S.fwy;
+function step(){const {gx,gy,N,solid,ux,uy}=S;let f=S.f,f2=S.f2;const inv=1/S.tau,tau=S.tau,K0=S.kfr,FX=S.fwx,FY=S.fwy,KZ=S.kz;
  for(let k=0;k<S.bcIdx.length;k++){const nb=S.bcNb[k];
   if(S.bcIn[k]||nb<0)feq(f,S.bcIdx[k],1,S.bcU[k],S.bcV[k]); else feq(f,S.bcIdx[k],1,ux[nb],uy[nb]);}
  for(let i=0;i<N;i++){if(solid[i])continue;const o=i*9;let r=0,mx=0,my=0;
@@ -915,7 +920,7 @@ function step(){const {gx,gy,N,solid,ux,uy}=S;let f=S.f,f2=S.f2;const inv=1/S.ta
   let u=mx/r,v=my/r;const sp=u*u+v*v;if(sp>0.03){const s=Math.sqrt(0.03/sp);u*=s;v*=s;}
   ux[i]=u;uy[i]=v;
   // 바람이 미는 힘(FX,FY) - 바닥 마찰(K*u): 넓은 바다에선 바람 표층류 속도로 수렴, 항 안에선 벽 때문에 순환이 생김
-  const ue=u+tau*(FX-K*u), ve=v+tau*(FY-K*v), u2=1.5*(ue*ue+ve*ve);
+  const K=KZ?K0+KZ[i]:K0, ue=u+tau*(FX-K*u), ve=v+tau*(FY-K*v), u2=1.5*(ue*ue+ve*ve);
   for(let q=0;q<9;q++){const e=3*(EX[q]*ue+EY[q]*ve);f[o+q]+=(WT[q]*r*(1+e+0.5*e*e-u2)-f[o+q])*inv;}}
  for(let y=0;y<gy;y++)for(let x=0;x<gx;x++){const i=y*gx+x;if(solid[i])continue;const o=i*9;
   for(let q=0;q<9;q++){const nx=x+EX[q],ny=y+EY[q];if(nx<0||ny<0||nx>=gx||ny>=gy)continue;const j=ny*gx+nx;
@@ -932,7 +937,7 @@ function run(){timer=null;if(!S)return;const t=performance.now();
  if(S.steps%150<20||S.steps<400)send(false);
  timer=setTimeout(run,0);}
 onmessage=e=>{const m=e.data;
- if(m.type==='init'){const N=m.gx*m.gy;S={id:m.id,gx:m.gx,gy:m.gy,N,solid:m.solid,bcIdx:m.bcIdx,bcNb:m.bcNb,bcIn:m.bcIn,bcU:m.bcU,bcV:m.bcV,tau:0.58,fwx:m.fwx||0,fwy:m.fwy||0,kfr:m.kfr||0,
+ if(m.type==='init'){const N=m.gx*m.gy;S={id:m.id,gx:m.gx,gy:m.gy,N,solid:m.solid,bcIdx:m.bcIdx,bcNb:m.bcNb,bcIn:m.bcIn,bcU:m.bcU,bcV:m.bcV,tau:0.58,fwx:m.fwx||0,fwy:m.fwy||0,kfr:m.kfr||0,kz:m.kz||null,
    f:new Float32Array(N*9),f2:new Float32Array(N*9),ux:new Float32Array(N),uy:new Float32Array(N),au:new Float32Array(N),av:new Float32Array(N),steps:0,avgN:0};
    S.warm=m.u0?WARM_SEED:WARM;
    if(m.u0){for(let i=0;i<N;i++)if(!S.solid[i])feq(S.f,i,1,m.u0[i],m.v0[i]);} // 성긴 단계 결과에서 출발 (이어서 계산)
@@ -989,7 +994,7 @@ function simEnsure(){
 }
 async function simBuildTile(T){
   const {key,lv,ox,oy,gx,gy}=T; T.state='mask';
-  if(simDomCache.has(key)){const g=simDomCache.get(key); if(!g){T.state='skip';return;} Object.assign(T,g); T.state='ready'; simTimeChanged(true); return;}
+  if(simDomCache.has(key)){const g=simDomCache.get(key); if(!g){T.state='skip';return;} Object.assign(T,g); await simDepthWait(T); T.state='ready'; simTimeChanged(true); return;}
   // 구역 지도(OpenStreetMap, 계산 단계-1)를 받아 물/구조물 판별
   const z=lv-1, f=0.5, cv=document.createElement('canvas'); cv.width=DOM*f; cv.height=DOM*f; const cx=cv.getContext('2d');
   const jobs=[];
@@ -1017,34 +1022,82 @@ async function simBuildTile(T){
   const bcIdx=Int32Array.from(bc), bcN=new Int8Array(bc.length*2), bcNb=new Int32Array(bc.length);
   for(let q=0;q<bc.length;q++){const i=bc[q],X=i%gx,Y=(i/gx)|0,nx=(X===0)-(X===gx-1),ny=(Y===0)-(Y===gy-1);
     bcN[q*2]=nx;bcN[q*2+1]=ny; const j=(Y+ny)*gx+(X+nx); bcNb[q]=solid[j]?-1:j;}
-  const g={solid,bcIdx,bcN,bcNb}; simDomPut(key,g); Object.assign(T,g); T.state='ready';
+  const g={solid,bcIdx,bcN,bcNb}; simDomPut(key,g); Object.assign(T,g); await simDepthWait(T); T.state='ready';
   simTimeChanged(true);
+}
+// ── 수심 반영 (11-19, REQ-54): 국립해양조사원 '자연과학용 수심정보'(150m 간격) → 칸마다 바닥 마찰 ──
+// 구역의 보통 수심보다 얕은 칸일수록 마찰을 키워 물이 느려지고, 깊은 골(물길)로 흐름이 모이게 함. 가장 확대한 단계(16)에서만
+const DEPTH={on:true,calls:0,last:'',cache:new Map(),URL:'https://apis.data.go.kr/1192136/waterDepth/GetWaterDepthApiService'};
+const findKey=(o,k)=>{if(!o||typeof o!=='object')return undefined;if(k in o)return o[k];for(const v of Object.values(o)){const r=findKey(v,k);if(r!==undefined)return r;}return undefined;};
+async function simDepthWait(T){if(!DEPTH.on||!CONF.realData||T.lv!==16)return;
+  await Promise.race([simDepth(T),new Promise(r=>setTimeout(r,8000))]);} // 8초 넘으면 수심 없이 먼저 계산
+async function simDepth(T){
+  if(!DEPTH.on||!CONF.realData||T.lv!==16)return;
+  if(DEPTH.cache.has(T.key)){const c=DEPTH.cache.get(T.key);if(c){T.kz=c.kz;T.kzSum=c.kzSum;T.hmed=c.hmed;}return;}
+  if(T.depthTried)return; T.depthTried=true;
+  const a=map.unproject([T.ox,T.oy],T.lv), b=map.unproject([T.ox+DOM,T.oy+DOM],T.lv), r3=v=>(Math.round(v*1000)/1000).toFixed(3);
+  const base=`${DEPTH.URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=300&ymin=${r3(b.lat-0.003)}&ymax=${r3(a.lat+0.003)}&xmin=${r3(a.lng-0.003)}&xmax=${r3(b.lng+0.003)}`;
+  const pts=[]; let pages=1;
+  for(let pg=1;pg<=pages;pg++){const url=base+'&pageNo='+pg; let r;
+    try{r=await nget(url,43200);}catch(e){DEPTH.last='인터넷: '+(e.message||e);break;} // 수심은 거의 안 바뀜 → 30일 저장
+    DEPTH.calls++; let js=null,it=null; try{js=JSON.parse(r.text);it=ROMS.findItems(js);}catch(e){}
+    if(!it||!it.length){cacheDrop(url);DEPTH.last=apiCode(r.text);break;}
+    DEPTH.last='00';
+    if(pg===1){const tc=+findKey(js,'totalCount'); if(tc>0)pages=Math.ceil(tc/300); if(pages>20){DEPTH.last='구역이 너무 큼 '+tc;break;}}
+    for(const x of it){const la=+x.lat,lo=+x.lot,d=+x.dpwt; if(isFinite(la)&&isFinite(lo)&&isFinite(d))pts.push([la,lo,d]);}}
+  if(pts.length<10){if(DEPTH.last==='00'||/^3/.test(DEPTH.last))DEPTH.cache.set(T.key,null);return;}
+  // 칸마다 가장 가까운 수심 점 (300m 안)
+  const G=0.004, bins=new Map(); for(const q of pts){const k=Math.floor(q[0]/G)+','+Math.floor(q[1]/G);(bins.get(k)||bins.set(k,[]).get(k)).push(q);}
+  const N=T.gx*T.gy, hh=new Float32Array(N).fill(NaN), hs=[];
+  for(let i=0;i<N;i++){if(T.solid[i])continue; const X=i%T.gx,Y=(i/T.gx)|0, ll=map.unproject([T.ox+(X+0.5)*SC,T.oy+(Y+0.5)*SC],T.lv);
+    const bl=Math.floor(ll.lat/G),bo=Math.floor(ll.lng/G); let best=null,bd=300;
+    for(let p2=-1;p2<=1;p2++)for(let q2=-1;q2<=1;q2++){const arr=bins.get((bl+p2)+','+(bo+q2));if(!arr)continue;
+      for(const q of arr){const d=distM(ll.lat,ll.lng,q[0],q[1]);if(d<bd){bd=d;best=q;}}}
+    if(best){hh[i]=Math.max(0.5,best[2]);hs.push(hh[i]);}}
+  if(hs.length<20){DEPTH.cache.set(T.key,null);return;}
+  hs.sort((x,y)=>x-y); const hmed=hs[hs.length>>1], kz=new Float32Array(N); let sum=0;
+  for(let i=0;i<N;i++){if(T.solid[i])continue; const h=isNaN(hh[i])?hmed:hh[i]; kz[i]=0.0015*Math.min(6,Math.max(0,hmed/h-0.7)); sum+=kz[i];}
+  const c={kz,kzSum:sum,hmed}; DEPTH.cache.set(T.key,c); if(DEPTH.cache.size>40)DEPTH.cache.delete(DEPTH.cache.keys().next().value);
+  T.kz=kz; T.kzSum=sum; T.hmed=hmed;
 }
 // 구역 가장자리 물 칸에 넣을 바깥 흐름(실제 예보) → {bcU,bcV,bcIn,scale}
 // 바깥 예보가 없는 경계 칸은 '물이 자유롭게 드나드는 열린 경계'로 둠 (예전: 평균값을 지어서 넣음)
 function simBC(T,th){
   const n=T.bcIdx.length, vE=new Float32Array(n), vN=new Float32Array(n), has=new Uint8Array(n); let mx=0.3,got=0;
   for(let q=0;q<n;q++){const i=T.bcIdx[q],X=i%T.gx,Y=(i/T.gx)|0;
-    const ll=map.unproject([T.ox+(X+0.5)*SC,T.oy+(Y+0.5)*SC],T.lv); const v=baseAt(ll.lat,ll.lng,th);
+    const ll=map.unproject([T.ox+(X+0.5)*SC,T.oy+(Y+0.5)*SC],T.lv); const v=simBaseAt(ll.lat,ll.lng,th);
     if(v){vE[q]=v.vE;vN[q]=v.vN;has[q]=1;got++;mx=Math.max(mx,Math.hypot(v.vE,v.vN));}}
   if(got<n*0.1)return null; // 바깥 예보가 거의 없으면 계산하지 않음 (지어낸 값 방지)
   const dr=WIND.on?(()=>{const w=windAt(th);return w?{vE:w.u*DRIFT*1.9438,vN:w.v*DRIFT*1.9438}:null;})():null;
   if(dr)mx=Math.max(mx,Math.hypot(dr.vE,dr.vN)*1.5);
+  const AN=[]; T.anchors=0;
+  if(CONF.realData&&CF.on&&CF.st){const ms=t0.getTime()+th*3600e3;
+    for(const s of CF.st){const S=CF.ser.get(s.c); if(!S||!S.t||!S.t.length)continue; const v=cfAt(S,ms); if(!v)continue;
+      const P=map.project([s.la,s.lo],T.lv), cx=Math.floor((P.x-T.ox)/SC), cy=Math.floor((P.y-T.oy)/SC);
+      if(cx<2||cy<2||cx>=T.gx-2||cy>=T.gy-2||T.solid[cy*T.gx+cx])continue; if(realAt(s.la,s.lo,th))continue;
+      AN.push({cx,cy,vE:v.vE,vN:v.vN}); mx=Math.max(mx,Math.hypot(v.vE,v.vN)); T.anchors++;}}
   const scale=0.07/mx, bcU=new Float32Array(n), bcV=new Float32Array(n), bcIn=new Uint8Array(n);
   const kfr=dr?0.003:0, fwx=dr?kfr*dr.vE*scale:0, fwy=dr?-kfr*dr.vN*scale:0;
   for(let q=0;q<n;q++){bcU[q]=vE[q]*scale;bcV[q]=-vN[q]*scale;
     bcIn[q]=has[q]&&(T.bcNb[q]<0||bcU[q]*T.bcN[q*2]+bcV[q]*T.bcN[q*2+1]>=0)?1:0;
     if(!has[q]&&T.bcNb[q]<0)bcIn[q]=1;} // 예보 없음 + 안쪽도 막힘 → 멈춘 물(0)
+  // 구역 안의 조류예보 지점(큰 예보가 없는 곳만) → 그 둘레 3x3칸을 지점 예보 값으로 고정 (REQ-53)
+  const ai=[],au=[],av=[];
+  for(const a of AN){let k=0; for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const i=(a.cy+dy)*T.gx+a.cx+dx; if(T.solid[i])continue; ai.push(i);au.push(a.vE*scale);av.push(-a.vN*scale);k++;}}
+  if(ai.length){const m=n+ai.length, idx=new Int32Array(m), nb=new Int32Array(m), U=new Float32Array(m), V=new Float32Array(m), I=new Uint8Array(m);
+    idx.set(T.bcIdx); nb.set(T.bcNb); U.set(bcU); V.set(bcV); I.set(bcIn);
+    for(let k=0;k<ai.length;k++){idx[n+k]=ai[k];nb[n+k]=-1;U[n+k]=au[k];V[n+k]=av[k];I[n+k]=1;}
+    return {bcU:U,bcV:V,bcIn:I,idx,nb,scale,fwx,fwy,kfr};}
   return {bcU,bcV,bcIn,scale,fwx,fwy,kfr};
 }
 // '자료 부족' 칸: 예보 점에서 멀어(약 3km+) 예보만으로는 값을 알 수 없던 곳 → 계산은 하되 흐리게·카드에 표시
 const FS=3; // 3칸(단계16에서 약 70m)마다 판별
 function simFar(T,th){const fx=Math.ceil(T.gx/FS), fy=Math.ceil(T.gy/FS), far=new Uint8Array(fx*fy);
-  for(let y=0;y<fy;y++)for(let x=0;x<fx;x++){const ll=map.unproject([T.ox+(x*FS+1.5)*SC,T.oy+(y*FS+1.5)*SC],T.lv);far[y*fx+x]=baseAt(ll.lat,ll.lng,th)?0:1;}
+  for(let y=0;y<fy;y++)for(let x=0;x<fx;x++){const ll=map.unproject([T.ox+(x*FS+1.5)*SC,T.oy+(y*FS+1.5)*SC],T.lv);far[y*fx+x]=simBaseAt(ll.lat,ll.lng,th)?0:1;}
   T.far=far; T.fx=fx; T.farVer=RD.ver;}
 // 경계값 지문: 바깥 흐름·바람이 같으면 같은 값 → 예전 계산 결과를 그대로 다시 씀
-function bcHash(b){let h=2166136261;const add=v=>{h=Math.imul(h^(Math.round(v*1e5)|0),16777619);};
-  for(let q=0;q<b.bcU.length;q++){add(b.bcU[q]);add(b.bcV[q]);add(b.bcIn[q]);} add(b.scale*100);add(b.fwx*1e3);add(b.fwy*1e3);return h>>>0;}
+function bcHash(b,T){let h=2166136261;const add=v=>{h=Math.imul(h^(Math.round(v*1e5)|0),16777619);};
+  for(let q=0;q<b.bcU.length;q++){add(b.bcU[q]);add(b.bcV[q]);add(b.bcIn[q]);} add(b.scale*100);add(b.fwx*1e3);add(b.fwy*1e3);if(T&&T.kz)add(T.kzSum);return h>>>0;}
 // 시간이 바뀌거나 자료가 바뀌면: 화면 구역마다 저장 결과 확인 → 없는 구역만 계산 줄에 세움
 function simTimeChanged(first){
   if(!SIM.view.length)return;
@@ -1058,7 +1111,7 @@ function simTimeChanged(first){
   for(const k of SIM.view){const T=SIM.tiles.get(k); if(!T||T.state!=='ready')continue;
     const b=simBC(T,th); T.nodata=!b; if(!b){missing=true;T.cur=null;continue;}
     if(T.farVer!==RD.ver)simFar(T,th);
-    const h=bcHash(b), c=simCache.get(k+'|'+tMin);
+    const h=bcHash(b,T), c=simCache.get(k+'|'+tMin);
     if(c&&c.h===h){T.cur={u:c.u,v:c.v,scale:c.scale,t:tMin,done:true};continue;}
     if(T.cur&&T.cur.t!==tMin)T.cur=Object.assign({},T.cur,{done:false});
     SIM.queue.push({tile:T,b,h,t:tMin});}
@@ -1085,7 +1138,7 @@ function simPump(){
   const q=SIM.queue.shift(), T=q.tile, id=++simJob, b=q.b; SIM.job={id,tile:T,h:q.h,t:q.t,scale:b.scale};
   SIM.jobsRun=(SIM.jobsRun||0)+1;
   // 늘 같은 출발점에서 계산 (같은 구역·같은 예보면 같은 결과)
-  simWorker.postMessage({type:'init',id,gx:T.gx,gy:T.gy,solid:T.solid,bcIdx:T.bcIdx,bcNb:T.bcNb,bcIn:b.bcIn,bcU:b.bcU,bcV:b.bcV,fwx:b.fwx,fwy:b.fwy,kfr:b.kfr});
+  simWorker.postMessage({type:'init',id,gx:T.gx,gy:T.gy,solid:T.solid,bcIdx:b.idx||T.bcIdx,bcNb:b.nb||T.bcNb,bcIn:b.bcIn,bcU:b.bcU,bcV:b.bcV,fwx:b.fwx,fwy:b.fwy,kfr:b.kfr,kz:T.kz||null});
   SIM.lastTile=T.key;
 }
 // 화면 좌표(px)의 추정 흐름(노트). undefined=계산 구역 밖, null=육지
@@ -1141,7 +1194,7 @@ function stepFlow(){
   xF.globalAlpha=0.35; dimPaths.forEach((pa,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(pa);}); xF.globalAlpha=1; // 자료 부족(추정만)
 }
 map.on('movestart zoomstart',()=>{moving=true;xF.clearRect(0,0,W,H);});
-map.on('moveend',()=>{moving=false;buildMask();requestReal();windRequest();drawRocks();drawTidal();tideEnsure();updateTideChips();computeViewScale();});
+map.on('moveend',()=>{moving=false;buildMask();requestReal();windRequest();drawRocks();drawTidal();tideEnsure();updateTideChips();computeViewScale();cfEnsure();});
 map.on('resize',()=>{resizeFlow();buildMask();});
 $('#flowBtn').onclick=e=>{showFlow=!showFlow;$('#flowBtn').classList.toggle('on',showFlow);if(!showFlow)xF.clearRect(0,0,W,H);};
 
@@ -1231,15 +1284,16 @@ const TIDE_CODES=[["DT_0001","인천"],["SO_0566","송공항"],["DT_0002","평�
 const kstMs=s=>{const m=/(\d{4})-?(\d\d)-?(\d\d)[ T]?(\d\d):?(\d\d)/.exec(String(s));return m?Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5])-9*3600e3:null;};
 // 지점 위치(위도·경도)는 목록에 없어서, 처음 한 번만 지점마다 1줄씩 물어보고 폰에 저장
 async function tideStations(){
+  if(tbUse())return TIDE.st||[]; // TideBED: 좌표로 바로 물어봄 → 관측소 찾기 필요 없음
   if(TIDE.st)return TIDE.st;
   try{const c=JSON.parse(pref('tideSt2','null'));if(c&&c.length){TIDE.st=c;return c;}}catch(e){}
   if(TIDE.scan)return null;
-  if(Date.now()-(+pref('tideScanFailAt2','0'))<24*3600e3){TIDE.err=pref('tideScanErr','')||'조석 관측소를 못 찾았어요';return null;} // 실패하면 하루 뒤 다시
+  if(Date.now()-(+pref('tideScanFailAt2','0'))<30*60e3){TIDE.err=pref('tideScanErr','')||'조석 관측소를 못 찾았어요';return null;} // 실패하면 30분 뒤 다시 (예전 24시간)
   TIDE.scan=true; TIDE.prog=0;
   const found=[],today=ymd(new Date());let idx=0,auth=0,other='';
   async function w(){while(idx<TIDE_CODES.length){const [c,n]=TIDE_CODES[idx++];
     try{const r=await nget(`${TIDE_HL_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=1&obsCode=${c}&reqDate=${today}`,0);
-      if(/NOT_REGISTERED|SERVICE_KEY|SERVICE ERROR/i.test(r.text))auth++;
+      if(/NOT_REGISTERED|SERVICE_KEY|SERVICE ERROR/i.test(r.text))auth++; TIDE.lastCode=apiCode(r.text);
       const js=JSON.parse(r.text);const it=ROMS.findItems(js);
       if(it&&it.length){const la=+it[0].lat, lo=+it[0].lot; if(isFinite(la)&&isFinite(lo)&&la)found.push({c,la,lo,n:it[0].obsvtrNm||n});}
     }catch(e){other=e.message||'';}
@@ -1252,11 +1306,49 @@ async function tideStations(){
   updateTideChips();
   return TIDE.st;
 }
-function nearestStation(la,lo){let b=null,bd=1e9;for(const s of TIDE.st||[]){const d=(s.la-la)**2+((s.lo-lo)*0.82)**2;if(d<bd){bd=d;b=s;}}
+function nearestStation(la,lo,g){if(tbUse())return tbStation(la,lo,g||0.05);
+  let b=null,bd=1e9;for(const s of TIDE.st||[]){const d=(s.la-la)**2+((s.lo-lo)*0.82)**2;if(d<bd){bd=d;b=s;}}
   return b?{...b,km:Math.sqrt(bd)*111}:null;}
+// ── TideBED 예측 조위 (11-19, REQ-52): 좌표를 넣으면 가장 가까운 기준항 값을 이 자리에 맞게 보정한 물높이(10분 간격) ──
+// 관측소 166곳을 하나씩 확인하던 과정이 없어짐. 실패하면 30분 동안 예전 관측소 방식으로 자동 전환. ⚙에서 예전 방식 고정 가능
+const TB_URL='https://apis.data.go.kr/1192136/tidebed/GetTidebedApiService';
+const TB={meta:new Map(),bad:0,why:'',last:'',calls:0};
+const apiCode=t=>{t=String(t||'');const m=/resultCode["'>:\s]*"?(\d+)/.exec(t),g=/(SERVICE_KEY_IS_NOT_REGISTERED|SERVICE_ACCESS_DENIED|LIMITED_NUMBER|DEADLINE_HAS_EXPIRED|NODATA)[A-Z_]*/.exec(t);
+  return (m?m[1]:'?')+(g?' '+g[0]:'');};
+function tbUse(){return pref('tideMode','auto')!=='hl'&&Date.now()-TB.bad>30*60e3;}
+function tbCode(la,lo,g){const a=Math.round(la/g)*g,b=Math.round(lo/g)*g;return `TB${g}:${a.toFixed(3)},${b.toFixed(3)}`;}
+function tbPos(code){const m=/^TB[\d.]+:([-\d.]+),([-\d.]+)$/.exec(code);return m?{la:+m[1],lo:+m[2]}:null;}
+function tbStation(la,lo,g){const c=tbCode(la,lo,g),m=TB.meta.get(c),p=tbPos(c);
+  return m&&isFinite(m.rla)&&m.rla?{c,la:m.rla,lo:m.rlo,n:m.n||'기준항',km:distM(la,lo,m.rla,m.rlo)/1000,bed:true,josi:m.josi,jogo:m.jogo}
+    :{c,la:p.la,lo:p.lo,n:'가까운 기준항',km:0,bed:true};}
+const stLabel=st=>st?(st.bed?`기준항 ${st.n} 보정`:`${st.n} 관측소`):'';
+async function tbDay(code,dayMs){
+  const p=tbPos(code), url=`${TB_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=300&pageNo=1&min=10&lat=${p.la.toFixed(4)}&lot=${p.lo.toFixed(4)}&reqDate=${ymd(new Date(dayMs+3600e3))}`;
+  TB.calls++; let r;
+  try{r=await nget(url,720);}catch(e){TB.last='인터넷: '+(e.message||e);return null;}
+  let it=null; try{it=ROMS.findItems(JSON.parse(r.text));}catch(e){}
+  if(!it||!it.length){cacheDrop(url);TB.last=apiCode(r.text);return null;}
+  TB.last='00';
+  const pts=[]; for(const x of it){const ms=kstMs(x.slctdDt||x.obsrvnDt),h=+(x.slctdHgt!=null?x.slctdHgt:x.obsrvnHgt);if(ms!=null&&isFinite(h))pts.push({ms,h});}
+  const x=it[0]; TB.meta.set(code,{n:x.obsvtrNm||'',rla:+x.lat,rlo:+x.lot,josi:x.josi||'',jogo:+x.jogo});
+  return pts;
+}
+// 여러 날 물높이 곡선 (offs=그날 0시 기준 날짜들). 하루라도 받으면 곡선, 전부 실패하면 예전 방식으로 전환
+async function tbSeries(code,d0,offs){
+  let pts=[],ok=0,k=0;
+  async function w(){while(k<offs.length){const i=offs[k++];const r=await tbDay(code,d0+i*DAY);if(r){ok++;pts=pts.concat(r);}
+    if(PLAN.busy){PLAN.prog++;if(PLAN.prog%4===0)$('#planSub').textContent=`조석 예보 받는 중 ${PLAN.prog}/${offs.length}`;}}}
+  await Promise.all([w(),w(),w()]);
+  if(!ok){TB.bad=Date.now();TB.why=TB.last;return null;}
+  pts.sort((a,b)=>a.ms-b.ms); pts=pts.filter((p,i)=>!i||p.ms-pts[i-1].ms>30000);
+  if(pts.length<20){TB.bad=Date.now();TB.why='자료 부족';return null;}
+  return {at:Date.now(),t:pts.map(p=>p.ms),h:pts.map(p=>p.h),unit:0.01,bed:true};
+}
 // 만조·간조(극치) → 그 사이 물높이는 코사인 곡선으로 이어 10분 간격 곡선을 만듦 (바위 잠김·물높이 표시용)
 async function tideSeries(code){
   const c=TIDE.series.get(code); if(c&&Date.now()-c.at<6*3600e3)return c;
+  if(code.startsWith('TB')){const d=new Date(t0.getTime());d.setHours(0,0,0,0);
+    const ser=await tbSeries(code,d.getTime(),[-1,0,1,2]); if(ser)TIDE.series.set(code,ser); return ser;}
   const ex=[];
   for(let day=-1;day<=2;day++){
     const rd=ymd(new Date(t0.getTime()+day*86400e3));
@@ -1283,10 +1375,13 @@ async function tideEnsure(){
   if(!CONF.realData||tideBusy)return;
   tideBusy=true;
   try{
-    if(!(await tideStations()))return;
-    const c=map.getCenter(),st=nearestStation(c.lat,c.lng); if(!st)return;
-    if(!TIDE.cur||TIDE.cur.st.c!==st.c||Date.now()-TIDE.cur.ser.at>6*3600e3){
-      const ser=await tideSeries(st.c); if(ser){TIDE.cur={st,ser};drawRocks();updateTideChips();drawTideStation();if(sel)updateUI();}
+    for(let pass=0;pass<2;pass++){
+      if(!(await tideStations()))return;
+      const c=map.getCenter(),st=nearestStation(c.lat,c.lng); if(!st)return;
+      if(TIDE.cur&&TIDE.cur.st.c===st.c&&Date.now()-TIDE.cur.ser.at<=6*3600e3)return;
+      const ser=await tideSeries(st.c);
+      if(ser){TIDE.cur={st:nearestStation(c.lat,c.lng)||st,ser};TIDE.err='';drawRocks();updateTideChips();drawTideStation();if(sel)updateUI();return;}
+      if(!st.bed)return; // TideBED가 안 되면(30분간) 예전 관측소 방식으로 한 번 더
     }
   }catch(e){}finally{tideBusy=false;}
 }
@@ -1332,7 +1427,7 @@ function openTidePanel(){
   const nx=tideExtremes(TIDE.cur.ser,now,now+30*3600e3)[0], dd=new Date(d0), c=map.getCenter(), md=mulddae(now,isWestSea(c.lat,c.lng));
   $('#tideTitle').firstChild.nodeValue=`${dd.getMonth()+1}/${dd.getDate()}(${'일월화수목금토'[dd.getDay()]}) ${TIDE.cur.st.n} 조석 `;
   const ph=tidePhase();
-  $('#tideSub').textContent=`음 ${md.ld}일 · ${mulWord(md.name)}`+(ph?` · 지금 ${ph.name}`:'')+(TIDE.cur.st.km!=null?` · 관측소까지 약 ${TIDE.cur.st.km.toFixed(0)}km`:'');
+  $('#tideSub').textContent=`음 ${md.ld}일 · ${mulWord(md.name)}`+(ph?` · 지금 ${ph.name}`:'')+(TIDE.cur.st.bed?` · 기준항 ${TIDE.cur.st.n}${TIDE.cur.st.josi?` (시간 ${TIDE.cur.st.josi}`+(isFinite(TIDE.cur.st.jogo)?`·높이 ×${TIDE.cur.st.jogo.toFixed(2)}`:'')+')':''} 보정`:TIDE.cur.st.km!=null?` · 관측소까지 약 ${TIDE.cur.st.km.toFixed(0)}km`:'');
   $('#tideList').innerHTML=ex.length?ex.map(e=>`<li class="${e.ms<now?'past':''}${nx&&Math.abs(e.ms-nx.ms)<60000?' next':''}"><span>${e.hi?'▲ 만조':'▼ 간조'} ${hhmm(e.ms)}${nx&&Math.abs(e.ms-nx.ms)<60000?' · 다가오는 물때':''}</span><span>${e.h.toFixed(2)} m</span></li>`).join(''):'<li>이날 자료가 없어요</li>';
   $('#tidePanel').classList.add('show');
 }
@@ -1347,6 +1442,84 @@ function drawTideStation(){
     .on('click',ev=>{L.DomEvent.stopPropagation(ev);openTidePanel();}).addTo(map);
 }
 $('#tideClose').onclick=()=>$('#tidePanel').classList.remove('show');
+// ================= 조류예보 지점 (11-19, REQ-53) — 국립해양조사원 '조류예보(시계열)' =================
+const spdText=kn=>`${kn.toFixed(1)}노트`;
+// 관측(실측)을 바탕으로 한 지점 예보(활용가이드 목록 204곳). 지도에 보라색 화살표로 표시하고, ⚓ 항내 추정에서 큰 예보(ROMS)가 없는 곳을 채우는 '기준 점'으로 씀
+const CF_URL='https://apis.data.go.kr/1192136/crntFcstTime/GetCrntFcstTimeApiService';
+const CF_CODES=[["06SA18","경치동수도"],["06YME1","광도동측"],["06YS04","서수도(여자만)"],["06YS09","거금수도"],["18MTC10","초도남측"],["01MP-2","목포구"],["01SR-1","사량도북측"],["02JJ-1","제주항"],["03DS-1","장안서"],["03PT-1","아산만입구"],["05GH-5","장봉수도"],["06GH01","득량만입구"],["06GH07","거금도남측"],["06GS07","고군산군도"],["06JD01","외병도"],["06SA01","면도수도"],["06SA10","팔구포북측"],["06YME4","보길도남서측"],["06YME5","장죽수도"],["06YME6","맹골수도"],["06YME8","매물수도"],["06YS03","신강수도"],["07DS02","대산항"],["07GG03","석모수도"],["07GG06","인천갑문"],["07GG11","덕적도"],["07JB12","수도수도북측"],["07JB14","수도수도"],["07KS01","원산도"],["07KS03","외연열도"],["07TA03","태안"],["07TA04","만리포"],["07TA05","안흥"],["07TA09","격렬비열도"],["08F","추자도남서측"],["08GA01","감천항입구"],["08GY-5","묘도수도"],["08JJ03","성산포"],["08JJ07","서귀포"],["08JJ13","애월항북측"],["09IC01","인천남항"],["09IC07","경인아라뱃길"],["10ED01","이어도"],["10GD03","가덕수도"],["10MP07","시아해"],["11JD02","정등해"],["11JD09","마로해"],["12JB11","비인만"],["12JB14","군산항입구"],["12YS08","광양항"],["13PT01","평택항"],["13WD01","소안도"],["14BP01","병풍도북측"],["14IC03","자월도북측"],["14IC04","이작도서측"],["14JD03","정등해북측"],["15HD05","하동항"],["15LTC01","염하수도"],["15LTC02","어청도서측"],["15LTC03","위도동측"],["15LTC04","홍도항로"],["17LTC01","인천신항입구"],["17LTC05","울도"],["17LTC09","십이동파도"],["17LTC13","완도통항분리대"],["17MTC14","위도서측"],["17MTC19","안마도서측"],["17MTC20","안마도동측"],["18LTC11","진해만(통영항로)"],["98HG-1","횡간수도"],["15LTC05","만재도서측"],["15LTC06","거차수도"],["15LTC07","독거군도동측"],["15LTC08","장고도수도"],["15LTC09","금당수도"],["15LTC10","여수해만"],["15SE01","노량수도"],["16DJ04","시화방조제"],["16LTC01","인천대교"],["16LTC02","인천동수도입구"],["16LTC03","천수만"],["16LTC04","역도"],["16LTC05","목포북항북측"],["16LTC06","시아해북측"],["16LTC07","장산도동측"],["16LTC08","광양항제1항로"],["16LTC09","통영해만"],["16LTC10","비진도남측"],["16LTC11","부도수도"],["16LTC12","낙동포"],["16LTC13","부산항입구"],["16LTC14","울산신항"],["16MTC01","미조수도"],["16MTC16","지심도서측"],["17LTC02","경기만북수도"],["17LTC03","자월도남측"],["17LTC04","문갑도동측"],["17LTC06","가로림만입구"],["17LTC07","울도남측"],["17LTC08","녹도북측"],["17LTC10","고군산군도북측"],["17LTC11","가사도동측"],["17LTC12","소안수도"],["17LTC14","욕지도북측"],["18LTC01","난지도북측"],["18LTC02","와도서측"],["18LTC03","안좌도북측"],["18LTC04","비금수도"],["18LTC05","흑일도남측"],["18LTC06","여수해협"],["18LTC07","여수해만입구"],["18LTC08","두미도북측"],["18LTC09","사량도동측"],["18LTC10","가조도수도"],["18LTC12","거제도동측"],["18LTC13","해운대"],["18LTC14","대왕암남측"],["19LTC01","화성방조제"],["19LTC02","외연도동측"],["19LTC03","재원동수도"],["19LTC04","증도동측"],["19LTC05","매화도서측"],["19LTC06","하의수도"],["19LTC07","청산도동측"],["19LTC08","대병풍도서측"],["19LTC09","초도동측"],["19LTC10","손죽도북측"],["19LTC11","나로도동측"],["19LTC12","여수해만남측"],["19LTC13","대병대도동측"],["19LTC14","광안리"],["JejuStrait","추자도동측"],["20LTC01","어불도서측"],["20LTC02","독거군도북측"],["20LTC03","외모군도남측"],["20LTC04","영흥도서측"],["20LTC05","함평만입구"],["20LTC06","금오열도남측"],["20LTC07","자월도북서측"],["20LTC08","우이수도"],["20LTC09","송이도북측"],["20LTC11","덕적군도서측"],["20LTC12","수우도서측"],["20LTC13","관리도"],["20LTC14","가덕도남측"],["20LTC15","거금도동측"],["Gwangyanghang","광양항입구"],["21LTC01","태종대남측"],["21LTC02","북형제도남측"],["21LTC03","가덕도남서측"],["21LTC04","부산항신항"],["21LTC05","저도서측"],["21LTC06","내도동측"],["21LTC07","칠천도북서측"],["21LTC08","장사도북측"],["21LTC09","용초도북측"],["21LTC10","견내량해협"],["21LTC11","오곡도북측"],["21LTC12","곤리도남측"],["21LTC13","사량도북동측"],["21LTC14","신수도동측"],["22EW01","대화사도서측"],["22LTC01","삼천포-제주항로"],["22LTC02","대방수도"],["22LTC03","노량수도동측"],["22LTC04","외수도"],["22LTC05","금오수도"],["22LTC06","백야도동측"],["22LTC07","백야수도"],["22LTC08","외나로도서측"],["22LTC09","손죽도서측"],["22LTC10","소록도동측"],["22LTC12","마량항"],["22LTC13","청산도서측"],["22LTC14","황제도동측"],["22LTC15","광양항A호등부표"],["22MTC03","제주해협"],["23GA01","안면도서측"],["23LTC01","우도북서측"],["23LTC02","제주도서측"],["23LTC03","백일도동측"],["23LTC04","어룡도북측"],["23LTC05","율도북동측"],["23LTC06","대야도동측"],["23LTC07","우이도남측"],["23LTC08","장산도서측"],["23LTC09","달리도서측"],["23YG03","외나로도남측"],["24GW02","완도항"],["24LTC01","재원도남서측"],["24LTC02","어의도북측"],["24LTC03","안마도남측"],["24LTC04","거륜도남서측"],["24LTC05","말도남측"],["24LTC06","소횡경도북측"],["24LTC07","십이동파도남동측"],["24LTC08","대화사도남측"],["24LTC09","삽시도북측"],["24LTC10","외파수도남측"],["24LTC11","가의도북동측"],["24TJ02","가로림만"],["24TJ04","입파도"],["24TJ05","아산만28호등부표"],["MyeongYang_Sudo","명량수도"]];
+const CF={st:null,scan:false,prog:0,ser:new Map(),busy:false,err:'',last:'',calls:0,on:true,MIN:10,layer:null};
+const inB=(b,la,lo)=>la>=b.getSouth()&&la<=b.getNorth()&&lo>=b.getWest()&&lo<=b.getEast();
+const DIR16=['북','북북동','북동','동북동','동','동남동','남동','남남동','남','남남서','남서','서남서','서','서북서','북서','북북서'];
+function cfDir(s){const t=String(s==null?'':s).trim(), i=DIR16.indexOf(t); if(i>=0)return i*22.5; const v=parseFloat(t); return isFinite(v)?v:null;}
+// 지점 위치는 목록에 없어서 처음 한 번만 지점마다 1줄씩 물어보고 폰에 저장 (약 230번, 하루 한도 10,000번)
+async function cfStations(){
+  if(CF.st)return CF.st;
+  try{const c=JSON.parse(pref('cfSt1','null'));if(c&&c.length){CF.st=c;return c;}}catch(e){}
+  if(CF.scan||!CONF.realData)return null;
+  if(Date.now()-(+pref('cfScanFailAt','0'))<30*60e3)return null;
+  CF.scan=true; CF.prog=0; const found=[],today=ymd(new Date()); let idx=0;
+  async function w(){while(idx<CF_CODES.length){const [c,n]=CF_CODES[idx++];
+    try{const r=await nget(`${CF_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=1&min=60&obsCode=${encodeURIComponent(c)}&reqDate=${today}`,0);
+      CF.calls++; CF.last=apiCode(r.text); const it=ROMS.findItems(JSON.parse(r.text));
+      if(it&&it.length){const la=+it[0].lat,lo=+it[0].lot;if(isFinite(la)&&isFinite(lo)&&la)found.push({c,la,lo,n:it[0].obsvtrNm||n});}
+    }catch(e){CF.last=e.message||String(e);}
+    CF.prog++;}}
+  await Promise.all([w(),w(),w()]);
+  CF.scan=false;
+  if(found.length>=CF_CODES.length*0.3){CF.st=found;setPref('cfSt1',JSON.stringify(found));CF.err='';}
+  else{setPref('cfScanFailAt',String(Date.now()));CF.err=`조류예보 지점 ${found.length}곳만 찾음 (${CF.last})`;if(found.length)CF.st=found;}
+  return CF.st;
+}
+// 한 지점의 시간별 유향·유속 (오늘~모레, 하루 1번 요청, 12시간 저장) → 노트 단위 동·북 성분
+async function cfSeries(code){
+  const c=CF.ser.get(code); if(c&&(c.busy||Date.now()-c.at<6*3600e3))return c.busy?null:c;
+  CF.ser.set(code,{busy:true,at:Date.now()});
+  const pts=[]; const d=new Date();d.setHours(0,0,0,0);
+  for(let i=-1;i<=2;i++){const url=`${CF_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=300&min=60&obsCode=${encodeURIComponent(code)}&reqDate=${ymd(new Date(d.getTime()+i*DAY+3600e3))}`;
+    try{const r=await nget(url,720); CF.calls++; let it=null; try{it=ROMS.findItems(JSON.parse(r.text));}catch(e){}
+      if(!it||!it.length){cacheDrop(url);CF.last=apiCode(r.text);continue;}
+      CF.last='00';
+      for(const x of it){const ms=kstMs(x.predcDt||x.obsrvnDt),dg=cfDir(x.crdir),sp=+x.crsp;
+        if(ms!=null&&dg!=null&&isFinite(sp)){const kn=sp/51.444,a=dg*Math.PI/180;pts.push({ms,vE:kn*Math.sin(a),vN:kn*Math.cos(a)});}}
+    }catch(e){cacheDrop(url);CF.last=e.message||String(e);}}
+  pts.sort((a,b)=>a.ms-b.ms);
+  const out=pts.length>=4?{at:Date.now(),t:pts.map(p=>p.ms),vE:pts.map(p=>p.vE),vN:pts.map(p=>p.vN)}:{at:Date.now()-5.5*3600e3,t:[]}; // 실패는 30분 뒤 다시
+  CF.ser.set(code,out); return out.t.length?out:null;
+}
+function cfAt(S,ms){const T=S&&S.t;if(!T||!T.length||ms<T[0]-1800e3||ms>T[T.length-1]+1800e3)return null;
+  if(ms<=T[0])return {vE:S.vE[0],vN:S.vN[0]}; if(ms>=T[T.length-1])return {vE:S.vE[T.length-1],vN:S.vN[T.length-1]};
+  let lo=0,hi=T.length-1;while(hi-lo>1){const m=(lo+hi)>>1;T[m]<=ms?lo=m:hi=m;}
+  const f=(ms-T[lo])/(T[hi]-T[lo]);return {vE:S.vE[lo]+(S.vE[hi]-S.vE[lo])*f,vN:S.vN[lo]+(S.vN[hi]-S.vN[lo])*f};}
+// ⚓ 보조: 큰 예보가 없는 곳에서 가까운 조류예보 지점(6km 안) 값을 거리 비율로 섞음
+const CF_R=6000;
+function cfFill(lat,lon,th){if(!CF.on||!CF.st)return null; const ms=t0.getTime()+th*3600e3; let su=0,sv=0,sw=0;
+  for(const s of CF.st){const S=CF.ser.get(s.c); if(!S||!S.t||!S.t.length)continue; const d=distM(lat,lon,s.la,s.lo); if(d>CF_R)continue;
+    const v=cfAt(S,ms); if(!v)continue; const w=1/Math.max(d,150)**2; su+=v.vE*w; sv+=v.vN*w; sw+=w;}
+  return sw?{vE:su/sw,vN:sv/sw,real:true,cf:true}:null;}
+// ⚓ 계산용: 실제 예보 → 없으면 조류예보 지점
+function simBaseAt(lat,lon,th){return baseAt(lat,lon,th)||(CONF.realData?cfFill(lat,lon,th):null);}
+async function cfEnsure(){
+  if(!CF.on||!CONF.realData||map.getZoom()<CF.MIN||CF.busy){cfDraw();return;}
+  CF.busy=true;
+  try{ if(!(await cfStations()))return;
+    const b=map.getBounds().pad(0.3), c=map.getCenter();
+    const vis=CF.st.filter(s=>inB(b,s.la,s.lo)).sort((a,b2)=>distM(c.lat,c.lng,a.la,a.lo)-distM(c.lat,c.lng,b2.la,b2.lo)).slice(0,12);
+    let got=false; for(const s of vis){const before=CF.ser.get(s.c); if(before&&before.t&&Date.now()-before.at<6*3600e3)continue; if(await cfSeries(s.c))got=true;}
+    if(got&&SIM.view.length){for(const T of SIM.tiles.values())T.farVer=-1;SIM.pendingAt=0;simTimeChanged(true);}
+  }catch(e){CF.err=e.message||String(e);}finally{CF.busy=false;cfDraw();}
+}
+function cfDraw(){
+  if(!CF.layer)CF.layer=L.layerGroup().addTo(map); CF.layer.clearLayers();
+  if(!CF.on||!CONF.realData||!CF.st||map.getZoom()<CF.MIN)return;
+  const b=map.getBounds().pad(0.1), ms=t0.getTime()+tH()*3600e3;
+  for(const s of CF.st){if(!inB(b,s.la,s.lo))continue; const S=CF.ser.get(s.c), v=S&&S.t?cfAt(S,ms):null;
+    const sp=v?Math.hypot(v.vE,v.vN):null, dg=v?Math.atan2(v.vE,v.vN)*180/Math.PI:0;
+    const html=`<div class="cfst"><span class="cfar" style="transform:rotate(${dg.toFixed(0)}deg)">${v?'↑':'·'}</span>${v?spdText(sp):''}</div>`;
+    L.marker([s.la,s.lo],{icon:L.divIcon({className:'',html,iconSize:[12,12],iconAnchor:[6,6]})})
+      .on('click',ev=>{L.DomEvent.stopPropagation(ev);
+        toast(v?`📍 조류예보 지점 ${s.n} · ${DIR16[Math.round(((dg%360)+360)%360/22.5)%16]}쪽으로 ${spdText(sp)} (국립해양조사원 지점 예보, 실측 기반)`:`📍 조류예보 지점 ${s.n} · 이 시각 예보 없음`,4500);})
+      .addTo(CF.layer);}
+}
 // ================= 출조 계획 (REQ-43, 강의자료 1·2부): 3주치 물때·조차·승부 시간·해 뜨고 지는 시각 =================
 // 해 뜨는·지는 시각 (NOAA 근사식, 오차 1~2분). dayMs=그날 0시(한국시간)
 function sunTimes(dayMs,lat,lon){
@@ -1358,8 +1531,20 @@ function sunTimes(dayMs,lat,lon){
   const w=Math.acos(cw)/D, toMs=j=>(j-2440587.5)*DAY;
   return {rise:toMs(Jt-w/360),set:toMs(Jt+w/360)};
 }
+// 만조·간조 + 쓴 기준(관측소/기준항). TideBED가 실패하면 예전 관측소 방식으로 한 번 더
+async function tideExAt(la,lo,d0,n,g){
+  for(let pass=0;pass<2;pass++){
+    if(!(await tideStations()))return {st:null,ex:[]};
+    const st=nearestStation(la,lo,g); if(!st)return {st:null,ex:[]};
+    const ex=await tideExDays(st.c,d0,n);
+    if(ex.length||!st.bed)return {st:nearestStation(la,lo,g)||st,ex};
+  }
+  return {st:null,ex:[]};
+}
 // 여러 날의 만조·간조 (고·저조 API, 하루 1번 요청, 12시간 저장. 앞 3일은 조석 칩과 같은 저장본 사용)
 async function tideExDays(code,d0,n){
+  if(code.startsWith('TB')){const offs=[];for(let i=-1;i<=n;i++)offs.push(i);
+    const ser=await tbSeries(code,d0,offs); return ser?tideExtremes(ser,d0-DAY,d0+(n+1)*DAY):[];}
   const out=[],days=[];for(let i=-1;i<=n;i++)days.push(i);let k=0;
   async function w(){while(k<days.length){const i=days[k++];
     const url=`${TIDE_HL_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=10&obsCode=${code}&reqDate=${ymd(new Date(d0+i*DAY+3600e3))}`;
@@ -1404,7 +1589,7 @@ function winWind(w){const D=WIND.data;if(!D||!D.times.length||w.s>D.times[D.time
 function renderPlan(){
   const R=PLAN.res,L=$('#planList'); if(!R){L.innerHTML='';return;}
   const now=Date.now(), b=R.base;
-  $('#planSub').textContent=`${R.st.n} 관측소 기준 (기준 지점에서 약 ${R.st.km.toFixed(0)}km) · ${isWestSea(b.la,b.lo)?'7물때식':'8물때식'} · 하루를 누르면 자세히`;
+  $('#planSub').textContent=`${R.st.bed?`기준항 ${R.st.n} 값을 이 자리에 맞게 보정`:`${R.st.n} 관측소 기준 (기준 지점에서 약 ${R.st.km.toFixed(0)}km)`} · ${isWestSea(b.la,b.lo)?'7물때식':'8물때식'} · 하루를 누르면 자세히`;
   L.innerHTML=R.days.map((d,i)=>{const bw=bestWin(d), today=d.d===tideDay();
     const fl=bw?winFlow(bw,b.la,b.lo):null;
     const flt=fl==='after'?'유속 예보 전':fl==null?'':`유속 최대 ${fl.toFixed(1)}노트`;
@@ -1426,9 +1611,8 @@ async function buildPlan(){
   if(!CONF.realData){$('#planSub').textContent='공공데이터 키를 ⚙ 설정에 넣으면 실제 조석 예보로 계획을 만들어요';$('#planList').innerHTML='';return;}
   PLAN.busy=true; PLAN.prog=0; $('#planSub').textContent='조석 관측소 확인 중…';
   try{
-    if(!(await tideStations())){$('#planSub').textContent='조석: '+(TIDE.err||'관측소를 못 찾았어요');return;}
-    const st=nearestStation(b.la,b.lo), d0=tideDay();
-    const ex=await tideExDays(st.c,d0,PLAN.days);
+    const d0=tideDay(), {st,ex}=await tideExAt(b.la,b.lo,d0,PLAN.days);
+    if(!st){$('#planSub').textContent='조석: '+(TIDE.err||'관측소를 못 찾았어요');return;}
     if(ex.length<4){$('#planSub').textContent='조석 예보를 받지 못했어요 (인터넷 확인)';return;}
     PLAN.res={base:b,st,days:planDays(ex,d0,PLAN.days,b.la,b.lo)}; renderPlan();
   }finally{PLAN.busy=false;}
@@ -1608,11 +1792,14 @@ async function recCompute(sg,day0,say){
   for(let k=0;k<240&&(RD.loading||tideBusy);k++)await new Promise(r=>setTimeout(r,250));
   await rockEnsure();
   const favs=favsIn(sg), pts=[]; for(let i=0;i<sg.p.length;i+=2)pts.push([sg.p[i],sg.p[i+1]]); favs.forEach(f=>pts.push([f.lat,f.lng]));
-  const sts=new Map(); if(await tideStations())for(const [la,lo] of pts){const st=nearestStation(la,lo);if(st)sts.set(st.c,st);}
-  say(`${dstr(day0)} 조석 예보 받는 중 (관측소 ${sts.size}곳)…`);
-  const SW=new Map(); for(const [c] of sts)SW.set(c,await recStationWins(c,day0));
+  const sts=new Map(), SW=new Map();
+  for(let pass=0;pass<2;pass++){sts.clear();SW.clear();
+    if(await tideStations())for(const [la,lo] of pts){const st=nearestStation(la,lo,0.2);if(st)sts.set(st.c,st);}
+    say(`${dstr(day0)} 조석 예보 받는 중 (${tbUse()?'기준 칸':'관측소'} ${sts.size}곳)…`);
+    for(const [c] of sts)SW.set(c,await recStationWins(c,day0));
+    if(!(tbUse()===false&&[...sts.values()].some(s=>s.bed)))break;} // TideBED가 방금 실패 → 예전 방식으로 다시
   const T=RD.times; if(T.length&&day0>T[T.length-1])return {err:`${dstr(day0)}은 아직 유속 예보가 없어요 (예보는 약 7일)`};
-  const winsOf=(la,lo)=>{const st=nearestStation(la,lo); let w=st?SW.get(st.c):null;
+  const winsOf=(la,lo)=>{const st=nearestStation(la,lo,0.2); let w=st?SW.get(st.c):null;
     if(!w||!w.length){w=[];for(let h=1;h<24;h+=3){const ms=day0+h*3600e3;if(ms+90*60000>Date.now())w.push({ms,hi:null,s:ms-90*60000,t:ms+90*60000});}}
     return {wins:w,st:st&&st.n};};
   const R=recScore(sg,winsOf,day0,favs); R.sg=sg; R.day0=day0; R.favs=favs.length;
@@ -1674,14 +1861,15 @@ async function todayRun(){
     // 요약: 이 지역 해안 한가운데에서 가장 가까운 관측소
     let cla=0,clo=0; const n=sg.p.length/2; for(let i=0;i<sg.p.length;i+=2){cla+=sg.p[i];clo+=sg.p[i+1];} cla/=n; clo/=n;
     const sum=[]; let tips=null;
-    if(await tideStations()){const st=nearestStation(cla,clo), ex=await tideExDays(st.c,day0,1), te=ex.filter(e=>e.ms>=day0&&e.ms<day0+DAY);
+    const TX=await tideExAt(cla,clo,day0,1);
+    if(TX.st){const st=TX.st, ex=TX.ex, te=ex.filter(e=>e.ms>=day0&&e.ms<day0+DAY);
       const md=mulddae(now,isWestSea(cla,clo)), sun=sunTimes(day0,cla,clo);
       let rg=null; for(let j=0;j<ex.length-1;j++){const a=ex[j],b=ex[j+1];if(a.hi!==b.hi&&(a.ms+b.ms)/2>=day0&&(a.ms+b.ms)/2<day0+DAY){const r=Math.abs(a.h-b.h);if(rg==null||r>rg)rg=r;}}
       const golds=sun?[[sun.rise-30*60000,sun.rise+60*60000,'해뜰녘'],[sun.set-60*60000,sun.set+30*60000,'해질녘']]:[];
       const wins=te.map(x=>{const s=x.ms-90*60000,t=x.ms+90*60000,g=golds.find(G=>s<G[1]&&t>G[0]);return {s,t,x,gold:g?g[2]:null};}).filter(w=>w.t>now);
       const gold=wins.find(w=>w.gold)||wins.find(w=>{const h=new Date(w.x.ms).getHours();return h>=6&&h<=19;})||wins[0]||null;
       const hiNext=te.find(e=>e.hi&&e.ms>now), w=WIND.data?windAt((now-t0.getTime())/3600000):null, str=tideStrength(now);
-      sum.push(`<b>${dstr(day0)} 오늘 · ${sg.n}</b> · ${mulWord(md.name)}${rg!=null?` · 조차 ${rg.toFixed(1)}m`:''} <span class="sub" style="color:var(--muted)">(${st.n} 관측소)</span>`);
+      sum.push(`<b>${dstr(day0)} 오늘 · ${sg.n}</b> · ${mulWord(md.name)}${rg!=null?` · 조차 ${rg.toFixed(1)}m`:''} <span class="sub" style="color:var(--muted)">(${stLabel(st)})</span>`);
       sum.push(`${sun?`해 ${hhmm(sun.rise)} / ${hhmm(sun.set)}`:''}${w?` · 바람 ${windText((now-t0.getTime())/3600000)}`:''}`);
       sum.push(gold?`🔥 <b>오늘의 황금 시간</b> ${gold.gold?'<span class="gold" style="color:#ffd24a">⭐</span> ':''}${hhmm(gold.s)}~${hhmm(gold.t)} (${gold.x.hi?'만조':'간조'} ${hhmm(gold.x.ms)} 앞뒤${gold.gold?' · '+gold.gold+' 겹침':''})<br><span style="color:var(--muted);font-size:12.5px">　${gold.s<=now?`지금 승부 시간이에요 (${hhmm(gold.t)}까지)`:gold.s-3600e3<=now?'지금 출발하면 맞아요':`도착 권장 ${hhmm(gold.s-2*3600e3)}~${hhmm(gold.s-3600e3)}`}</span>`:'🔥 오늘 남은 승부 시간이 없어요 — 📅 계획에서 내일을 보세요');
       tips=todayTips({str,gold,west:isWestSea(cla,clo),firstRise:(te.find(e=>!e.hi&&e.ms>now)||{}).ms,night:gold&&(new Date(gold.x.ms).getHours()<5||new Date(gold.x.ms).getHours()>=20)});
@@ -1766,7 +1954,10 @@ async function runDiag(){
      try{const c=emp[0], r=await ROMS.page(c.b,1,0); o.push(`  └ ${c.key} 지금 새로 물어봄: 결과코드 ${ROMS.findNum(r.raw,/^resultCode$/i)}, 전체 ${r.total??'-'}건, 받음 ${r.items.length}줄`);}
      catch(e){o.push('  └ 새로 물어봄 실패: '+e.message);}
    }}
-  o.push(`조석: 관측소 ${TIDE.st?TIDE.st.length:0}곳${TIDE.scan?' (찾는 중 '+TIDE.prog+')':''}, 지금 ${TIDE.cur?TIDE.cur.st.n+'('+TIDE.cur.st.c+', 약 '+TIDE.cur.st.km.toFixed(1)+'km)':'-'}, 만조·간조 ${TIDE.cur&&TIDE.cur.ser.ex?TIDE.cur.ser.ex.length:0}개`+(TIDE.err?' · ⚠ '+TIDE.err:''));
+  o.push(`조류예보 지점: ${CF.on?'켬':'끔'} · ${CF.st?CF.st.length:0}곳${CF.scan?' (찾는 중 '+CF.prog+'/'+CF_CODES.length+')':''} · 받은 지점 ${[...CF.ser.values()].filter(x=>x.t&&x.t.length).length}곳 · 호출 ${CF.calls}번, 마지막 결과 ${CF.last||'-'}${CF.err?' · ⚠ '+CF.err:''}`);
+  o.push(`수심: ${DEPTH.on?'켬':'끔'} · 호출 ${DEPTH.calls}번, 마지막 결과 ${DEPTH.last||'-'} · 반영된 구역 ${[...SIM.tiles.values()].filter(t=>t.kz).length}곳 · 기준 점 쓴 구역 ${[...SIM.tiles.values()].filter(t=>t.anchors).length}곳`);
+  o.push(`조석 방식: ${pref('tideMode','auto')==='hl'?'예전 관측소 고정':tbUse()?'TideBED(좌표 보정)':'TideBED 실패 → 예전 관측소 (30분)'} · TideBED 호출 ${TB.calls}번, 마지막 결과 ${TB.last||'-'}${TB.why?' · 실패 이유 '+TB.why:''}`);
+  o.push(`조석: 관측소 ${TIDE.st?TIDE.st.length:0}곳${TIDE.scan?' (찾는 중 '+TIDE.prog+')':''}${TIDE.lastCode?' · 관측소 마지막 결과 '+TIDE.lastCode:''}, 지금 ${TIDE.cur?stLabel(TIDE.cur.st)+'('+TIDE.cur.st.c+', 약 '+TIDE.cur.st.km.toFixed(1)+'km)':'-'}, 만조·간조(오늘) ${TIDE.cur?tideExtremes(TIDE.cur.ser,tideDay(),tideDay()+DAY).length:0}개`+(TIDE.err?' · ⚠ '+TIDE.err:''));
   {const cr=(pref('cleanRes','')||'').split(','), ca=+(pref('cleanAt','0'))||0;
    o.push(`지난 자료 청소: ${ca?new Date(ca).toLocaleString('ko-KR'):'아직 안 함'}`+(ca?` · ${cr[0]||0}개 ${Math.round((+cr[1]||0)/1024)}KB 지움, 계산 결과 ${pref('cleanSim','0')}개`:''));}
   // 화면 격자 25곳 중 흐름값 있는 곳
@@ -1940,7 +2131,8 @@ function tideSummary(){
 
 // ================= 시간 컨트롤 =================
 let playing=false, frame=0;
-const setT=m=>{tMin=Math.max(0,Math.min(2880,m));updateUI();computeViewScale();};
+const setT=m=>{tMin=Math.max(0,Math.min(2880,m));updateUI();computeViewScale();cfDrawSoon();};
+let cfDrawT=null; const cfDrawSoon=()=>{if(cfDrawT)return;cfDrawT=setTimeout(()=>{cfDrawT=null;cfDraw();},250);};
 $('#slider').addEventListener('input',e=>setT(+e.target.value));
 $('#nowBtn').onclick=()=>setT(nowMin());
 $('#play').onclick=()=>{playing=!playing;$('#play').textContent=playing?'❚❚':'▶';if(playing&&tMin>=2880)setT(0);};
@@ -2059,7 +2251,7 @@ function renderFavList(){
 $('#favBtn').onclick=()=>{renderFavList();$('#favImportBox').style.display='none';$('#favPanel').classList.add('show');};
 // 백업: 즐겨찾기를 글(텍스트)로 만들어 카톡·메모 등으로 보내기 → 새 폰/재설치 후 붙여넣어 복원
 // ── 백업 내보내기·가져오기 (REQ-50): 안드로이드 앱 ↔ HTML 버전 사이 옮기기 ──
-const BAK_PREFIX='바다흐름지도-백업:', BAK_PREFS=['dataKey','romsUrl','vworldKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
+const BAK_PREFIX='바다흐름지도-백업:', BAK_PREFS=['dataKey','romsUrl','vworldKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit','tideMode','cfOn','depthOn','tideSt2','cfSt1'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
 function bakMake(){const P={},S={};for(const k of BAK_PREFS){const v=pref(k,null);if(v!=null&&v!=='')P[k]=v;}for(const k of BAK_LS){try{const v=localStorage.getItem(k);if(v)S[k]=v;}catch(e){}}
   return BAK_PREFIX+JSON.stringify({v:1,at:new Date().toISOString(),from:NATIVE?'app':'web',prefs:P,ls:S});}
 function bakApply(txt){txt=String(txt||'').trim(); const i=txt.indexOf('{'); if(i<0)throw new Error('백업 내용이 아니에요');
@@ -2149,6 +2341,15 @@ resizeFlow(); drawFavPins(); updateUI(); loop();
   TIDAL.on=pref('tidalOn','1')==='1'; $('#tidalChk').checked=TIDAL.on; drawTidal();
   $('#tidalChk').onchange=()=>{TIDAL.on=$('#tidalChk').checked; setPref('tidalOn',TIDAL.on?'1':'0'); drawTidal();
     if(TIDAL.on&&map.getZoom()<TIDAL.MIN)toast(`갯벌 점선은 ${TIDAL.MIN}단계 이상 확대하면 보여요`,3000);};
+  CF.on=pref('cfOn','1')==='1'; $('#cfChk').checked=CF.on; cfEnsure();
+  $('#cfChk').onchange=()=>{CF.on=$('#cfChk').checked; setPref('cfOn',CF.on?'1':'0'); cfEnsure(); if(SIM.view.length)simTimeChanged(true);
+    if(CF.on)toast(map.getZoom()<CF.MIN?`조류예보 지점은 ${CF.MIN}단계 이상 확대하면 보여요`:'보라색 화살표 = 조류예보 지점 (실측 기반 예보)',3000);};
+  $('#tbChk').checked=pref('tideMode','auto')!=='hl';
+  $('#tbChk').onchange=()=>{setPref('tideMode',$('#tbChk').checked?'auto':'hl'); TB.bad=0; TIDE.cur=null; TIDE.err=''; tideEnsure();
+    toast($('#tbChk').checked?'조석: 이 자리 좌표로 보정한 예측(TideBED)을 써요':'조석: 예전처럼 가까운 관측소 값을 써요',3000);};
+  DEPTH.on=pref('depthOn','1')==='1'; $('#depthChk').checked=DEPTH.on;
+  $('#depthChk').onchange=()=>{DEPTH.on=$('#depthChk').checked; setPref('depthOn',DEPTH.on?'1':'0');
+    for(const T of SIM.tiles.values()){T.kz=null;T.kzSum=0;T.depthTried=false;} if(DEPTH.on)for(const T of SIM.tiles.values())if(T.state==='ready')simDepth(T); if(SIM.view.length)simTimeChanged(true);};
   ROCK.on=pref('rockOn','0')==='1'; $('#rockBtn').classList.toggle('on',ROCK.on); drawRocks(); tideEnsure();
   if(CONF.realData)$('#slackLbl').textContent='물 약해짐';
   toast(CONF.realData?'지도를 확대하면 국립해양조사원 실제 조류 예보가 보여요':'지금은 샘플 흐름이에요. ⚙ 설정에 공공데이터 키를 넣으면 실제 조류로 바뀌어요',4000);
