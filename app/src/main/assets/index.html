@@ -119,7 +119,12 @@ button:disabled{opacity:.45;cursor:default}
 /* REQ-65: 지점 시트 끌어서 접기 — 손잡이(M8-8)·요약 줄(M8-9) */
 .grip{height:18px;margin:-6px 0 2px;display:flex;justify-content:center;align-items:center;cursor:grab;touch-action:none}
 .grip span{width:42px;height:4px;border-radius:2px;background:#4a6a86}
-.nowcard{touch-action:none;overflow:hidden}.nowcard .ncgrip{margin:2px 0 -4px;height:14px}
+.nowcard{touch-action:none;overflow:hidden;flex-wrap:nowrap!important;padding-bottom:18px!important}.nowcard .ncgrip{position:absolute;left:0;right:0;bottom:2px;margin:0;height:14px}
+/* REQ-76: 접는 도중 아래 줄은 서서히 사라지고, 펼 때는 서서히 나타남. 접힌 요약도 서서히 */
+.nowcard.snapfold>*:not(.nchead):not(.ncgrip){animation:ncfadeout .15s ease-in forwards}
+.nowcard.snapopen>*:not(.nchead):not(.ncgrip){animation:ncfade .25s ease-out}
+.nowcard.mini .ncmini{animation:ncfade .2s ease-out}
+@keyframes ncfade{from{opacity:0}to{opacity:1}}@keyframes ncfadeout{from{opacity:1}to{opacity:0}}
 .dragging{transition:none!important}
 /* REQ-72: M10 추천 찾는 중 로딩(지도 가운데, 반투명, 눌러도 지도로 통과) · P6 추천 핀 팝업 */
 .loadov{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1050;display:none;flex-direction:column;align-items:center;gap:8px;background:rgba(10,21,32,.72);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:18px 22px;pointer-events:none;color:#d8ecff;font-size:13.5px;text-align:center;max-width:70%}
@@ -1655,7 +1660,10 @@ function placeSide(){const c=$('#nowCard'), sd=$('.side'); if(!c||!sd)return; sd
 try{new ResizeObserver(()=>placeSide()).observe(document.querySelector('#nowCard'));}catch(e){}
 function nowMini(){const card=$('#nowCard'), m=$('#nowMini'), f=$('#nowFold'); if(!card||!m)return; if(card.classList.contains('dragging')||card.classList.contains('snap'))return; // REQ-70: 끄는 중엔 그대로
   const mini=pref('nowMini','0')==='1'; card.classList.toggle('mini',mini); f.textContent=mini?'▾':'▴';
-  const p=[]; if(NOWS.tide)p.push('🌊 '+NOWS.tide); if(NOWS.ph)p.push(NOWS.ph); if(WXS&&WXS.T!=null)p.push(E_T+' '+WXS.T.toFixed(1)+'℃'); if(WXS&&WXS.warn)p.push(E_W);
+  const p=[]; if(pref('nowView','now')==='rec'){const R=REC.today, c=R&&R.pick&&R.pick[0], w=c&&c.best&&c.best.w;
+      if(c)p.push(`① ${recName(c,R.sg)} ${shownScore(c.score)}점`+(w?' '+hhmm(w.s)+'~':'')); else p.push(R&&R.err?'추천 없음':'⭐ 추천 계산 중…');}
+  else{if(NOWS.tide)p.push('🌊 '+NOWS.tide); if(NOWS.ph)p.push(NOWS.ph); if(WXS&&WXS.T!=null)p.push(E_T+' '+WXS.T.toFixed(1)+'℃');
+      const wd=WIND.on?windText(tH()):''; if(wd)p.push(wd.replace('풍 ',' ').replace('m/s','')); if(WXS&&WXS.warn)p.push(E_W);}
   m.textContent=p.join(' · ')||'펴서 보기'; placeSide();}
 function openTidePanel(){
   if(!TIDE.cur){toast(TIDE.err||'조석 예보를 아직 못 받았어요',3000);return;}
@@ -1954,7 +1962,7 @@ $('#layerPanel').addEventListener('click',e=>{if(e.target.id==='layerPanel')$('#
 ['planBtn','setBtn'].forEach(id=>$('#'+id).addEventListener('click',()=>$('#layerPanel').classList.remove('show')));
 // REQ-71: 보기 토글(M3-8) — 지금 ↔ ⭐ 오늘 추천(M3-9). 마지막 보기를 기억
 function nowView(v){if(v)setPref('nowView',v); v=pref('nowView','now'); const c=$('#nowCard'); c.classList.toggle('recv',v==='rec');
-  document.querySelectorAll('#nowSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); if(v==='rec')nowRecRender(true); placeSide();}
+  document.querySelectorAll('#nowSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); if(v==='rec')nowRecRender(true); nowMini();}
 $('#nowSeg').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return; e.stopPropagation(); if(pref('nowMini','0')==='1')NOW_DRAG.animate(false); nowView(b.dataset.v);});
 // 오늘 추천 3곳 (P4-1 오늘 탭과 같은 계산·같은 지역). 없으면 계산을 시작하고 '계산 중'
 async function nowRecRender(start){const box=$('#nowRec'); if(!box)return; const R=REC.today, d0=tideDay();
@@ -1964,7 +1972,7 @@ async function nowRecRender(start){const box=$('#nowRec'); if(!box)return; const
   const sg=R.sg, P=R.pick.slice(0,3), me=recMe();
   box.innerHTML=P.map((c,i)=>{const w=c.best&&c.best.w, km=me?distM(me.lat,me.lng,c.la,c.lo)/1000:null;
     return `<div class="rr" data-i="${i}"><span class="nm">${'①②③'[i]} ${escH(recName(c,sg))}</span><span class="sc">${shownScore(c.score)}점</span>${w?`<span class="tm">${hhmm(w.s)}~${hhmm(w.t)}</span>`:''}${km!=null?`<span class="km">🧭${km<10?km.toFixed(1):Math.round(km)}km</span>`:''}</div>`;}).join('')
-    +`<div class="more"><span>${escH(sg.n)} · 오늘 · 시간 = 승부 시간</span><b data-go="1">자세히 ›</b></div>`;}
+    +`<div class="more"><span>${escH(sg.n)} · 오늘 · 시간 = 승부 시간</span><b data-go="1">자세히 ›</b></div>`; nowMini();}
 $('#nowRec').addEventListener('click',e=>{e.stopPropagation(); if(e.target.closest('[data-go]')){openPlan();return;} const r=e.target.closest('.rr'); const R=REC.today; if(!r||!R)return;
   const i=+r.dataset.i, c=R.pick[i]; map.flyTo([c.la,c.lo],14,{duration:1}); select(c.la,c.lo,c.fav||`추천 ${i+1} ${c.dong||R.sg.n}`);});
 setTimeout(()=>nowView(),0);
@@ -2529,8 +2537,9 @@ function sheetDrag(o){ // o: el, mini(), full(), isFold(), apply(fold), down(+1:
   el.addEventListener('pointerup',end); el.addEventListener('pointercancel',end);
   el.addEventListener('click',e=>{if(el._noClick){el._noClick=false;e.stopPropagation();e.preventDefault();}},true);
   function animate(fold,from,prev){if(prev==null)prev=o.isFold(); const h0=from!=null?from:el.getBoundingClientRect().height; if(o.isFold())o.apply(false,true);
+    el.classList.toggle('snapfold',!!fold); el.classList.toggle('snapopen',!fold&&prev);
     const target=fold?o.mini():o.full(); el.style.height=h0+'px'; void el.offsetHeight; el.classList.add('snap'); el.style.height=target+'px'; o.moved&&o.moved();
-    clearTimeout(el._snapT); el._snapT=setTimeout(()=>{el.classList.remove('snap'); o.apply(fold); o.moved&&o.moved();},320);
+    clearTimeout(el._snapT); el._snapT=setTimeout(()=>{el.classList.remove('snap','snapfold','snapopen'); o.apply(fold); o.moved&&o.moved();},320);
     if(fold!==prev)haptic('tick');}
   return {animate};}
 // M8 지점 시트: 접으면 머리 줄(M8-1) + 숫자 4칸(M8-3)까지만 보임 (M8-9 요약 줄은 없앰)
