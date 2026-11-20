@@ -84,7 +84,7 @@ exec(src+'''
         if E("!__QA.REC.busy&&!!__QA.REC.res"): break
         pg.wait_for_timeout(300)
     R2=E("__QA.REC.res"); pens=[c['pen'] for c in R2['pick'] if not c.get('fav')]
-    check('W9 파고 2.5m 넘으면 감점 + 이유에 ⚠ 파고', pens and all(abs(p-0.15)<1e-6 for p in pens) and '⚠ 파고 3.0m' in E("document.querySelector('#recList li .l2').textContent"), pens)
+    check('W9 파고 2.5m 넘으면 감점 + 이유에 ⚠ 파고', pens and all(abs(p-0.15)<1e-6 for p in pens) and '⚠ 파고 3.0m' in E("document.querySelector('#recList li .l2').textContent").replace('\\ufe0f',''), pens)
     E("window.__wav=0.5; __QA.WIND.key=''")
     E("window.__onBack()"); pg.wait_for_timeout(200)
     # 기록: 수온·파고·비 + 관측 기압(늦게 채움)
