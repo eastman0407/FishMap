@@ -1,4 +1,4 @@
-window.L=(function(){const chain=o=>Object.assign(o,{addTo(){return o},on(){return o}});
+window.L=(function(){const chain=o=>Object.assign(o,{addTo(g){if(g&&g._items)g._items.push(o);return o},on(ev,fn){if(typeof ev==='string'&&fn)(o._h=o._h||{})[ev]=fn;return o},fire(ev,e){if(o._h&&o._h[ev])o._h[ev](e||{});return o}});
 const handlers={};const R=6378137;
 function proj(ll,z){const la=ll.lat!==undefined?ll.lat:ll[0],lo=ll.lng!==undefined?ll.lng:ll[1];const s=256*Math.pow(2,z);
  return{x:(lo+180)/360*s,y:(1-Math.log(Math.tan(la*Math.PI/180)+1/Math.cos(la*Math.PI/180))/Math.PI)/2*s};}

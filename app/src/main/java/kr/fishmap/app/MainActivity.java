@@ -166,6 +166,23 @@ public class MainActivity extends Activity {
             if (Build.VERSION.SDK_INT < 31) return;
             runOnUiThread(() -> { try { startActivity(new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + getPackageName()))); } catch (Exception ignored) { } });
         }
+        /** REQ-72: 길 안내 앱 열기 (tmap://, kakaomap://, nmap://). 앱이 없으면 Play 스토어 그 앱 페이지. 결과 "ok" / "store" / "err:…" */
+        @JavascriptInterface public String openExt(final String url, final String pkg) {
+            try {
+                Intent it = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                it.addCategory(Intent.CATEGORY_BROWSABLE); it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(it); return "ok";
+            } catch (android.content.ActivityNotFoundException e) {
+                try { Intent m = new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + pkg)); m.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); startActivity(m); }
+                catch (Exception e2) { try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + pkg)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Exception ignored) { } }
+                return "store";
+            } catch (Exception e) { return "err:" + e.getMessage(); }
+        }
+        /** REQ-72: 글 복사 (주소 복사 버튼) */
+        @JavascriptInterface public void copyText(final String text) {
+            runOnUiThread(() -> { try { android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("주소", text)); } catch (Exception ignored) { } });
+        }
         @JavascriptInterface public String getPref(String k) { return prefs().getString(k, ""); }
         @JavascriptInterface public void setPref(String k, String v) { prefs().edit().putString(k, v).apply(); }
 
