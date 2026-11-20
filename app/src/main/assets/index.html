@@ -206,6 +206,12 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
     <div class="legend"><span id="legendTitle">유속 (노트)</span><div class="bar" id="legendBar"></div><div class="ticks" id="legendTicks"></div></div>
     <button class="biteFab" id="biteFab" title="입질 기록 (지금 시각·물때·유속 자동 저장)">🎣<small>입질</small></button>
     <div class="toast" id="toast"></div>
+<div id="xferAsk" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;max-width:340px;width:100%;color:var(--text)">
+    <div style="font-weight:700;font-size:16px;margin-bottom:8px">📥 설정 옮겨 오기</div>
+    <div id="xferMsg" style="font-size:14px;line-height:1.5"></div>
+    <div style="display:flex;gap:8px;margin-top:14px"><button class="btn" id="xferNo" style="flex:1">취소</button><button class="btn" id="xferYes" style="flex:1;background:var(--accent);color:#06221f;border:none;font-weight:700">저장</button></div>
+  </div></div>
     <div class="loadov" id="loadOv"><div class="spin"></div><div id="loadTx">추천 지역 찾는 중…</div><small id="loadSub"></small></div>
     <div class="pinpop" id="pinPop"></div>
   </div>
@@ -279,10 +285,18 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
       <button class="btn" id="bakIn" style="flex:1">📥 백업 가져오기</button>
     </div>
     <div id="bakBox" style="display:none;margin-top:8px">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">백업 파일(.json)을 고르거나, 백업 글을 붙여넣고 '넣기'를 누르세요. 키·설정·즐겨찾기·조과 기록이 들어가요.</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">백업 파일(.json)을 고르거나, 백업 글을 붙여넣고 '넣기'를 누르세요. 키·설정·즐겨찾기·조과 기록이 들어가요. 📤 설정 옮기기 링크를 받았다면 링크를 통째로 붙여넣어도 돼요.</div>
       <input type="file" id="bakFile" accept=".json,.txt,application/json,text/plain" style="width:100%;height:auto;padding:6px 0">
       <textarea id="bakText" style="width:100%;height:80px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:8px;box-sizing:border-box;margin-top:6px" placeholder="바다흐름지도-백업:{...}"></textarea>
       <button class="btn" id="bakApply" style="width:100%;margin-top:6px;background:var(--accent);color:#06221f;border:none;font-weight:700">넣기</button>
+    </div>
+    <div class="namebox" style="margin-top:8px"><button class="btn" id="xferOut" style="flex:1">📤 설정 옮기기 링크 (아이폰·다른 폰)</button></div>
+    <div id="xferBox" style="display:none;margin-top:8px;font-size:14px">
+      <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="xfKey" checked> 공공데이터 키</label>
+      <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="xfVw" checked> 브이월드 키 (주소)</label>
+      <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="xfFav"> ⭐ 즐겨찾기</label>
+      <div style="font-size:12px;color:var(--muted);margin:4px 0 6px">링크는 <b>7일</b> 동안만 쓸 수 있어요. 키가 들어 있으니 <b>그 사람에게만</b> 보내세요. 받은 사람은 링크를 누르면 웹판이 열리고 저장할지 물어봐요. 아이폰 홈 화면 아이콘으로 쓸 때는 링크를 복사해서 ⚙️ → 📥 백업 가져오기에 붙여넣어요.</div>
+      <button class="btn" id="xferMake" style="width:100%;background:var(--accent);color:#06221f;border:none;font-weight:700">링크 만들어 보내기</button>
     </div>
     <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">빨강(낚시 어려움) 시작 유속</span><input id="redKn" type="number" step="0.1" min="1.2" max="3" style="width:80px;flex:none"> <span style="font-size:13px;color:var(--muted)">노트</span></div>
     <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">🔔 안전 알림 시각</span><select id="alertLead" style="height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"><option value="30">30분 전</option><option value="60">1시간 전</option><option value="120">2시간 전</option></select></div>
@@ -2804,8 +2818,40 @@ $('#bakOut').onclick=async()=>{const t=bakMake(); window.__backup=t;
   await webShare(t,`바다흐름지도_백업_${new Date().toISOString().slice(0,10)}.json`,'application/json');};
 $('#bakIn').onclick=()=>{const b=$('#bakBox');b.style.display=b.style.display==='none'?'block':'none';};
 $('#bakFile').onchange=async e=>{const f=e.target.files&&e.target.files[0];if(f)$('#bakText').value=await f.text();};
-$('#bakApply').onclick=()=>{try{const r=bakApply($('#bakText').value);toast(`넣었어요: 설정 ${r.prefs}개 · 즐겨찾기 ${r.favs}곳 · 조과 기록 ${r.logs}건 → 다시 불러와요`,3500);setTimeout(()=>location.reload(),1500);}
+$('#bakApply').onclick=()=>{try{const x=xferParse($('#bakText').value); if(x){xferAsk(x);return;}}catch(e){toast(e.message,4500);return;}
+  try{const r=bakApply($('#bakText').value);toast(`넣었어요: 설정 ${r.prefs}개 · 즐겨찾기 ${r.favs}곳 · 조과 기록 ${r.logs}건 → 다시 불러와요`,3500);setTimeout(()=>location.reload(),1500);}
   catch(e){toast('넣기 실패: '+e.message,3500);}};
+// REQ-77 F26 설정 옮기기 링크: 웹판 주소 + #cfg-(키·즐겨찾기를 섞은 글자). '#' 뒤는 서버로 안 감. 7일 지나면 못 씀
+const WEB_URL='https://eastman0407.github.io/fishmap-web/', XFER_DAYS=7, XFER_KEYS={dataKey:'공공데이터 키',vworldKey:'브이월드 키'};
+const b64u={enc:t=>{const b=new TextEncoder().encode(t);let s='';for(const c of b)s+=String.fromCharCode(c);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');},
+  dec:t=>{const s=atob(t.replace(/-/g,'+').replace(/_/g,'/'));return new TextDecoder().decode(Uint8Array.from(s,c=>c.charCodeAt(0)));}};
+function xferMake(o){const d={v:1,exp:Date.now()+XFER_DAYS*864e5,p:{}};
+  if(o.key&&pref('dataKey',''))d.p.dataKey=pref('dataKey',''); if(o.vw&&pref('vworldKey',''))d.p.vworldKey=pref('vworldKey','');
+  if(o.fav){const f=loadFavs(); if(f.length)d.f=f.map(x=>({n:x.name,a:x.lat,o:x.lng}));}
+  return WEB_URL+'#cfg-'+b64u.enc(JSON.stringify(d));}
+function xferParse(txt){const m=String(txt||'').match(/#cfg-([A-Za-z0-9_-]+)/); if(!m)return null; let d;
+  try{d=JSON.parse(b64u.dec(m[1]));}catch(e){throw new Error('링크가 깨졌어요. 링크 전체를 다시 복사해 주세요');}
+  if(!d||d.v!==1)throw new Error('설정 옮기기 링크가 아니에요'); if(!(Date.now()<d.exp))throw new Error(`만료된 링크예요(${XFER_DAYS}일). 보낸 사람에게 새 링크를 받아 주세요`); return d;}
+function xferApply(d){let k=0,f=0; for(const n of Object.keys(XFER_KEYS))if(d.p&&d.p[n]){setPref(n,String(d.p[n]));k++;}
+  if(d.f&&d.f.length){const a=loadFavs(); for(const x of d.f)if(!a.some(y=>Math.abs(y.lat-x.a)<1e-5&&Math.abs(y.lng-x.o)<1e-5)){a.push({name:x.n,lat:x.a,lng:x.o});f++;} saveFavs(a);}
+  return {keys:k,favs:f};}
+function xferAsk(d){const ks=Object.keys(XFER_KEYS).filter(n=>d.p&&d.p[n]).map(n=>XFER_KEYS[n]), nf=d.f?d.f.length:0, left=Math.max(1,Math.ceil((d.exp-Date.now())/864e5));
+  if(!ks.length&&!nf){toast('링크에 옮길 설정이 없어요',3500);return;}
+  $('#xferMsg').innerHTML=`옮겨 올 것: <b>${[...ks,nf?`⭐ 즐겨찾기 ${nf}곳`:''].filter(Boolean).join(' · ')}</b><br>이 ${NATIVE?'앱':'브라우저'}에 저장할까요?<br><span style="font-size:12px;color:var(--muted)">이미 있는 키는 바뀌고, 즐겨찾기는 더해져요 · 링크 남은 기간 ${left}일</span>`;
+  const box=$('#xferAsk'); box.style.display='flex'; window.__xferD=d;
+  $('#xferNo').onclick=()=>{box.style.display='none';toast('저장하지 않았어요');};
+  $('#xferYes').onclick=()=>{box.style.display='none'; const r=xferApply(d); haptic('done'); toast(`저장했어요: 키 ${r.keys}개 · 즐겨찾기 ${r.favs}곳 → 다시 불러와요`,3000); setTimeout(()=>location.reload(),1500);};}
+$('#xferOut').onclick=()=>{const b=$('#xferBox');b.style.display=b.style.display==='none'?'block':'none';};
+$('#xferMake').onclick=async()=>{const o={key:$('#xfKey').checked,vw:$('#xfVw').checked,fav:$('#xfFav').checked};
+  if(o.key&&!pref('dataKey',''))o.key=false; if(o.vw&&!pref('vworldKey',''))o.vw=false;
+  if(!o.key&&!o.vw&&!(o.fav&&loadFavs().length)){toast('옮길 설정이 없어요 (키가 비어 있거나 아무것도 안 골랐어요)',3500);return;}
+  const url=xferMake(o); window.__xfer=url; const msg=`바다흐름지도 설정 옮기기 링크예요 (${XFER_DAYS}일 동안만 쓸 수 있어요):\n${url}`;
+  if(NATIVE&&NATIVE.shareText){NATIVE.shareText(msg);return;}
+  try{await navigator.clipboard.writeText(url);toast('링크를 복사했어요. 카톡으로 그 사람에게만 보내세요',3500);}catch(e){$('#bakBox').style.display='block';$('#bakText').value=url;toast('아래 링크를 길게 눌러 복사하세요',3500);}};
+// 링크로 열렸을 때: 주소의 #cfg… 부분은 바로 지우고(기록·즐겨찾기에 안 남게) 저장할지 물어봄
+function xferFromHash(){const h=location.hash; if(!/^#cfg-/.test(h))return; try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
+  try{const d=xferParse(h); setTimeout(()=>xferAsk(d),300);}catch(e){setTimeout(()=>toast(e.message,4500),300);}}
+xferFromHash(); window.addEventListener('hashchange',xferFromHash); // 이미 열린 웹판에서 링크를 누르면 다시 불러오지 않고 # 뒤만 바뀜
 const FAV_PREFIX='바다흐름지도-즐겨찾기:', FAV_PREFIX_OLD='물흐름지도-즐겨찾기:'; // 11-19 이름 바꿈 (예전 백업도 받음)
 $('#favExport').onclick=async()=>{
   const a=loadFavs(); if(!a.length){toast('저장된 즐겨찾기가 없어요');return;}
