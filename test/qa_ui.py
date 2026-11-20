@@ -63,7 +63,8 @@ exec(src+'''
     bad=[(a[0],b[0]) for i,a in enumerate(box) for b in box[i+1:] if ov(a,b)]
     check('U10 카드·버튼·범례·검색창이 서로 안 겹침 (390px 폰)', not bad, [bad, box])
     pg.screenshot(path='/tmp/ui_main.png')
-    # 추천 거리
+    # 추천 거리 (build-41: 지점을 고를 때 시트에 가려지면 지도를 올리므로, 추천 지역이 바뀌지 않게 처음 화면으로 되돌림)
+    E("while(window.__onBack&&window.__onBack()){}"); go(12,34.92,128.07,0)
     E("document.querySelector('#planBtn').click()"); pg.wait_for_timeout(200)
     for _ in range(200):
         pg.wait_for_timeout(300)

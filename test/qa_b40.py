@@ -82,25 +82,7 @@ exec(src+'''
       const a=__QA.anchorCells(T,{cx:17,cy:20,vE:0,vN:1.5},94), b=__QA.anchorCells(open,{cx:17,cy:20,vE:0,vN:1.5},94), c=__QA.anchorCells(T,{cx:17,cy:20,vE:0,vN:0},94);
       return [a.length, a.filter(z=>z[1]<1).length, b.length, c.length, Math.min(...a.map(z=>z[0]%gx)), Math.max(...a.map(z=>z[0]%gx))];})()""")
     check('N10 좁은 물길(폭 6칸): 폭 전체 × 앞뒤 2칸 = 30칸(가장자리 0.8), 넓은 바다·멈춤은 3×3', ac[0]==30 and ac[1]==10 and ac[2]==9 and ac[3]==9 and ac[4]==15 and ac[5]==20, ac)
-    g=E("(()=>{const r=document.querySelector('#infoGrip').getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2];})()")
-    mh0=E("document.querySelector('#map').getBoundingClientRect().height")
-    def drag(dy):
-        pg.mouse.move(g[0],g[1]); pg.mouse.down(); pg.mouse.move(g[0],g[1]+dy/2,steps=3); pg.wait_for_timeout(260); pg.mouse.move(g[0],g[1]+dy,steps=3); pg.mouse.up(); pg.wait_for_timeout(300)
-    FO="document.querySelector('#info').classList.contains('fold')"
-    drag(30); f30=E(FO)
-    drag(80); f80=E(FO); mh1=E("document.querySelector('#map').getBoundingClientRect().height")
-    vis=E("[getComputedStyle(document.querySelector('#iSum')).display, getComputedStyle(document.querySelector('#tide')).display, document.querySelector('#iSum').textContent, document.querySelector('#iSpeed').textContent]")
-    check('N11 30px 끌면 그대로, 80px 아래로 끌면 접힘 (지도 넓어짐)', not f30 and f80 and mh1>mh0+80, [f30,f80,mh0,mh1])
-    check('N12 접히면 요약 줄만 (유속 등 펼친 값과 같음), 그래프 숨김', vis[0]=='block' and vis[1]=='none' and vis[3] in vis[2], vis)
-    g=E("(()=>{const r=document.querySelector('#infoGrip').getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2];})()")
-    drag(-80); fu=E(FO)
-    g=E("(()=>{const r=document.querySelector('#infoGrip').getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2];})()")
-    pg.mouse.click(g[0],g[1]); pg.wait_for_timeout(300); ft=E(FO)
-    E("__QA.select(34.93,128.06,'다른 자리')"); pg.wait_for_timeout(400); fn=E(FO)
-    check('N13 위로 끌면 펴짐, 손잡이 톡 = 접힘, 새 지점은 펴진 채', (not fu) and ft and (not fn), [fu,ft,fn])
-    E("__QA.infoFold(true)"); E("__QA.setT&&0"); pg.wait_for_timeout(200)
-    s1=E("document.querySelector('#iSum').textContent"); E("document.querySelector('#slider').value=600; document.querySelector('#slider').dispatchEvent(new Event('input'))"); pg.wait_for_timeout(500); s2=E("document.querySelector('#iSum').textContent")
-    check('N14 접힌 채 시간 줄 움직이면 요약 숫자도 바뀜', s1!=s2, [s1,s2])
+    # N11~N14(예전 M8 끌기)는 build-41 REQ-70에서 방식이 바뀌어 qa_b41로 옮김
     check('N15 스크립트 오류 없음', not errs, errs[:2])
     br.close()
 print(f"결과: {sum(res)}/{len(res)}")
