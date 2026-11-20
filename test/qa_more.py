@@ -43,7 +43,7 @@ exec(src+'''
     check('M1 수온 줄: (어제보다 ±x) 문구, 하루 글자 없음', ('어제보다' in ch[0] or '내일' in ch[0]) and '하루' not in ch[0], ch[0])
     check('M2 그림 글자 뒤 FE0F + 숫자는 따로(고정폭 굵게)', '️' in ch[1] and 'class="num"' in ch[1] and 'class="emo"' in ch[1], ch[1][:120])
     E("document.querySelector('#nowFold').click()"); pg.wait_for_timeout(450)
-    f=E("[document.querySelector('#nowCard').classList.contains('mini'), document.querySelector('#nowMini').textContent, getComputedStyle(document.querySelector('#tideChip')).display, window.AndroidBridge._p.nowMini, document.querySelector('#planPanel').classList.contains('show')]")
+    f=E("[document.querySelector('#nowCard').classList.contains('mini'), document.querySelector('#nowMini').textContent, getComputedStyle(document.querySelector('#tideChip').parentNode).display, window.AndroidBridge._p.nowMini, document.querySelector('#planPanel').classList.contains('show')]")
     check('M3 ▴ 누르면 한 줄(다음 물때·수온)로 접히고 상태 저장, 출조 도우미는 안 열림', f[0] and '℃' in f[1] and '🌊' in f[1] and f[2]=='none' and f[3]=='1' and not f[4], f)
     E("__QA.updateTideChips()"); f2=E("document.querySelector('#nowCard').classList.contains('mini')")
     E("document.querySelector('#nowFold').click()"); pg.wait_for_timeout(450)

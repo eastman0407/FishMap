@@ -46,11 +46,24 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 .nowcard .nchead span{color:var(--accent);font-size:12px}
 .nowcard .nchead{align-items:center}.nowcard .ncfold{border:none;background:none;color:var(--muted);font-size:15px;padding:0 0 0 4px;line-height:1;cursor:pointer}
 .nowcard .ncmini{display:none;color:#e6f6ff!important;font-size:12.5px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
-.nowcard.mini>*:not(.nchead):not(.ncgrip){display:none!important}.nowcard.mini .ncmini{display:inline}.nowcard.mini .ncgo{display:none}
+.nowcard.mini>*:not(.nchead):not(.ncgrip){display:none!important}.nowcard.mini .ncmini{display:inline}
 .nowcard .tchip,.nowcard .windchip{border:none;background:none;padding:1px 0;font-size:13.5px;border-radius:0}
 .sctab{width:100%;border-collapse:collapse;font-size:12.5px}.sctab td,.sctab th{padding:3px 4px;border-bottom:1px solid var(--line);text-align:left}.scbar{display:inline-block;height:8px;background:var(--accent);border-radius:4px;vertical-align:middle}
 .nowcard .tchip.wx{color:#bfe9ff}.nowcard .num{font-variant-numeric:tabular-nums;font-weight:700;color:#e6f6ff}.nowcard .emo{font-family:'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif}.nowcard .dd{color:var(--muted);font-size:12.5px}.nowcard .tchip.warn{color:#ffb35c;white-space:normal;font-weight:600}.nowcard .wl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nowcard .samplebadge{align-self:flex-start;font-size:11px;max-width:100%}
+/* REQ-71: 지금 카드 재배치 — 머리 줄 = 보기 토글(M3-8) + 상태 배지(M3-1, 점) + ▴. 조석|물때, 바람|경고를 한 줄에 */
+.nowcard .nchead{gap:8px}.nowcard .nchead .samplebadge{background:none!important;border:none!important;padding:0;margin-left:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto}
+.nowcard .nchead .samplebadge::before{content:'● '}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;flex:none}
+.seg button{border:none;background:none;color:var(--muted);font-size:12px;padding:3px 10px;cursor:pointer;font-family:inherit}
+.seg button.on{background:rgba(64,224,208,.18);color:var(--accent);font-weight:700}
+.ncrow{display:flex;justify-content:space-between;align-items:baseline;gap:10px}.ncrow>*{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ncrow .phase{flex:none}.ncrow.wrap{flex-wrap:wrap;row-gap:0}.ncrow.wrap .warn{margin-left:auto}
+.nowcard.recv .ncrow,.nowcard.recv #wxChip{display:none!important}.nowcard:not(.recv) #nowRec{display:none!important}
+.ncrec{font-size:13px}.ncrec .rr{display:flex;gap:8px;align-items:baseline;padding:2px 0;cursor:pointer}.ncrec .rr .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ncrec .rr .sc{flex:none;font-weight:700;color:#e6f6ff;font-variant-numeric:tabular-nums}.ncrec .rr .tm,.ncrec .rr .km{flex:none;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.ncrec .more{display:flex;justify-content:space-between;color:var(--muted);font-size:11.5px;margin-top:2px}.ncrec .more b{color:var(--accent);font-weight:600;cursor:pointer}
+.nowcard.mini .nchead .samplebadge{display:none}
 /* REQ-69: 카드 폭 고정(화면 양쪽 끝), 줄은 한 줄로 · 넘치면 … */
 .nowcard>*:not(.nchead):not(.ncgrip){min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap!important}
 .side.under{flex-direction:row;transition:top .15s}
@@ -156,13 +169,11 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
     </div>
     <!-- 지금 카드 (11-19, REQ-57): 칩 여러 개를 카드 하나로. 머리를 누르면 출조 도우미 -->
     <div class="topchips nowcard" id="nowCard">
-      <div class="nchead" id="nowHead"><b>📍 지금</b><span class="ncmini" id="nowMini"></span><span class="ncgo">출조 도우미 ›</span><button class="ncfold" id="nowFold" title="카드 접기/펴기">▴</button></div>
-      <span class="samplebadge">흐름: 샘플 데이터</span>
-      <span class="tchip tide" id="tideChip" title="오늘 만조·간조 시각 보기"></span>
-      <span class="tchip phase" id="phaseChip"></span>
-      <span class="windchip" id="windChip"></span>
+      <div class="nchead" id="nowHead"><span class="seg" id="nowSeg"><button data-v="now" class="on">지금</button><button data-v="rec">⭐ 오늘 추천</button></span><span class="ncmini" id="nowMini"></span><span class="samplebadge">흐름: 샘플 데이터</span><button class="ncfold" id="nowFold" title="카드 접기/펴기">▴</button></div>
+      <div class="ncrow"><span class="tchip tide" id="tideChip" title="오늘 만조·간조 시각 보기"></span><span class="tchip phase" id="phaseChip"></span></div>
       <span class="tchip wx" id="wxChip"></span>
-      <span class="tchip warn" id="warnChip"></span>
+      <div class="ncrow wrap"><span class="windchip" id="windChip"></span><span class="tchip warn" id="warnChip"></span></div>
+      <div class="ncrec" id="nowRec"></div>
       <div class="grip ncgrip" id="nowGrip" title="끌어서 접기·펴기"><span></span></div>
     </div>
     <div class="legend"><span id="legendTitle">유속 (노트)</span><div class="bar" id="legendBar"></div><div class="ticks" id="legendTicks"></div></div>
@@ -752,10 +763,10 @@ function updateBadge(){
   if(!CONF.realData){el.textContent=SIM.on?'샘플 + 항내 추정':'흐름: 샘플 데이터';el.style.cssText='';return;}
   if(RD.staleMin&&!RD.loading&&map.getZoom()>=REAL_MIN_ZOOM){
     el.style.cssText='background:#3a2a12;color:#ffc874;border-color:#6a4a1c';
-    el.textContent=`📴 저장된 예보 · ${staleText(RD.staleMin)} 받음`; return;}
+    el.textContent=`📴 저장된 예보 ${staleText(RD.staleMin)}`; return;}
   el.style.cssText='background:#0f3a2e;color:#7ee0a1;border-color:#1f6b52';
-  el.textContent=map.getZoom()<REAL_MIN_ZOOM?'확대하면 실제 조류가 보여요':RD.loading?('조류 불러오는 중…'+(RD.prog?' '+RD.prog:'')):RD.empty?'이 구역 예보 없음':RD.failed&&RD.failed.length?`⚠️ 실제 예보 · ${RD.failed.length}칸 못 받음`:
-    (SIM.on?(SIM.ready&&SIM.done?'실제 예보 + 항내 추정':'항내 계산 중…'):'실제 예보'); // REQ-69: 상태만 (단계·칸 크기는 진단에)
+  el.textContent=map.getZoom()<REAL_MIN_ZOOM?'확대하면 실제 조류':RD.loading?('조류 받는 중'+(RD.prog?' '+RD.prog:'')):RD.empty?'예보 없는 구역':RD.failed&&RD.failed.length?`⚠️ ${RD.failed.length}칸 못 받음`:
+    (SIM.on?(SIM.ready&&SIM.done?'항내 추정':'항내 계산 중…'):'실제 예보'); // REQ-69: 상태만 (단계·칸 크기는 진단에)
 }
 // 지금 항내 추정 계산 단계 표시 (11-14 요청): 단계 이름 + 칸 한 변 길이(m) + 구역 한 변(km)
 // 단계 16 = 칸 약 23m·구역 4km(15단계 이상) / 14 = 약 94m·16km(⚓ON 13~15) / 12 = 약 375m(11~13) / 11(10~11)
@@ -1909,7 +1920,22 @@ $('#layerClose').onclick=()=>$('#layerPanel').classList.remove('show');
 $('#layerPanel').addEventListener('click',e=>{if(e.target.id==='layerPanel')$('#layerPanel').classList.remove('show');});
 // 출조 도우미·설정은 레이어 시트를 닫고 열기
 ['planBtn','setBtn'].forEach(id=>$('#'+id).addEventListener('click',()=>$('#layerPanel').classList.remove('show')));
-$('#nowHead').onclick=()=>openPlan();
+// REQ-71: 보기 토글(M3-8) — 지금 ↔ ⭐ 오늘 추천(M3-9). 마지막 보기를 기억
+function nowView(v){if(v)setPref('nowView',v); v=pref('nowView','now'); const c=$('#nowCard'); c.classList.toggle('recv',v==='rec');
+  document.querySelectorAll('#nowSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); if(v==='rec')nowRecRender(true); placeSide();}
+$('#nowSeg').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return; e.stopPropagation(); if(pref('nowMini','0')==='1')NOW_DRAG.animate(false); nowView(b.dataset.v);});
+// 오늘 추천 3곳 (P4-1 오늘 탭과 같은 계산·같은 지역). 없으면 계산을 시작하고 '계산 중'
+async function nowRecRender(start){const box=$('#nowRec'); if(!box)return; const R=REC.today, d0=tideDay();
+  if(!CONF.realData){box.innerHTML='<div class="more"><span>공공데이터 키를 ⚙️ 설정에 넣으면 볼 수 있어요</span></div>';return;}
+  if(!R||(REC.todayKey&&!REC.todayKey.endsWith('|'+d0))||R.err||!R.pick){box.innerHTML=`<div class="more"><span>${R&&R.err?escH(R.err):'⭐ 오늘 추천 계산 중…'}</span><b data-go="1">자세히 ›</b></div>`;
+    if(start&&!REC.busy){try{if(!$('#todaySgg').options.length)await todayInit(); else if(REC.todayKey!==$('#todaySgg').value+'|'+d0)todayRun();}catch(e){}} return;}
+  const sg=R.sg, P=R.pick.slice(0,3), me=recMe();
+  box.innerHTML=P.map((c,i)=>{const w=c.best&&c.best.w, km=me?distM(me.lat,me.lng,c.la,c.lo)/1000:null;
+    return `<div class="rr" data-i="${i}"><span class="nm">${'①②③'[i]} ${escH(recName(c,sg))}</span><span class="sc">${shownScore(c.score)}점</span>${w?`<span class="tm">${hhmm(w.s)}~${hhmm(w.t)}</span>`:''}${km!=null?`<span class="km">🧭${km<10?km.toFixed(1):Math.round(km)}km</span>`:''}</div>`;}).join('')
+    +`<div class="more"><span>${escH(sg.n)} · 오늘 · 시간 = 승부 시간</span><b data-go="1">자세히 ›</b></div>`;}
+$('#nowRec').addEventListener('click',e=>{e.stopPropagation(); if(e.target.closest('[data-go]')){openPlan();return;} const r=e.target.closest('.rr'); const R=REC.today; if(!r||!R)return;
+  const i=+r.dataset.i, c=R.pick[i]; map.flyTo([c.la,c.lo],14,{duration:1}); select(c.la,c.lo,c.fav||`추천 ${i+1} ${c.dong||R.sg.n}`);});
+setTimeout(()=>nowView(),0);
 $('#nowFold').onclick=e=>{e.stopPropagation(); NOW_DRAG.animate(!(pref('nowMini','0')==='1'));};
 // 관측 수온·기압은 받는 데 몇 초 걸려서 기록을 먼저 저장하고 나중에 채움 (REQ-58)
 async function biteObsFill(t,lat,lng){ if(!CONF.realData)return; const o=await dtObs(lat,lng); if(!o)return;
@@ -2244,7 +2270,7 @@ async function todayRun(){
       for(const w of wxWarn(th,cla,clo))add.push(E_W+' '+w);
       if(add.length)$('#todaySum').innerHTML+='<br>'+add.join('<br>'); }
     say(`📍 오늘 갈 만한 곳 · ${[...R.kinds].map(k=>KIND_ICON[k]+KIND_NAME[k]).join(' + ')} 해안 ${R.cov}곳을 종합해 5곳 + 즐겨찾기 ${R.nfav}곳 · 점수 높은 순${/^(osm|pre)$/.test(R.kindSrc)?'':' · 섬 다리 여부는 추정'}`);
-    recRender($('#todayList'),R);
+    recRender($('#todayList'),R); nowRecRender();
   }catch(e){$('#todaySub').textContent='오늘의 추천 계산 중 오류: '+(e&&e.message||e);}finally{REC.busy=false; if(REC.todayQ){REC.todayQ=false;todayRun();}}
 }
 $('#todayList').addEventListener('click',recClick);
@@ -2674,7 +2700,7 @@ function renderFavList(){
 $('#favBtn').onclick=()=>{renderFavList();$('#favImportBox').style.display='none';$('#favPanel').classList.add('show');};
 // 백업: 즐겨찾기를 글(텍스트)로 만들어 카톡·메모 등으로 보내기 → 새 폰/재설치 후 붙여넣어 복원
 // ── 백업 내보내기·가져오기 (REQ-50): 안드로이드 앱 ↔ HTML 버전 사이 옮기기 ──
-const BAK_PREFIX='바다흐름지도-백업:', BAK_PREFS=['dataKey','romsUrl','vworldKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit','tideMode','cfOn','depthOn','tideSt2','cfSt1','recKinds','islOv','recSort','nowMini'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
+const BAK_PREFIX='바다흐름지도-백업:', BAK_PREFS=['dataKey','romsUrl','vworldKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit','tideMode','cfOn','depthOn','tideSt2','cfSt1','recKinds','islOv','recSort','nowMini','nowView'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
 function bakMake(){const P={},S={};for(const k of BAK_PREFS){const v=pref(k,null);if(v!=null&&v!=='')P[k]=v;}for(const k of BAK_LS){try{const v=localStorage.getItem(k);if(v)S[k]=v;}catch(e){}}
   return BAK_PREFIX+JSON.stringify({v:1,at:new Date().toISOString(),from:NATIVE?'app':'web',prefs:P,ls:S});}
 function bakApply(txt){txt=String(txt||'').trim(); const i=txt.indexOf('{'); if(i<0)throw new Error('백업 내용이 아니에요');

@@ -50,7 +50,7 @@ exec(src+'''
     nxtli=[x for x in items if 'next' in x[0]]
     check('C5 누르면 오늘 조석 목록(지난 것 흐리게, 다가오는 것 강조)', E("document.querySelector('#tidePanel').classList.contains('show')") and len(items)>=3 and len(nxtli)==1 and any('past' in x[0] for x in items), items)
     E("window.__onBack()"); check('C6 뒤로가기로 닫힘', not E("document.querySelector('#tidePanel').classList.contains('show')"))
-    check('C7 칩이 배지 옆 한 줄 영역에 배치', E("document.querySelector('#tideChip').parentElement.classList.contains('topchips')"))
+    check('C7 조석 칩이 지금 카드 안에 (build-42부터 물때와 한 줄)', E("!!document.querySelector('#tideChip').closest('.topchips') && document.querySelector('#tideChip').parentElement===document.querySelector('#phaseChip').parentElement"))
     t1=E("document.querySelector('#tideChip').textContent"); setT(0); setT(2400); t2=E("document.querySelector('#tideChip').textContent")
     check('C9 아래 시간 막대를 옮겨도 칩은 실제 지금 기준 그대로', t1==t2, [t1,t2])
     check('C10 지금 쓰는 관측소 위치를 지도에 표시', E("!!__QA.tideSt()"), E("__QA.TIDE.cur.st.n"))

@@ -44,8 +44,8 @@ exec(src+'''
         pg.wait_for_timeout(300)
     card=E("(()=>{const c=document.querySelector('#nowCard');return [c.classList.contains('topchips'),!!c.querySelector('#tideChip'),!!c.querySelector('#windChip'),!!c.querySelector('.samplebadge'),getComputedStyle(document.querySelector('#tideChip')).display]})()")
     check('U6 지금 카드 하나에 조석·물때·바람·상태', card[:4]==[True,True,True,True] and card[4]!='none', card)
-    E("document.querySelector('#nowHead').click()"); pg.wait_for_timeout(300)
-    check('U7 카드 머리를 누르면 출조 도우미', E("document.querySelector('#planPanel').classList.contains('show')"))
+    E("document.querySelector('#planBtn').click()"); pg.wait_for_timeout(300)
+    check('U7 출조 도우미 열림 (build-42부터 머리 줄 대신 P1 📅·오늘 추천 자세히 ›)', E("document.querySelector('#planPanel').classList.contains('show')"))
     E("window.__onBack()"); pg.wait_for_timeout(200)
     for _ in range(100):
         if E("!__QA.REC.busy"): break

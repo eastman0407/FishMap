@@ -63,10 +63,10 @@ exec(src+'''
     found=bad(src)
     texts=[]
     E("__QA.select(34.92,128.07,'시험 자리')"); pg.wait_for_timeout(600); texts.append(E("document.body.innerText"))
-    for js in ["document.querySelector('#layersBtn').click()","document.querySelector('#setBtn').click()","document.querySelector('#tideChip').click()","document.querySelector('#nowHead').click()","document.querySelector('#favBtn').click()"]:
+    for js in ["document.querySelector('#layersBtn').click()","document.querySelector('#setBtn').click()","document.querySelector('#tideChip').click()","document.querySelector('#planBtn').click()","document.querySelector('#favBtn').click()"]:
         E(js); pg.wait_for_timeout(700); texts.append(E("document.body.innerText")); E("while(window.__onBack&&window.__onBack()){}")
     for t in ['plan','log','rec']:
-        E("document.querySelector('#nowHead').click()"); E(f"document.querySelector('.ptabs [data-tab={t}]').click()"); pg.wait_for_timeout(1200); texts.append(E("document.body.innerText")); E("while(window.__onBack&&window.__onBack()){}")
+        E("document.querySelector('#planBtn').click()"); E(f"document.querySelector('.ptabs [data-tab={t}]').click()"); pg.wait_for_timeout(1200); texts.append(E("document.body.innerText")); E("while(window.__onBack&&window.__onBack()){}")
     fr=[x for t in texts for x in bad(t)]
     check('N6 FE0F 빠진 그림 글자 없음 (코드 전체 + 메인·시트·P1~P5·탭 화면 글 전체)', not found and not fr, [found[:5],fr[:5]])
     E("__QA.select(34.92,128.07,'시험 자리')"); pg.wait_for_timeout(600)
