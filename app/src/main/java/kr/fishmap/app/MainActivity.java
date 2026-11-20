@@ -193,6 +193,14 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> { try { android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
                 cm.setPrimaryClip(android.content.ClipData.newPlainText("주소", text)); } catch (Exception ignored) { } });
         }
+        /** REQ-75 짧은 진동: "done"(기록·저장·완료) = 확인 진동, 그 밖 = 톡 (권한 필요 없음) */
+        @JavascriptInterface public void haptic(final String kind) {
+            runOnUiThread(() -> { try {
+                int c = "done".equals(kind) && Build.VERSION.SDK_INT >= 30 ? android.view.HapticFeedbackConstants.CONFIRM
+                        : android.view.HapticFeedbackConstants.VIRTUAL_KEY;
+                web.performHapticFeedback(c);
+            } catch (Exception ignored) { } });
+        }
         @JavascriptInterface public String getPref(String k) { return prefs().getString(k, ""); }
         @JavascriptInterface public void setPref(String k, String v) { prefs().edit().putString(k, v).apply(); }
 

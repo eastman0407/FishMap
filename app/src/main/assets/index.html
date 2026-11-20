@@ -35,6 +35,19 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 .legend{position:absolute;left:10px;bottom:22px;z-index:1000;background:rgba(10,21,32,.85);border:1px solid var(--line);border-radius:10px;padding:6px 8px;font-size:10.5px;color:var(--muted)}
 .legend .bar{display:flex;margin-top:4px}.legend .bar span{width:22px;height:6px}
 .legend .ticks{display:flex;justify-content:space-between;width:154px;margin-top:2px}
+/* REQ-75 터치·감성 (공통 표준 3·4장): 보이는 크기는 그대로, 눌리는 범위만 44 이상 */
+.ncfold,.x,.seg button,.star,.del,.go,.grip,.recpin,.favpin,.logpin,.pinpop .x,.tbtn{position:relative}
+.ncfold::after,.x::after,.seg button::after,.star::after,.del::after,.go::after,.pinpop .x::after,.recpin::after,.favpin::after,.logpin::after{content:'';position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
+.grip::after{content:'';position:absolute;left:50%;top:50%;width:120px;height:44px;transform:translate(-50%,-50%)}
+label:has(>input[type=checkbox]){min-height:44px}
+input[type=checkbox]{width:20px!important;height:20px!important;accent-color:var(--accent)}
+/* 눌린 모양: 0.1초 안에 살짝 작아지고 밝아짐 */
+button,.fav,.plan li{transition:transform .08s,filter .08s}
+button:active:not(:disabled),.fav:active{transform:scale(.96);filter:brightness(1.3)}
+.seg button:active::after,.x:active::after{transform:translate(-50%,-50%)}
+button:disabled{opacity:.45;cursor:default}
+.toast .undo{margin-left:10px;background:none;border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:6px 10px;font-size:13px;font-weight:700;cursor:pointer;position:relative}
+.toast .undo::after{content:'';position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
 .toast{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:1100;background:rgba(10,21,32,.95);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font-size:13px;display:none;max-width:86%;text-align:center}
 .windchip{font-size:11.5px;padding:3px 9px;border-radius:99px;background:rgba(10,21,32,.88);color:#cfe6ff;border:1px solid #2a4a6a;display:none;align-items:center;gap:5px}
 .windchip .wa{display:inline-block;transition:transform .3s}
@@ -117,7 +130,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 .pinpop .pp-l{margin-top:5px;color:#cfe6ff;line-height:1.45}.pinpop .pp-l.q{color:var(--muted)}.pinpop .pp-addr{display:flex;gap:8px;align-items:center;margin-top:6px}.pinpop .pp-addr span{flex:1;min-width:0}
 .pinpop .navs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}.pinpop .navs button,.pinpop .acts button{padding:9px 4px;font-weight:700;font-size:13px}
 .pinpop .acts{display:grid;grid-template-columns:2fr 1fr;gap:6px;margin-top:6px}.pinpop .x{background:none;border:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer}
-.pinpop .nav-tmap{border-color:#3d6bff}.pinpop .nav-kakao{border-color:#e8c400}.pinpop .nav-naver{border-color:#03c75a}.snap{transition:height .2s ease-out!important}
+.pinpop .nav-tmap{border-color:#3d6bff}.pinpop .nav-kakao{border-color:#e8c400}.pinpop .nav-naver{border-color:#03c75a}.snap{transition:height .3s cubic-bezier(.34,1.35,.64,1)!important}
 .ihead{display:flex;align-items:center;gap:8px}
 .ihead .nm{flex:1;min-width:0;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .star{background:none;border:1px solid var(--line);color:var(--muted);border-radius:10px;height:34px;padding:0 10px;font-size:13px;cursor:pointer;white-space:nowrap}
@@ -270,6 +283,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
     <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">🔔 안전 알림 시각</span><select id="alertLead" style="height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"><option value="30">30분 전</option><option value="60">1시간 전</option><option value="120">2시간 전</option></select></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="tbChk" style="width:auto;height:auto"> 조석을 이 자리 좌표로 보정 (TideBED) <span style="font-size:12px;color:var(--muted)">(끄면 예전 관측소 방식)</span></label></div>
     <div class="namebox" style="margin-top:6px;flex-direction:column;align-items:stretch"><button class="btn" id="tbTest">🧪 조석 시험 (TideBED 응답 보기)</button><pre id="tbOut" style="display:none;white-space:pre-wrap;word-break:break-all;font-size:11px;background:var(--panel2);border-radius:8px;padding:6px;margin:6px 0 0;max-height:220px;overflow:auto"></pre></div>
+    <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="hapChk" style="width:auto;height:auto"> 📳 짧은 진동 <span style="font-size:12px;color:var(--muted)">(기록·저장·추천 완료, 시트 접기·펴기)</span></label></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="cfChk" style="width:auto;height:auto"> 조류예보 지점 표시 <span style="font-size:12px;color:var(--muted)">(보라색 화살표 · 10단계 이상)</span></label></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="depthChk" style="width:auto;height:auto"> ⚓ 항내 추정에 수심 반영 <span style="font-size:12px;color:var(--muted)">(가장 확대한 단계)</span></label></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="tidalChk" style="width:auto;height:auto"> 갯벌 범위 점선 표시 <span style="font-size:12px;color:var(--muted)">(11단계 이상 · 일부 지역만)</span></label></div>
@@ -384,6 +398,13 @@ $('#layerBtn').onclick=()=>{
   else{street.addTo(map);$('#layerBtn').innerHTML='<span>🗺️</span>';}
 };
 function toast(msg,ms){const t=$('#toast');t.textContent=msg;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',ms||2600);}
+// REQ-75 F25: 지운 뒤 5초 동안 [되돌리기] (확인 창 대신)
+function toastUndo(msg,undo){const t=$('#toast'); toast(msg,5000); const b=document.createElement('button'); b.className='undo'; b.textContent='되돌리기';
+  b.onclick=e=>{e.stopPropagation(); t.style.display='none'; try{undo();}catch(_){} haptic('tick'); toast('되돌렸어요');}; t.appendChild(b);}
+// REQ-75 F24: 짧은 진동 — 완료 순간에만 (설정에서 끄기)
+function haptic(k){if(pref('haptic','1')!=='1')return; window.__hap=(window.__hap||0)+1; window.__hapLast=k;
+  try{if(NATIVE&&NATIVE.haptic){NATIVE.haptic(k||'tick');return;} if(navigator.vibrate)navigator.vibrate(k==='done'?[12,60,12]:12);}catch(e){}}
+document.addEventListener('touchstart',()=>{},{passive:true}); // 안드 웹뷰에서 :active(눌린 모양)가 바로 보이게
 
 // ================= 샘플 조류 모델 (실제 연동 시 국립해양조사원 데이터로 교체) =================
 const OMEGA=2*Math.PI/12.42, PH=1.1;
@@ -1952,7 +1973,7 @@ $('#nowFold').onclick=e=>{e.stopPropagation(); NOW_DRAG.animate(!(pref('nowMini'
 async function biteObsFill(t,lat,lng){ if(!CONF.realData)return; const o=await dtObs(lat,lng); if(!o)return;
   const a=loadLog(), r=a.find(x=>x.t===t); if(!r)return; Object.assign(r,{obsSt:o.st,obsWt:o.wtem,pa:o.atmpr,dpa:o.dp3}); saveLog(a); if($('#planPanel').classList.contains('show'))renderLog();}
 $('#biteBtn').onclick=()=>{if(!sel)return; const a=loadLog(); a.unshift(biteRecord(sel.lat,sel.lng,sel.name)); saveLog(a); drawLogPins(); biteObsFill(a[0].t,sel.lat,sel.lng);
-  toast(`🎣 ${hhmm(a[0].t)} 입질 기록! · 📅 → 📓 기록에서 어종·메모를 적어요`,3000);};
+  toast(`🎣 ${hhmm(a[0].t)} 입질 기록! · 📅 → 📓 기록에서 어종·메모를 적어요`,3000); haptic('done');};
 const phaseGroup=p=>/들물/.test(p)?'들물':/날물/.test(p)?'날물':/정조/.test(p)?'물 멈춤':'';
 function logLine(r){return [r.mul,r.phase,r.rg!=null?`조차 ${r.rg}m`:'',r.sp!=null?`유속 ${r.sp.toFixed(1)}노트 ${r.dir}`:'',r.wind!=null?`바람 ${r.wdir} ${r.wind}m/s`:'',
   r.wt!=null?`수온 ${r.wt}℃`:r.obsWt!=null?`수온 ${r.obsWt}℃`:'',r.pa!=null?`기압 ${Math.round(r.pa)}hPa${r.dpa!=null?` (3시간 ${r.dpa>=0?'+':''}${r.dpa})`:''}`:'',r.wav!=null?`파고 ${r.wav}m`:'',r.rain?`이틀 비 ${r.rain}mm`:''].filter(Boolean).join(' · ');}
@@ -1980,8 +2001,8 @@ $('#logCsv').onclick=()=>{const a=loadLog(); if(!a.length){toast('보낼 기록�
 $('#logList').addEventListener('change',e=>{const f=e.target.dataset.f; if(!f)return; const li=e.target.closest('li'),a=loadLog(),r=a[+li.dataset.i]; if(!r)return;
   r[f]=e.target.value.trim(); saveLog(a); li.querySelector('.l1 span:last-child').textContent=r.fish?'🐟 '+r.fish:'';});
 $('#logList').addEventListener('click',e=>{const li=e.target.closest('#logList>li'); if(!li)return; const i=+li.dataset.i;
-  if(e.target.closest('[data-del]')){const b=e.target.closest('[data-del]'); if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='한 번 더 누르면 지워요';return;}
-    const a=loadLog();a.splice(i,1);saveLog(a);renderLog();drawLogPins();return;}
+  if(e.target.closest('[data-del]')){const a=loadLog(), [r]=a.splice(i,1); saveLog(a);renderLog();drawLogPins();
+    toastUndo('입질 기록을 지웠어요',()=>{const b=loadLog(); b.splice(Math.min(i,b.length),0,r); saveLog(b); renderLog(); drawLogPins();}); return;}
   if(e.target.closest('[data-go]')){const r=loadLog()[i];$('#planPanel').classList.remove('show');map.flyTo([r.lat,r.lng],14,{duration:1});select(r.lat,r.lng,r.name||'기록 지점');return;}
   if(e.target.closest('.det'))return; li.classList.toggle('open');});
 // ================= 안전 알림 (REQ-45, 강의자료 2부 8장): 만조·바위 잠김 전에 휴대폰 알림 =================
@@ -2261,15 +2282,17 @@ async function recRun(){
   if(REC.busy){toast('계산 중이에요. 끝나면 다시 눌러 주세요');return;} const d=await recLoad(); const sg=d&&d.find(r=>r.c===$('#recSgg').value); if(!sg)return;
   if(!CONF.realData){$('#recSub').textContent='공공데이터 키를 ⚙️ 설정에 넣어야 유속으로 추천할 수 있어요';return;}
   const di=+$('#recDay').value||0, day0=tideDay()+di*DAY;
-  REC.busy=true; setPref('recSgg',sg.c); $('#recList').innerHTML=''; REC.layer.clearLayers(); REC.favRec={};
+  REC.busy=true; recBtn(); setPref('recSgg',sg.c); $('#recList').innerHTML=''; REC.layer.clearLayers(); REC.favRec={};
   try{
     REC.ovOn=true; REC.ovMsg=''; loadOv();
     const R=await recCompute(sg,day0,m=>{$('#recSub').textContent=m; REC.ovMsg=m; loadOv();}); REC.res=R;
     if(R.err){$('#recSub').textContent=R.err;return;}
     $('#recSub').textContent=`${dstr(day0)} · ${sg.s} ${sg.n} · ${[...R.kinds].map(k=>KIND_ICON[k]).join('')} 해안 ${R.cov}/${R.n}곳 종합 + 즐겨찾기 ${R.nfav}곳${/^(osm|pre)$/.test(R.kindSrc)?'':' · 섬 다리 여부는 추정(지도 자료를 못 받음)'} · ${di===0?'오늘':'그날'} ${strText[R.str]} · 센 곳·잔잔한 곳은 이 지역 안에서 비교`;
-    recRender($('#recList'),R); if(!$('#planPanel').classList.contains('show'))toast(`추천 ${R.pick.length}곳을 지도에 표시했어요 · 핀을 누르면 정보·길 안내`,3500);
-  }catch(e){$('#recSub').textContent='추천 계산 중 오류: '+(e&&e.message||e);}finally{REC.busy=false; REC.ovOn=false; loadOv();}
+    recRender($('#recList'),R); haptic('done'); if(!$('#planPanel').classList.contains('show'))toast(`추천 ${R.pick.length}곳을 지도에 표시했어요 · 핀을 누르면 정보·길 안내`,3500);
+  }catch(e){$('#recSub').textContent='추천 계산 중 오류: '+(e&&e.message||e);}finally{REC.busy=false; REC.ovOn=false; loadOv(); recBtn();}
 }
+// REQ-75: 계산 중에는 '추천 받기'를 흐리게 + '계산 중…'
+function recBtn(){const b=$('#recGo'); if(!b)return; b.disabled=!!REC.busy; b.textContent=REC.busy?'계산 중…':'이 지역 추천 받기';}
 // ================= ⭐ 오늘의 추천 (REQ-48): 오늘 물때 요약 + 황금 시간 + 한마디 + 이 지역 추천(즐겨찾기 포함) =================
 async function todayInit(){
   const d=await recLoad(); if(!d){$('#todaySub').textContent='행정구역 자료를 못 읽었어요';return;}
@@ -2293,7 +2316,7 @@ async function todayRun(){
   if(REC.busy){REC.todayQ=true;return;} // 계산 중에 지역을 바꾸면 끝난 뒤 다시 계산
   const d=await recLoad(); const sg=d&&d.find(r=>r.c===$('#todaySgg').value); if(!sg)return;
   if(!CONF.realData){$('#todaySub').textContent='공공데이터 키를 ⚙️ 설정에 넣으면 오늘의 추천을 볼 수 있어요';return;}
-  const day0=tideDay(), now=Date.now(); REC.busy=true; setPref('todaySgg',sg.c); REC.todayKey=sg.c+'|'+day0;
+  const day0=tideDay(), now=Date.now(); REC.busy=true; recBtn(); setPref('todaySgg',sg.c); REC.todayKey=sg.c+'|'+day0;
   $('#todayList').innerHTML=''; $('#todaySum').innerHTML='';
   try{
     const say=m=>$('#todaySub').textContent=m;
@@ -2325,7 +2348,7 @@ async function todayRun(){
       if(add.length)$('#todaySum').innerHTML+='<br>'+add.join('<br>'); }
     say(`📍 오늘 갈 만한 곳 · ${[...R.kinds].map(k=>KIND_ICON[k]+KIND_NAME[k]).join(' + ')} 해안 ${R.cov}곳을 종합해 5곳 + 즐겨찾기 ${R.nfav}곳 · 점수 높은 순${/^(osm|pre)$/.test(R.kindSrc)?'':' · 섬 다리 여부는 추정'}`);
     recRender($('#todayList'),R); nowRecRender();
-  }catch(e){$('#todaySub').textContent='오늘의 추천 계산 중 오류: '+(e&&e.message||e);}finally{REC.busy=false; if(REC.todayQ){REC.todayQ=false;todayRun();}}
+  }catch(e){$('#todaySub').textContent='오늘의 추천 계산 중 오류: '+(e&&e.message||e);}finally{REC.busy=false; recBtn(); if(REC.todayQ){REC.todayQ=false;todayRun();}}
 }
 $('#todayList').addEventListener('click',recClick);
 // 섬 항목을 길게 누르면 '다리로 가는 섬 ↔ 배 타는 섬' 직접 바꾸기 (폰에 저장, 백업 포함)
@@ -2336,7 +2359,8 @@ function recLong(e){const li=e.target.closest('li[data-ring]'); if(!li)return; e
   let tm=null; ul.addEventListener('touchstart',e=>{const t=e.target; REC.lpDone=false; tm=setTimeout(()=>{REC.lpDone=true;recLong({target:t,currentTarget:ul,preventDefault(){}});},650);},{passive:true});
   const stop=()=>{clearTimeout(tm);}; ul.addEventListener('touchend',stop); ul.addEventListener('touchmove',stop); ul.addEventListener('touchcancel',stop);});
 $('#recGo').onclick=recRun;
-$('#recClear').onclick=()=>{REC.layer.clearLayers();REC.favRec={};$('#recList').innerHTML='';$('#recSub').textContent='';};
+$('#recClear').onclick=()=>{const R=REC.res, sub=$('#recSub').textContent; REC.layer.clearLayers();REC.favRec={};$('#recList').innerHTML='';$('#recSub').textContent='';
+  if(R&&R.pick)toastUndo('추천 핀을 지웠어요',()=>{REC.res=R; $('#recSub').textContent=sub; recRender($('#recList'),R);});};
 $('#recList').addEventListener('click',recClick); kindBoxes();
 $('#recSort').value=pref('recSort','score');
 $('#recSort').onchange=()=>{setPref('recSort',$('#recSort').value); if($('#recSort').value==='near'&&!recMe())toast('◎ 현위치를 켜면 가까운 순으로 볼 수 있어요',3000);
@@ -2501,12 +2525,13 @@ function sheetDrag(o){ // o: el, mini(), full(), isFold(), apply(fold), down(+1:
     const [y1,t1]=S.last[0],[y2,t2]=S.last[S.last.length-1], v=o.down*(y2-y1)/Math.max(1,t2-t1); // +: 커지는 쪽 px/ms
     const travel=Math.max(1,S.fu-S.mn), grow=(S.h-(S.f0?S.mn:S.fu))/travel; // 펴진 데서 시작: 음수면 접는 쪽
     let fold=S.f0; if(S.f0){if(grow>0.25||v>0.5)fold=false;} else {if(grow<-0.25||v<-0.5)fold=true;}
-    animate(fold,S.h);};
+    animate(fold,S.h,S.f0);};
   el.addEventListener('pointerup',end); el.addEventListener('pointercancel',end);
   el.addEventListener('click',e=>{if(el._noClick){el._noClick=false;e.stopPropagation();e.preventDefault();}},true);
-  function animate(fold,from){const h0=from!=null?from:el.getBoundingClientRect().height; if(o.isFold())o.apply(false,true);
+  function animate(fold,from,prev){if(prev==null)prev=o.isFold(); const h0=from!=null?from:el.getBoundingClientRect().height; if(o.isFold())o.apply(false,true);
     const target=fold?o.mini():o.full(); el.style.height=h0+'px'; void el.offsetHeight; el.classList.add('snap'); el.style.height=target+'px'; o.moved&&o.moved();
-    clearTimeout(el._snapT); el._snapT=setTimeout(()=>{el.classList.remove('snap'); o.apply(fold); o.moved&&o.moved();},220);}
+    clearTimeout(el._snapT); el._snapT=setTimeout(()=>{el.classList.remove('snap'); o.apply(fold); o.moved&&o.moved();},320);
+    if(fold!==prev)haptic('tick');}
   return {animate};}
 // M8 지점 시트: 접으면 머리 줄(M8-1) + 숫자 4칸(M8-3)까지만 보임 (M8-9 요약 줄은 없앰)
 function infoMiniH(){const el=$('#info'), st=el.querySelector('.stats'); return st?Math.round(st.offsetTop+st.offsetHeight+10):80;}
@@ -2735,14 +2760,15 @@ function drawFavPins(){favLayer.clearLayers();loadFavs().forEach(f=>{L.marker([f
 function favKey(la,lo){return (+la).toFixed(5)+','+(+lo).toFixed(5);}
 $('#starBtn').onclick=()=>{
   if(!sel)return; const f=findFav(sel.lat,sel.lng);
-  if(f){saveFavs(loadFavs().filter(x=>x!==f&&!(x.lat===f.lat&&x.lng===f.lng)));toast('즐겨찾기에서 뺐어요');updateUI();return;}
+  if(f){const old=loadFavs(); saveFavs(old.filter(x=>x!==f&&!(x.lat===f.lat&&x.lng===f.lng)));updateUI();
+    toastUndo('즐겨찾기에서 뺐어요',()=>{saveFavs(old); updateUI(); if(document.querySelector('#favPanel.show'))renderFavList();}); return;}
   $('#namebox').style.display='flex'; $('#favName').value=sel.name==='내 위치'?`내 포인트 ${new Date().getMonth()+1}/${new Date().getDate()}`:sel.name; $('#favName').focus();
 };
 $('#favSave').onclick=()=>{
   const name=$('#favName').value.trim()||sel.name; const a=loadFavs();
   a.unshift({name,lat:+sel.lat.toFixed(5),lng:+sel.lng.toFixed(5),at:Date.now()});
   sel.lat=a[0].lat; sel.lng=a[0].lng; sel.name=name;
-  saveFavs(a); $('#namebox').style.display='none'; toast('★ 즐겨찾기에 저장했어요'); updateUI();
+  saveFavs(a); $('#namebox').style.display='none'; toast('★ 즐겨찾기에 저장했어요'); updateUI(); haptic('done');
 };
 $('#favName').addEventListener('keydown',e=>{if(e.key==='Enter')$('#favSave').click();});
 function renderFavList(){
@@ -2826,7 +2852,8 @@ $('#favClose').onclick=()=>$('#favPanel').classList.remove('show');
 $('#favPanel').addEventListener('click',e=>{
   if(e.target.id==='favPanel'){$('#favPanel').classList.remove('show');return;}
   const del=e.target.closest('[data-del]'); const a=loadFavs();
-  if(del){a.splice(+del.dataset.del,1);saveFavs(a);renderFavList();updateUI();return;}
+  if(del){const old=a.slice(); a.splice(+del.dataset.del,1);saveFavs(a);renderFavList();updateUI();
+    toastUndo('즐겨찾기를 지웠어요',()=>{saveFavs(old); renderFavList(); updateUI();}); return;}
   const it=e.target.closest('.fav'); if(it){const f=a[+it.dataset.i];$('#favPanel').classList.remove('show');map.flyTo([f.lat,f.lng],12,{duration:1});select(f.lat,f.lng,f.name);}
 });
 
@@ -2847,6 +2874,7 @@ resizeFlow(); drawFavPins(); updateUI(); loop();
   TIDAL.on=pref('tidalOn','1')==='1'; $('#tidalChk').checked=TIDAL.on; drawTidal();
   $('#tidalChk').onchange=()=>{TIDAL.on=$('#tidalChk').checked; setPref('tidalOn',TIDAL.on?'1':'0'); drawTidal();
     if(TIDAL.on&&map.getZoom()<TIDAL.MIN)toast(`갯벌 점선은 ${TIDAL.MIN}단계 이상 확대하면 보여요`,3000);};
+  $('#hapChk').checked=pref('haptic','1')==='1'; $('#hapChk').onchange=()=>{setPref('haptic',$('#hapChk').checked?'1':'0'); haptic('tick');};
   CF.on=pref('cfOn','1')==='1'; $('#cfChk').checked=CF.on; cfEnsure();
   setTimeout(()=>{if(CONF.realData)dtStations();},20000); // 관측소 위치는 처음 한 번만 (기록용 수온·기압)
   $('#cfChk').onchange=()=>{CF.on=$('#cfChk').checked; setPref('cfOn',CF.on?'1':'0'); cfEnsure(); if(SIM.view.length)simTimeChanged(true);
