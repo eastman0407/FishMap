@@ -92,7 +92,6 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 .plan li.open .det{display:block}.plan .det b{color:var(--text)}.plan .det .sub{color:var(--muted);font-size:12px}
 .plan .lg input{width:100%;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);padding:0 8px;font-size:13px;margin-top:5px}
 .plan .lg .row{display:flex;gap:6px;margin-top:6px}.plan .lg .row button{flex:1;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:12.5px}
-.recpin.fav{background:#4fd1c5;color:#04211d;width:auto;padding:0 5px;border-radius:11px}
 .plan li.fav .l1>span:first-child{color:#4fd1c5}
 .recpin{width:22px;height:22px;border-radius:50%;background:#ffd24a;color:#1a1200;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;border:2px solid #1a1200;box-shadow:0 0 4px #000}
 .logpin{font-size:16px;filter:drop-shadow(0 0 2px #000)}
@@ -2210,8 +2209,11 @@ function recRender(ul,R){
     const sc=shownScore(c.score), g=scoreGrade(sc);
     return `<li data-i="${i}" class="${c.fav?'fav':''}"${c.isl&&c.isl!=='l'?` data-ring="${c.ring}"`:''}><div class="l1"><span>${i+1}. ${recName(c,sg)}</span><span>${sc}점 <small class="grade g${g.k}">${g.t}</small></span></div>`
       +`<div class="l2">${c.km!=null?`🧭 ${c.km<10?c.km.toFixed(1):Math.round(c.km)}km · `:''}${c.isl&&!c.fav?`<span style="color:var(--muted)">${KIND_NAME[c.isl]}${c.isl!=='l'&&!/^(osm|pre)$/.test(R.kindSrc)?'(추정)':''}</span> · `:''}${w?`${dstr(w.ms)} ${w.hi==null?'':w.hi?'만조':'간조'} ${hhmm(w.ms)} 앞뒤 ${hhmm(w.s)}~${hhmm(w.t)}${c.best.st?` (${c.best.st})`:''}<br>`:''}${why}</div></li>`;}).join('');
-  P.forEach((c,i)=>L.marker([c.la,c.lo],{icon:L.divIcon({className:'',html:`<div class="recpin${c.fav?' fav':''}">${c.fav?'⭐':''}${i+1}</div>`,iconSize:[22,22],iconAnchor:[11,11]})})
-    .on('click',ev=>{L.DomEvent.stopPropagation(ev);pinPop(c,i,sg);}).addTo(REC.layer));
+  // REQ-74: 즐겨찾기 추천은 숫자 핀을 그리지 않고 ⭐ 핀(L5)을 누르면 이 추천 팝업을 띄움 (겹침 방지)
+  REC.favRec={};
+  P.forEach((c,i)=>{if(c.fav){REC.favRec[favKey(c.la,c.lo)]={c,i,sg};return;}
+    L.marker([c.la,c.lo],{icon:L.divIcon({className:'',html:`<div class="recpin">${i+1}</div>`,iconSize:[22,22],iconAnchor:[11,11]})})
+    .on('click',ev=>{L.DomEvent.stopPropagation(ev);pinPop(c,i,sg);}).addTo(REC.layer);});
 }
 // ── REQ-72: M10 로딩 표시 — P4-4 추천 계산 중에 지도로 나오면 지도 가운데에 ──
 function loadOv(){const on=!!REC.ovOn&&!$('#planPanel').classList.contains('show'); $('#loadOv').classList.toggle('show',on);
@@ -2259,7 +2261,7 @@ async function recRun(){
   if(REC.busy){toast('계산 중이에요. 끝나면 다시 눌러 주세요');return;} const d=await recLoad(); const sg=d&&d.find(r=>r.c===$('#recSgg').value); if(!sg)return;
   if(!CONF.realData){$('#recSub').textContent='공공데이터 키를 ⚙️ 설정에 넣어야 유속으로 추천할 수 있어요';return;}
   const di=+$('#recDay').value||0, day0=tideDay()+di*DAY;
-  REC.busy=true; setPref('recSgg',sg.c); $('#recList').innerHTML=''; REC.layer.clearLayers();
+  REC.busy=true; setPref('recSgg',sg.c); $('#recList').innerHTML=''; REC.layer.clearLayers(); REC.favRec={};
   try{
     REC.ovOn=true; REC.ovMsg=''; loadOv();
     const R=await recCompute(sg,day0,m=>{$('#recSub').textContent=m; REC.ovMsg=m; loadOv();}); REC.res=R;
@@ -2334,7 +2336,7 @@ function recLong(e){const li=e.target.closest('li[data-ring]'); if(!li)return; e
   let tm=null; ul.addEventListener('touchstart',e=>{const t=e.target; REC.lpDone=false; tm=setTimeout(()=>{REC.lpDone=true;recLong({target:t,currentTarget:ul,preventDefault(){}});},650);},{passive:true});
   const stop=()=>{clearTimeout(tm);}; ul.addEventListener('touchend',stop); ul.addEventListener('touchmove',stop); ul.addEventListener('touchcancel',stop);});
 $('#recGo').onclick=recRun;
-$('#recClear').onclick=()=>{REC.layer.clearLayers();$('#recList').innerHTML='';$('#recSub').textContent='';};
+$('#recClear').onclick=()=>{REC.layer.clearLayers();REC.favRec={};$('#recList').innerHTML='';$('#recSub').textContent='';};
 $('#recList').addEventListener('click',recClick); kindBoxes();
 $('#recSort').value=pref('recSort','score');
 $('#recSort').onchange=()=>{setPref('recSort',$('#recSort').value); if($('#recSort').value==='near'&&!recMe())toast('◎ 현위치를 켜면 가까운 순으로 볼 수 있어요',3000);
@@ -2728,7 +2730,9 @@ function loadFavs(){try{return JSON.parse(localStorage.getItem(FK)||'[]');}catch
 function saveFavs(a){try{localStorage.setItem(FK,JSON.stringify(a));}catch(e){toast('이 환경에선 저장이 안 돼요');}drawFavPins();}
 function findFav(la,lo){return loadFavs().find(f=>Math.abs(f.lat-la)<1e-4&&Math.abs(f.lng-lo)<1e-4);}
 function drawFavPins(){favLayer.clearLayers();loadFavs().forEach(f=>{L.marker([f.lat,f.lng],{icon:L.divIcon({className:'',html:'<div class="favpin">⭐</div>',iconSize:[20,20],iconAnchor:[10,10]})})
-  .on('click',ev=>{L.DomEvent.stopPropagation(ev);select(f.lat,f.lng,f.name);}).addTo(favLayer);});}
+  .on('click',ev=>{L.DomEvent.stopPropagation(ev);const r=REC.favRec&&REC.favRec[favKey(f.lat,f.lng)];
+    if(r)pinPop(r.c,r.i,r.sg); else select(f.lat,f.lng,f.name);}).addTo(favLayer);});}
+function favKey(la,lo){return (+la).toFixed(5)+','+(+lo).toFixed(5);}
 $('#starBtn').onclick=()=>{
   if(!sel)return; const f=findFav(sel.lat,sel.lng);
   if(f){saveFavs(loadFavs().filter(x=>x!==f&&!(x.lat===f.lat&&x.lng===f.lng)));toast('즐겨찾기에서 뺐어요');updateUI();return;}

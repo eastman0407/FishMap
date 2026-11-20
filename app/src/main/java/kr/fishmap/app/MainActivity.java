@@ -60,6 +60,11 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(0xFF0A1520);
         root.addView(web);
         setContentView(root);
+        // REQ-73: 안드 13+는 새 뒤로가기 통로로 받음 (목표 36 + 안드 16 폰은 onBackPressed가 불리지 않음)
+        if (Build.VERSION.SDK_INT >= 33) {
+            getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::handleBack);
+        }
         root.setOnApplyWindowInsetsListener((v, ins) -> {
             if (Build.VERSION.SDK_INT >= 30) {
                 android.graphics.Insets b = ins.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout() | WindowInsets.Type.ime());
@@ -126,11 +131,16 @@ public class MainActivity extends Activity {
         web.saveState(out);
     }
 
-    @Override
-    public void onBackPressed() {
+    /** 뒤로가기(버튼·제스처): 열린 창이 있으면 화면이 닫고 true, 없으면 앱을 뒤로 보냄 (REQ-73) */
+    private void handleBack() {
         web.evaluateJavascript("window.__onBack ? window.__onBack() : false", v -> {
-            if (!"true".equals(v)) MainActivity.super.onBackPressed();
+            if (!"true".equals(v)) moveTaskToBack(true);
         });
+    }
+
+    @Override
+    public void onBackPressed() {   // 안드 12 이하
+        handleBack();
     }
 
     /** 화면(자바스크립트)에서 부르는 기능들 */
