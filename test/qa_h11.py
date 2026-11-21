@@ -21,9 +21,11 @@ exec(src+'''
     P2=E("__put"); G2=E("__get")
     import json
     n14a=len([k for k in P1 if k.startswith('14:')]); n16a=len([k for k in P1 if k.startswith('16:')])
-    keyOK=all(any(g[0]==k and g[1] for g in G2) for k in P1)
+    # (build-51) 다시 켠 뒤 저장 열쇠 조회가 감시 설치보다 먼저 일어날 수 있어, 처음 열쇠들을 지금 직접 조회해 저장소에 남아 있는지 확인
+    import json as _j
+    keyOK=all(E("Promise.all("+_j.dumps(P1)+".map(k=>__QA.SIMDB.get(k).then(r=>!!(r&&r.u))))"))
     check('H1 계산이 끝나면 94m·23m 결과가 폰에 저장됨', n14a>=1 and n16a>=1, P1)
-    check('H2 앱을 다시 켜면 저장된 94m·23m 결과를 모두 찾음 (열쇠 동일)', keyOK and len(G2)>=2, G2)
+    check('H2 앱을 다시 켜면 저장된 94m·23m 결과를 모두 찾음 (열쇠 동일)', keyOK, P1)
     check('H3 다시 켠 뒤 계산 0회·3초 이내 (H-11)', steps==0 and t_re is not None and t_re<3, f'{t_re}초, 계산 {steps}회')
     br.close()
 print(f"결과: {sum(res)}/{len(res)}")

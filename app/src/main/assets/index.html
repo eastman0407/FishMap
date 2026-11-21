@@ -244,6 +244,14 @@ select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
 .sstOn{color:var(--accent);font-weight:600}#iMore [data-sst]{cursor:pointer;min-height:44px}
 .lsep{border:0;border-top:1px solid var(--line);margin:10px 0 0}.lrow{width:100%;margin-top:10px;display:flex;align-items:center;justify-content:space-between;font-size:15px;min-height:48px;height:48px;padding:0 14px}.lrow .lgo{opacity:.7;font-size:18px}
 .cfst,.cfst *{pointer-events:none}
+/* U-15 (build-50 2차): 시트 이름은 버튼 줄 위 한 줄을 통째로 씀 → 큰 글씨에서도 이름이 안 사라짐 */
+.ihead{flex-wrap:wrap;row-gap:2px}.ihead .nm{flex:1 0 100%}
+.mwv{vertical-align:-2px;margin-right:4px;color:var(--accent);overflow:hidden;display:inline-block}.mwv .mw{animation:mwv 1.2s linear infinite}@keyframes mwv{to{transform:translateX(-16px)}}
+@media (prefers-reduced-motion:reduce){.mwv .mw{animation:none}}
+.bdg{font-size:12px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap;line-height:1.2}.rr .bdg{padding:1px 9px}.pp-win .bdg{padding:5px 10px}.bdg.now{background:#1f7a4d;color:#fff}.bdg.soon,.bdg.later{background:#2a4a6a;color:#e8f0f7}.bdg.end{background:#3a4652;color:#d5dde5}
+.pp-win{background:rgba(255,255,255,.06);border-radius:10px;padding:8px 10px;margin:6px 0}.pp-win .lb{font-size:12px;color:var(--muted)}.pp-win .tmx{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px}.pp-win .tm{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}.pp-win .sb{font-size:12px;color:var(--muted);margin-top:3px}.pp-win .sb .en{white-space:nowrap}
+.rr .bdg{margin-left:auto;flex-shrink:0;align-self:center}
+.sgroups{margin-top:12px;display:flex;flex-direction:column;gap:8px}.sgrp{background:var(--panel2);border-radius:12px}.sgrp>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:0 12px;font-size:15px;cursor:pointer}.sgrp>summary::-webkit-details-marker{display:none}.sgrp>summary::before{content:'▸';color:var(--muted);margin-right:8px;font-size:12px}.sgrp[open]>summary::before{content:'▾'}.sgrp>summary span{flex:1}.sgrp>summary em{font-style:normal;font-size:12.5px;color:var(--muted)}.sgrp>summary em.ok{color:#7be0a0}.sgrp .sbody{padding:0 12px 12px}
 </style>
 </head>
 <body>
@@ -362,17 +370,22 @@ select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
 <div class="panel" id="setPanel">
   <div class="pbox">
     <h3>설정 <button class="x" id="setClose">×</button></h3>
+    <!-- U-24 (build-50 2차): 자주 바꾸는 3개만 펼쳐 두고 나머지는 접는 묶음 4개 -->
+    <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">빨강(낚시 어려움) 시작 유속</span><input id="redKn" type="number" step="0.1" min="1.2" max="3" style="width:80px;flex:none"> <span style="font-size:13px;color:var(--muted)">노트</span></div>
+    <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">🔔 안전 알림 시각</span><select id="alertLead" style="height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"><option value="30">30분 전</option><option value="60">1시간 전</option><option value="120">2시간 전</option></select></div>
+    <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="hapChk" style="width:auto;height:auto"> 📳 짧은 진동 <span style="font-size:12px;color:var(--muted)">(기록·저장·추천 완료, 시트 접기·펴기)</span></label></div>
+    <div class="sgroups">
+      <details class="sgrp" id="grpKey"><summary><span>🔑 키·연결</span><em id="sumKey"></em></summary><div class="sbody">
     <div class="empty" style="padding:0 0 8px">공공데이터포털 → "국립해양조사원_ROMS 수치예측모델 조회" 활용신청 → <b>일반 인증키(Decoding)</b>를 붙여넣으세요.</div>
     <div class="namebox"><input id="keyIn" type="password" autocomplete="off" placeholder="공공데이터 인증키"><button class="btn" data-eye="keyIn" aria-label="키 보기·가리기" title="키 보기">👁</button></div>
-    <div class="empty" style="padding:10px 0 4px">요청 주소 (활용신청 화면의 주소와 다르면 수정)</div>
-    <div class="namebox"><input id="urlIn"></div>
     <div class="empty" style="padding:10px 0 4px">브이월드 지도 키 (선택 — 비우면 Esri 위성지도)</div>
     <div class="namebox"><input id="vwIn" type="password" autocomplete="off" placeholder="브이월드 인증키"><button class="btn" data-eye="vwIn" aria-label="키 보기·가리기" title="키 보기">👁</button></div>
     <div class="namebox" style="margin-top:12px">
       <button class="btn" id="keySave" style="flex:1;background:var(--accent);color:#06221f;border:none;font-weight:700">저장</button>
       <button class="btn" id="keyTest" style="flex:1">연결 시험</button>
-      <button class="btn" id="diagBtn" style="flex:1">🔍 진단 보내기</button>
     </div>
+      </div></details>
+      <details class="sgrp" id="grpBak"><summary><span>💾 백업·옮기기</span><em id="sumBak"></em></summary><div class="sbody">
     <div class="namebox" style="margin-top:12px">
       <button class="btn" id="bakOut" style="flex:1">💾 백업 내보내기</button>
       <button class="btn" id="bakIn" style="flex:1">📥 백업 가져오기</button>
@@ -391,20 +404,27 @@ select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
       <div style="font-size:12px;color:var(--muted);margin:4px 0 6px">링크는 <b>7일</b> 동안만 쓸 수 있어요. 키가 들어 있으니 <b>그 사람에게만</b> 보내세요. 받은 사람은 링크를 누르면 웹판이 열리고 저장할지 물어봐요. 아이폰 홈 화면 아이콘으로 쓸 때는 링크를 복사해서 ⚙️ → 📥 백업 가져오기에 붙여넣어요.</div>
       <button class="btn" id="xferMake" style="width:100%;background:var(--accent);color:#06221f;border:none;font-weight:700">링크 만들어 보내기</button>
     </div>
-    <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">빨강(낚시 어려움) 시작 유속</span><input id="redKn" type="number" step="0.1" min="1.2" max="3" style="width:80px;flex:none"> <span style="font-size:13px;color:var(--muted)">노트</span></div>
-    <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">🔔 안전 알림 시각</span><select id="alertLead" style="height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"><option value="30">30분 전</option><option value="60">1시간 전</option><option value="120">2시간 전</option></select></div>
+      </div></details>
+      <details class="sgrp" id="grpMap"><summary><span>🗺️ 지도 표시</span><em id="sumMap"></em></summary><div class="sbody">
     <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="tbChk" style="width:auto;height:auto"> 조석을 이 자리 좌표로 보정 (TideBED) <span style="font-size:12px;color:var(--muted)">(끄면 예전 관측소 방식)</span></label></div>
-    <div class="namebox" style="margin-top:6px;flex-direction:column;align-items:stretch"><button class="btn" id="tbTest">🧪 조석 시험 (TideBED 응답 보기)</button><button class="btn" id="sstTest" style="margin-top:6px">🛰️ 위성 수온 받기 시험</button><pre id="tbOut" style="display:none;white-space:pre-wrap;word-break:break-all;font-size:11px;background:var(--panel2);border-radius:8px;padding:6px;margin:6px 0 0;max-height:220px;overflow:auto"></pre></div>
-    <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="hapChk" style="width:auto;height:auto"> 📳 짧은 진동 <span style="font-size:12px;color:var(--muted)">(기록·저장·추천 완료, 시트 접기·펴기)</span></label></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="cfChk" style="width:auto;height:auto"> 조류예보 지점 표시 <span style="font-size:12px;color:var(--muted)">(보라색 화살표 · 10단계 이상)</span></label></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="depthChk" style="width:auto;height:auto"> ⚓ 항내 추정에 수심 반영 <span style="font-size:12px;color:var(--muted)">(가장 확대한 단계)</span></label></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="tidalChk" style="width:auto;height:auto"> 갯벌 범위 점선 표시 <span style="font-size:12px;color:var(--muted)">(11단계 이상 · 일부 지역만)</span></label></div>
+      </div></details>
+      <details class="sgrp" id="grpTest"><summary><span>🧪 시험·진단</span><em>문제 생길 때</em></summary><div class="sbody">
+        <div class="namebox" style="margin-top:6px"><button class="btn" id="diagBtn" style="flex:1">🔍 진단 보내기</button></div>
+    <div class="namebox" style="margin-top:6px;flex-direction:column;align-items:stretch"><button class="btn" id="tbTest">🧪 조석 시험 (TideBED 응답 보기)</button><button class="btn" id="sstTest" style="margin-top:6px">🛰️ 위성 수온 받기 시험</button><pre id="tbOut" style="display:none;white-space:pre-wrap;word-break:break-all;font-size:11px;background:var(--panel2);border-radius:8px;padding:6px;margin:6px 0 0;max-height:220px;overflow:auto"></pre></div>
     <div class="namebox" style="margin-top:12px;flex-direction:column;align-items:stretch"><button class="btn" id="scBtn">📊 점수 점검 (입질 기록과 점수 비교)</button><div id="scOut" style="display:none;margin-top:6px"></div></div>
     <details style="margin-top:12px;background:var(--panel2)"><summary style="font-size:13px">고급 (자료가 이상할 때)</summary>
+      <div class="empty" style="padding:6px 0 4px">요청 주소 (활용신청 화면의 주소와 다르면 수정)</div>
+      <div class="namebox"><input id="urlIn"></div>
       <div class="empty" style="padding:6px 0 2px">칸 이름 직접 지정 (비우면 자동)</div>
       <div class="namebox"><input id="f_dir" placeholder="유향 칸 (예: crdir)"><input id="f_speed" placeholder="유속 칸 (예: crsp)"></div>
       <div class="namebox"><label style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px"><input type="checkbox" id="dirFrom" style="width:auto;height:auto"> 방향이 반대로 보이면 체크</label></div>
     </details>
+      </div></details>
+    </div>
+    <div class="empty" style="padding:8px 0 0;font-size:12px">자주 바꾸는 3개만 펼쳐 두고, 나머지는 눌러서 열어요.</div>
     <pre id="testOut" style="white-space:pre-wrap;font-size:11.5px;color:var(--muted);margin:10px 0 0;max-height:30vh;overflow:auto"></pre>
   </div>
 </div>
@@ -2165,17 +2185,29 @@ function tipShow(b){let t=$('#tip'); if(!t){t=document.createElement('div'); t.i
 function nowView(v){if(v)setPref('nowView',v); v=pref('nowView','now'); const c=$('#nowCard'); c.classList.toggle('recv',v==='rec');
   document.querySelectorAll('#nowSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); if(v==='rec')nowRecRender(true); nowMini();}
 $('#nowSeg').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return; e.stopPropagation(); if(pref('nowMini','0')==='1')NOW_DRAG.animate(false); nowView(b.dataset.v);});
+const recStep=m=>/유속/.test(m)?'1/4 유속 예보 받는 중':/조석/.test(m)?'2/4 조석 예보 받는 중':/섬/.test(m)?'3/4 섬 다리 확인 중':m?'4/4 점수 계산 중':'1/4 준비 중';
+const MWAVE='<svg class="mwv" viewBox="0 0 32 12" width="28" height="12" aria-hidden="true"><g class="mw"><path d="M0 6 q4-5 8 0 t8 0 t8 0 t8 0 t8 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></g></svg>'; // U-23: M3 계산 중 작은 물결 + 단계
+// U-25 (build-50 2차): 승부 시간 딱지 — 지금!/N분 뒤/N시간 뒤/내일 05:10/오늘은 끝남 (이름 '승부 시간'은 그대로)
+const winDur=m=>{m=Math.round(m); return m<60?`${m}분`:(m%60?`${Math.floor(m/60)}시간 ${m%60}분`:`${m/60}시간`);};
+function winBadge(w){const n=Date.now(), d0=new Date(n); d0.setHours(0,0,0,0); const day=Math.floor((new Date(w.s).setHours(0,0,0,0)-d0.getTime())/864e5+0.5);
+  if(n>=w.s&&n<=w.t)return {k:'now',t:'지금!',end:winDur((w.t-n)/60000)+' 뒤 끝나요'};
+  if(n>w.t&&day<=0)return {k:'end',t:'오늘은 끝남',end:''};
+  if(day===0){const m=(w.s-n)/60000; return {k:'soon',t:m<60?`${Math.max(1,Math.round(m))}분 뒤`:`${Math.floor(m/60)}시간 뒤`,end:''};}
+  if(day===1)return {k:'later',t:'내일 '+hhmm(w.s),end:''};
+  return {k:'later',t:dstr(w.s)+' '+hhmm(w.s),end:''};}
+const bdgHtml=b=>`<span class="bdg ${b.k}">${b.t}</span>`;
 // 오늘 추천 3곳 (P4-1 오늘 탭과 같은 계산·같은 지역). 없으면 계산을 시작하고 '계산 중'
 async function nowRecRender(start){const box=$('#nowRec'); if(!box)return; const R=REC.today;
   if(!CONF.realData){box.innerHTML='<div class="more"><span>공공데이터 키를 ⚙️ 설정에 넣으면 볼 수 있어요</span></div>';return;}
   await recLoad(); const Q=nowRecQ(), b=Q?Q.b:'me';
   const chips=`<div class="rchips"><button data-nb="me" class="${b!=='pt'?'on':''}">◎ 내 주변</button><button data-nb="pt" class="${b==='pt'?'on':''}">📍 찍은 곳 주변</button></div>`;
-  if(!R||REC.todayKey!==nowRecKey(Q)||R.err||!R.pick){box.innerHTML=chips+`<div class="more"><span>${R&&R.err&&REC.todayKey===nowRecKey(Q)?escH(R.err):'⭐ 오늘 추천 계산 중…'}</span><b data-go="1">자세히 ›</b></div>`;
+  if(!R||REC.todayKey!==nowRecKey(Q)||R.err||!R.pick){box.innerHTML=chips+`<div class="more"><span>${R&&R.err&&REC.todayKey===nowRecKey(Q)?escH(R.err):MWAVE+'오늘 추천 계산 중 · '+recStep(REC.ovMsg)}</span><b data-go="1">자세히 ›</b></div>`;
     if(start&&!REC.busy&&REC.todayKey!==nowRecKey(Q))todayRun(Q); return;}
   const sg=R.sg, P=R.pick.slice(0,3), me=recMe();
   box.innerHTML=chips+P.map((c,i)=>{const w=c.best&&c.best.w, km=me?distM(me.lat,me.lng,c.la,c.lo)/1000:null;
-    return `<div class="rr" data-i="${i}"><span class="nm">${'①②③'[i]} ${escH(recName(c,sg))}</span><span class="sc">${shownScore(c.score)}점</span>${w?`<span class="tm">${hhmm(w.s)}~${hhmm(w.t)}</span>`:''}${km!=null?`<span class="km">🧭${km<10?km.toFixed(1):Math.round(km)}km</span>`:''}</div>`;}).join('')
-    +`<div class="more"><span>${escH(R.Q?R.Q.label:sg.n)} · 오늘 · 시간 = 승부 시간</span><b data-go="1">자세히 ›</b></div>`; nowMini();}
+    return `<div class="rr" data-i="${i}"><span class="nm">${'①②③'[i]} ${escH(recName(c,sg))}</span><span class="sc">${shownScore(c.score)}점</span>${w?bdgHtml(winBadge(w)):''}${km!=null?`<span class="km">🧭${km<10?km.toFixed(1):Math.round(km)}km</span>`:''}</div>`;}).join('')
+    +(()=>{const ws=P.map(c=>c.best&&c.best.w).filter(Boolean), same=ws.length>1&&ws.every(x=>x.s===ws[0].s&&x.t===ws[0].t); const lab=escH(R.Q?R.Q.label:sg.n);
+      return `<div class="more"><span>${same?`${lab} · ⏰ 승부 ${hhmm(ws[0].s)}~${hhmm(ws[0].t)}`:`${lab} · 딱지 = 승부 시간까지`}</span><b data-go="1">자세히 ›</b></div>`;})(); nowMini();}
 $('#nowRec').addEventListener('click',e=>{e.stopPropagation(); if(e.target.closest('[data-go]')){openPlan();return;}
   const nb=e.target.closest('[data-nb]'); if(nb){if(nb.dataset.nb==='pt'&&!sel){toast('📍 지도에서 자리를 먼저 찍어 주세요',2500);return;} if(nb.dataset.nb==='me'&&!recMe())toast('현위치가 꺼져 있어 지도 가운데 지역으로 봐요',2500); NOWREC.b=nb.dataset.nb; nowRecRender(true); return;} const r=e.target.closest('.rr'); const R=REC.today; if(!r||!R)return;
   // U-10 덧붙임: 지점 시트 대신 같은 추천 상태창(P6) + 그 자리에 추천 핀 하나
@@ -2523,8 +2555,8 @@ function pinPop(c,i,sg){{const t=$('#toast'); if(t){clearTimeout(t._h); t.style.
   const nm=c.fav||recName(c,sg), dest=c.fav||`${c.dong||sg.n} 낚시 포인트`;
   const why=[c.best?`유속 ${c.best.sp.toFixed(1)}노트${c.best.f>=1?'(알맞음)':c.best.sp<0.3?'(약함)':'(셈)'}`:'',c.rocks?`바위 ${c.rocks}개`:'',c.ch>=0.4?'물골':'',c.T!=null?`수온 ${c.T.toFixed(1)}℃`:''].filter(Boolean).join(' · ');
   box.innerHTML=`<div class="pp-h"><span class="nm">${'①②③④⑤⑥⑦⑧⑨'[i]||(i+1)+'.'} ${escH(nm)}</span><span>${sc}점 <small class="grade g${g.k}">${g.t}</small></span><button class="x" data-a="x">×</button></div>`
-    +`<div class="pp-l">${[c.isl&&!c.fav?KIND_ICON[c.isl]+' '+KIND_NAME[c.isl]:'',km!=null?`🧭 ${km<10?km.toFixed(1):Math.round(km)}km`:''].filter(Boolean).join(' · ')}</div>`
-    +(w?`<div class="pp-l">⭐ 승부 ${dstr(w.ms)} ${w.hi==null?'':w.hi?'만조':'간조'} ${hhmm(w.ms)} 앞뒤 ${hhmm(w.s)}~${hhmm(w.t)}</div>`:'')
+    +`<div class="pp-l">${[c.isl&&!c.fav?KIND_NAME[c.isl]:'',km!=null?`🧭 ${km<10?km.toFixed(1):Math.round(km)}km`:''].filter(Boolean).join(' · ')}</div>`
+    +(w?(()=>{const b=winBadge(w), same=new Date(w.s).toDateString()===new Date().toDateString(); return `<div class="pp-win"><div class="lb">⏰ 승부 시간</div><div class="tmx"><span class="tm">${hhmm(w.s)} ~ ${hhmm(w.t)}</span>${bdgHtml(b)}</div><div class="sb">${same?'':dstr(w.ms)+' '}${w.hi==null?'':w.hi?'만조':'간조'} ${hhmm(w.ms)} 앞뒤 ${winDur((w.t-w.s)/120000)}${b.end?' · <span class="en">'+b.end+'</span>':''}</div></div>`;})():'')
     +(why?`<div class="pp-l">${numHtml(why)}</div>`:'')
     +`<div class="pp-addr"><span id="ppAddr" class="pp-l q">📫 주소 찾는 중…</span><button class="btn" data-a="copy">복사</button></div>`
     +`<div class="pp-l q" style="margin-top:7px">🚗 길 안내</div><div class="navs" style="margin-top:4px"><button class="btn nav-tmap" data-nav="tmap">TMAP</button><button class="btn nav-kakao" data-nav="kakao">카카오맵</button><button class="btn nav-naver" data-nav="naver">네이버지도</button></div>`
@@ -2571,7 +2603,7 @@ const nowRecKey=Q=>Q?[Q.b,Q.la!=null?Q.la.toFixed(3)+','+Q.lo.toFixed(3):Q.sg.c,
 async function todayRun(Q){
   if(REC.busy){REC.todayQ=true;return;} if(!CONF.realData)return; await recLoad(); Q=Q||nowRecQ(); if(!Q){REC.today={err:'지도를 바닷가로 옮기거나 ◎ 현위치를 켜 주세요'}; nowRecRender(); return;}
   REC.busy=true; recBtn(); REC.todayKey=nowRecKey(Q);
-  try{REC.ovOn=!$('#planPanel').classList.contains('show')&&false; const R=await recArea(Q,tideDay(),m=>{REC.ovMsg=m;}); REC.today=R; nowRecRender();}
+  try{REC.ovOn=!$('#planPanel').classList.contains('show')&&false; const R=await recArea(Q,tideDay(),m=>{REC.ovMsg=m; const st=$('#nowRec .more span'); if(st&&st.querySelector('.mwv'))st.innerHTML=MWAVE+'오늘 추천 계산 중 · '+recStep(m);}); REC.today=R; nowRecRender();}
   catch(e){REC.today={err:'추천 계산 중 오류: '+(e&&e.message||e)};}
   finally{REC.busy=false; recBtn(); if(REC.todayQ){REC.todayQ=false;todayRun();}}
 }
@@ -3237,6 +3269,14 @@ resizeFlow(); drawFavPins(); updateUI(); loop();
   $('#slackLbl').textContent='다음 정조'; // U-6: '물 약해짐' → '다음 정조'
   toast(CONF.realData?'지도를 확대하면 국립해양조사원 실제 조류 예보가 보여요':'지금은 샘플 흐름이에요. ⚙️ 설정에 공공데이터 키를 넣으면 실제 조류로 바뀌어요',4000);
 })();
+// U-24 (build-50 2차): 설정 묶음 줄 오른쪽 요약 — 🔑 연결됨/키 필요 · 💾 마지막 백업 날짜 · 🗺️ n개 중 n개 켜짐
+function setSums(){const k=!!ROMS.key(); const e=$('#sumKey'); e.textContent=k?'✅ 연결됨':'키 필요'; e.className=k?'ok':'';
+  const lb=pref('lastBak',''); $('#sumBak').textContent=lb?`마지막 백업 ${+lb.slice(5,7)}/${+lb.slice(8,10)}`:'백업 아직 없음';
+  const ids=['tbChk','cfChk','depthChk','tidalChk']; $('#sumMap').textContent=`${ids.length}개 중 ${ids.filter(i=>$('#'+i).checked).length}개 켜짐`;}
+['tbChk','cfChk','depthChk','tidalChk'].forEach(i=>$('#'+i).addEventListener('change',setSums));
+{const _so=$('#setBtn').onclick; $('#setBtn').onclick=function(){const r=_so.apply(this,arguments); setSums(); $('#grpKey').open=!ROMS.key(); return r;};}
+$('#bakOut').addEventListener('click',()=>{setPref('lastBak',new Date().toISOString().slice(0,10)); setSums();});
+
 })();
 </script>
 </body>

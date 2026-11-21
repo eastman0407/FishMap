@@ -59,7 +59,7 @@ exec(src+'''
         pg.wait_for_timeout(300)
     rr=E("[...document.querySelectorAll('#nowRec .rr')].map(r=>r.textContent)")
     import re
-    check('K6 오늘 추천 3곳: 이름·점수·승부 시간', len(rr)==3 and all('점' in x and re.search(r'\\d\\d:\\d\\d~\\d\\d:\\d\\d',x) for x in rr), rr)
+    check('K6 오늘 추천 3곳: 이름·점수·승부 시간 딱지(build-51 U-25: 시간 대신 지금!/N분 뒤…)', len(rr)==3 and all('점' in x and re.search(r'(지금!|\\d+(분|시간) 뒤|내일 \\d\\d:\\d\\d|오늘은 끝남|\\d+/\\d+\\(.\\) \\d\\d:\\d\\d)',x) for x in rr), rr)
     c2=rect('#nowCard'); fit2=E("[...document.querySelectorAll('#nowRec .rr .nm')].every(e=>e.getBoundingClientRect().right<=document.querySelector('#nowCard').getBoundingClientRect().right)")
     check('K7 추천 보기도 카드 폭 안 · 높이 200px 이하 (build-49 빠른 기준 칩 한 줄 추가)', fit2 and c2[3]<=200 and c2[2]==c[2], [c,c2])
     pg.mouse.click(*mid('#nowRec .rr')); pg.wait_for_timeout(600)

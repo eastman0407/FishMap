@@ -167,7 +167,7 @@ with sync_playwright() as p:
     # ===== F. 오류 상황 =====
     print('\n[F] 오류 상황')
     pg,errs=page(br,{'dataKey':'TESTKEY'})
-    tool('#setBtn'); pg.click('#keyTest'); pg.wait_for_timeout(2000)
+    tool('#setBtn'); pg.evaluate("document.querySelector('#grpKey').open=true"); pg.click('#keyTest'); pg.wait_for_timeout(2000)
     check('F1 연결 시험 버튼', '성공' in pg.inner_text('#testOut'), pg.inner_text('#testOut')[:50])
     pg.click('#setClose')
     check('F2 전체 시험 중 스크립트 오류 없음', not errs, errs[:3])
@@ -184,7 +184,7 @@ with sync_playwright() as p:
     n1=len(calls); E(pg,"_map.panBy(50,0)"); pg.wait_for_timeout(2500)
     n2=E(pg,"__calls.filter(c=>c.startsWith('GetTideFcstHghLwApiService')).length")
     check('G3 실패 후 지도 이동해도 재탐색 안 함(하루)', n2==n1, f"{n1}→{n2}")
-    tool('#setBtn'); pg.click('#keySave'); pg.wait_for_timeout(300)
+    tool('#setBtn'); pg.evaluate("document.querySelector('#grpKey').open=true"); pg.click('#keySave'); pg.wait_for_timeout(300)
     check('G4 설정 저장하면 재탐색 허용', E(pg,"AndroidBridge.getPref('tideScanFailAt2')")=='0')
     check('G5 스크립트 오류 없음', not errs, errs[:2])
     pg.close()
