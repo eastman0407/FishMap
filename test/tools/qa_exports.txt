@@ -121,3 +121,16 @@ wxIcon,
 ncRepage,
 ncGo,
 NCP
+,
+flowDraw,
+simFramePrep,
+simMix,
+sT,
+NOWF,
+nowFollow,
+nowMin,
+simInterp,
+simProg,
+interpAt
+,
+bcHash
