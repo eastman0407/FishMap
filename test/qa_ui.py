@@ -29,7 +29,7 @@ exec(src+'''
     check('U1 오른쪽 버튼은 ◎·📅·☰ 3개 (+ 위 ★) — build-49 U-4', side==['locBtn','planBtn','layersBtn'] and E("!!document.querySelector('.top #favBtn')"), side)
     E("document.querySelector('#layersBtn').click()")
     ids=E("[...document.querySelectorAll('#layerPanel .ibtn')].map(b=>b.id)")
-    check('U2 보기 시트에 도구 7개 (build-49: 출조 도우미는 M2로)', E("document.querySelector('#layerPanel').classList.contains('show')") and ids==['layerBtn','flowBtn','windBtn','simBtn','rockBtn','sstBtn','setBtn'], ids)
+    check('U2 보기 시트에 켜고 끄는 도구 6개 + 맨 아래 ⚙️ 설정 줄 (build-50 U-20)', E("document.querySelector('#layerPanel').classList.contains('show')") and ids==['layerBtn','flowBtn','windBtn','simBtn','rockBtn','sstBtn'] and E("!!document.querySelector('#layerPanel .lsep + #setBtn.lrow')"), ids)
     pg.screenshot(path='/tmp/ui_layer.png')
     on0=E("document.querySelector('#flowBtn').classList.contains('on')"); E("document.querySelector('#flowBtn').click()"); on1=E("document.querySelector('#flowBtn').classList.contains('on')")
     E("document.querySelector('#flowBtn').click()")

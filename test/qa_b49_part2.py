@@ -22,7 +22,7 @@
     tabs=E("[...document.querySelectorAll('.ptabs button')].map(b=>b.textContent+(b.classList.contains('on')?'*':''))")
     check('R1 출조 도우미 탭 3개: ⭐ 추천 · 📅 계획 · 📓 기록 (추천 먼저)', tabs==['⭐ 추천*','📅 계획','📓 기록'], tabs)
     bs=E("[[...document.querySelectorAll('#recBasis button')].map(b=>b.textContent),[...document.querySelectorAll('#recKm button')].map(b=>b.textContent+(b.classList.contains('on')?'*':''))]")
-    check('R2 기준 3가지(찍은 자리·내 위치·지역) + 반경 3·5·10km(기본 5)', len(bs[0])==3 and '찍은 자리' in bs[0][0] and '내 위치' in bs[0][1] and '지역' in bs[0][2] and bs[1]==['3km','5km*','10km'], bs)
+    check('R2 기준 3가지(자리 주변·내 위치·지역, build-50 U-42) + 반경 3·5·10km(기본 5)', len(bs[0])==3 and '자리 주변' in bs[0][0] and '내 위치' in bs[0][1] and '지역' in bs[0][2] and bs[1]==['3km','5km*','10km'], bs)
     E("document.querySelector('#recBasis [data-b=area]').click()"); pg.wait_for_timeout(300)
     ar=E("[getComputedStyle(document.querySelector('#recAreaBox')).display,getComputedStyle(document.querySelector('#recRad')).display,document.querySelector('#recSgg').selectedOptions[0].textContent,document.querySelector('#recDong').value,[...document.querySelectorAll('#recDong option')].map(o=>o.textContent)]")
     check('R3 지역: 시·도 → 시·군·구 → 읍·면·동(해안 있는 곳만, 기본 전체)', ar[0]!='none' and ar[1]=='none' and '사천시' in ar[2] and ar[3]=='-1' and len(ar[4])>=5 and ar[4][0]=='읍·면·동 전체', [ar[2],ar[4][:6]])

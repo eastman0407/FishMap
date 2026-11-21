@@ -4,7 +4,7 @@ import sys, subprocess, time, re, os
 GROUPS={
  '할 일(처음부터 끝까지)':['qa_flow'],
  '디자인 자동 검사':['qa_design'],
- '지도·흐름선·항내 추정':['qa_realshape','qa_full','qa_sim','qa_stage1','qa_stage2','qa_stage4','qa_stage5','qa_nest','qa_levelbadge','qa_tidal'],
+ '지도·흐름선·항내 추정':['qa_realshape','qa_full','qa_sim','qa_stage1','qa_stage2','qa_stage4','qa_stage5','qa_h11','qa_nest','qa_levelbadge','qa_tidal'],
  '조석·물때':['qa_tidechip','qa_newapi'],
  '위 카드(M3)':['qa_b40','qa_b42','qa_b46','qa_more'],
  '상태창·그래프 시트(F28·M8)·움직임':['qa_b41','qa_b49'],
@@ -16,8 +16,7 @@ GROUPS={
 }
 QUICK=['qa_flow','qa_design']
 # 알려진 실패: 고장탐구 번호가 붙은 것만. 여기 있는 것만 실패해도 '⚠️ 알려진 실패'로 표시(새 실패는 ❌)
-KNOWN_FAIL={'qa_stage5':('Z5','H-11 ⚓ 다시 켜면 저장된 항내 계산을 못 씀 (11-21 발견)'),
-            'qa_flow':('T5','U-41 주변 추천 알림 띠가 길 안내 버튼을 덮음 (11-21 발견)')}
+KNOWN_FAIL={'qa_stage5':('Z5','H-12 긴 시험 순서에서만 ⚓ 다시 켠 뒤 저장 결과를 못 찾음 — H-11 고침은 qa_h11(깨끗한 상태)로 통과, 긴 순서는 앞 단계가 바꾼 설정 때문으로 의심·원인 미확정 (11-21)')}
 def run(names):
     here=os.path.dirname(os.path.abspath(__file__)); subprocess.run(['python3',os.path.join(here,'mkqa.py')],check=True)
     rows=[]; t00=time.time()

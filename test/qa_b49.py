@@ -35,6 +35,8 @@ exec(src+r'''
     txt=E("document.querySelector('#fCard').innerText")
     check('C5 유속·방향·상태·다음 정조·물높이·[📈 그래프]·☆·✕', all(k in txt for k in ['유속','방향','상태','다음 정조','🌊','📈 그래프','⭐ 주변 추천']) and E("!!document.querySelector('#fcStar')&&!!document.querySelector('#fcClose')"), txt.replace('\n',' | '))
     # 지도 움직이면 따라감
+    # (build-50) 상태창이 오른쪽 버튼 줄(.side)과 겹치면 아래로 비켜가므로, 위에 뜨는 모양에서 비교하려고 먼저 지도를 아래로 밀어 둠
+    E("_map.panBy(0,-150)"); pg.wait_for_timeout(300); fc=rect('#fCard')
     E("_map.panBy(30,-40)"); pg.wait_for_timeout(300); fc2=rect('#fCard')
     check('C6 지도를 움직이면 상태창이 자리를 따라감', fc2 and abs((fc2[0]-fc[0])+30)<=2 and abs((fc2[1]-fc[1])-40)<=2, [fc[:2],fc2[:2]])
     E("_map.panBy(-30,40)"); pg.wait_for_timeout(300)

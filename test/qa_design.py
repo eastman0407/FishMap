@@ -8,15 +8,9 @@ sys.argv=sys.argv[:1]
 _c=open('test/qa_b48.py').read(); exec(_c.split("exec(src+'''")[0])
 src=src+_c.split("exec(src+'''")[1].split("    go(13,34.92,128.07,0); pg.wait_for_timeout(800)\n    btn=")[0]
 KNOWN={
- # D1 누르는 범위 — U-13(시간 줄·조석 칩·자세히), U-40(11-21 이 검사로 새로 찾음: .btn 38·선택칸 36~40·탭 36·빠른 칩 34·상태창 버튼 40)
- 'D1':{'#play':'U-13','#nowBtn':'U-13','#tideChip':'U-13','#phaseChip':'U-13','#wxChip':'U-13','#nowRec B[data-go]':'U-13',
-       '#alertLead':'U-40','#bakIn':'U-40','#bakOut':'U-40','#diagBtn':'U-40','#fcGraph':'U-40','#fcNearRec':'U-40','#keySave':'U-40','#keyTest':'U-40','#logCsv':'U-40',
-       '#planPanel .on':'U-40','#planPanel BUTTON':'U-40','#recClear':'U-40','#recDay':'U-40','#recDong':'U-40','#recGo':'U-40','#recSgg':'U-40','#recSido':'U-40','#recSort':'U-40',
-       '#tbTest':'U-40','#xferOut':'U-40','.rchips .on':'U-40','.rchips BUTTON':'U-40'},
- # D2 작은 글씨 (U-14)
- 'D2':{'#legendTitle':'U-14','#legendTicks SPAN':'U-14','#slDate':'U-14','#biteFab SMALL':'U-14','#timeLabel SMALL':'U-14','.stats DIV':'U-14','#slackLbl':'U-14',
-       '#iState .tag':'U-14','#iMore I':'U-14','#iMore SMALL':'U-14','#iMore .emo':'U-14','#nowRec SPAN':'U-14','#nowRec B[data-go]':'U-14','.lcell small':'U-14','.samplebadge':'U-14','.fc-near':'U-14'},
- 'D4':{'slider-track':'U-17','grip':'U-17'},
+ # (build-50) U-13·14·17·40은 고쳐서 목록에서 뺌. 남은 알려진 위반만 여기에 적음
+ 'D1':{},'D2':{},'D4':{},
+ 'D8':{'#setPanel LABEL':'U-24'},  # 설정 안 긴 설명 줄(조석 보정) — U-24 설정 화면 정리(2차) 때 한 줄로
  'D7':{'sheet-name':'U-15'},
 }
 exec(src+r'''
@@ -43,10 +37,12 @@ exec(src+r'''
     D6=r"""const R=q=>{const e=document.querySelector(q); if(!e||!e.checkVisibility({opacityProperty:true,visibilityProperty:true}))return null; const r=e.getBoundingClientRect(); return r.width?r:null;};
       const pairs=[['#nowCard','.side'],['.legend','#biteFab'],['.legend','.trow'],['#biteFab','.trow'],['#fCard','.side'],['#fCard','#nowCard'],['#fCard','.trow'],['#pinPop','.trow'],['#pinPop','#nowCard'],['#offBar','#toast']]; const o=[];
       for(const [a,b] of pairs){const A=R(a),B=R(b); if(!A||!B)continue; const w=Math.min(A.right,B.right)-Math.max(A.left,B.left), h=Math.min(A.bottom,B.bottom)-Math.max(A.top,B.top); if(w>1&&h>1)o.push([a,b,Math.round(w),Math.round(h)]);} return o;"""
-    found={k:{} for k in ['D1','D2','D3','D5','D6']}
+    D8=KEYJS+r"""const o=[];for(const e of document.querySelectorAll('button,.tchip,.seg button,.ptabs button,.rchips button,.chip,label:has(>input[type=checkbox])')){if(!vis(e))continue; if(e.closest('.leaflet-control'))continue; if(!(e.textContent||'').trim())continue;
+      let two=false; const tw=document.createTreeWalker(e,NodeFilter.SHOW_TEXT); for(let n;n=tw.nextNode();){ if(!n.textContent.trim())continue; const rg=document.createRange(); rg.selectNodeContents(n); const tops=new Set([...rg.getClientRects()].filter(r=>r.width>1).map(r=>Math.round(r.top/6))); if(tops.size>1)two=true;} if(two)o.push([key(e),(e.textContent||'').trim().slice(0,12)]);} return o.slice(0,20);"""
+    found={k:{} for k in ['D1','D2','D3','D5','D6','D8']}
     def known(kind,key): return KNOWN.get(kind,{}).get(key)
     def measure(screen):
-        for kind,js in [('D1',D1),('D2',D2),('D3',D3),('D5',D5),('D6',D6)]:
+        for kind,js in [('D1',D1),('D2',D2),('D3',D3),('D5',D5),('D6',D6),('D8',D8)]:
             for it in E("(()=>{"+js+"})()"):
                 k=str(it[0]) if kind!='D6' else f"{it[0]}×{it[1]}"
                 found[kind].setdefault(k,[]).append((screen,it))
@@ -100,9 +96,16 @@ exec(src+r'''
     check('D4 부품 대비 3:1 (시간 막대·손잡이) — 새 위반 없음', not newd4, d4)
     judge('D5','화면 밖으로 나가거나 넘침 없음')
     judge('D6','떠 있는 것끼리 안 겹침')
+    judge('D8','버튼·칩·탭 글자 한 줄 (U-42, 폭 360·411·큰 글씨)')
     check('D7 큰 글씨 130%에서 시트 이름이 보임 (알려진 위반 U-15면 표시만)', d7['sheet-name'] or 'sheet-name' in KNOWN['D7'], {'보이는 폭':nm[0],'알려진 위반':'U-15' if not d7['sheet-name'] else '없음'})
+    # D8 큰 글씨(130% 근사)에서도 버튼 글자 한 줄
+    pg.set_viewport_size({'width':411,'height':860}); E("document.documentElement.style.zoom='1.3'")
+    for nm_,prep in (('큰글씨 메인',lambda: E("__QA.pointView('none')")),('큰글씨 추천 탭',lambda: E("document.querySelector('#planBtn').click()")),('큰글씨 기록 탭',lambda: E("document.querySelector('.ptabs [data-tab=log]').click()"))):
+        prep(); pg.wait_for_timeout(450)
+        for it in E("(()=>{"+D8+"})()"): found['D8'].setdefault(str(it[0]),[]).append((nm_,it))
+    E("document.documentElement.style.zoom=''")
     print('\n화면', len(screens), '곳 ·', ', '.join(screens[:8]))
-    print('알려진 위반(대기 목록):', {'U-13':len(k1.get('U-13',[])), 'U-40':len(k1.get('U-40',[])), 'U-14':len(k2.get('U-14',[])), 'U-15':0 if d7['sheet-name'] else 1, 'U-17':sum(1 for v in d4.values() if v<3)})
+    print('알려진 위반(대기 목록):', {'U-15':0 if d7['sheet-name'] else 1})
     check('Z 스크립트 오류 없음', not errs, errs[:3])
     br.close()
 print(f'\n결과 {sum(res)}/{len(res)}')

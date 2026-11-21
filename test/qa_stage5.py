@@ -42,7 +42,10 @@ exec(src+'''
     d=[ (( (a[0]-b[0])**2+(a[1]-b[1])**2)**.5) for a,b in zip(A,B) if a and b]
     check('Z3 13단계에서 확대해 온 경우와 처음부터 계산한 경우 같은 곳 값 동일 (출발값 고정)', d and max(d)<1e-6, f'최대 차이 {max(d) if d else None}, 확대 경로 {t_seed}초 / 처음부터 {t_cold}초')
     # ── 폰 저장 ──
-    go(16,34.882,128.096,0); wait("__QA.SIM.on&&__QA.SIM.done",240); pg.wait_for_timeout(1500)
+    # (build-50) 위 비교 시험이 저장을 꺼 둔 채 계산했으므로, 저장을 켠 상태로 새로 계산해 폰에 저장되게 한 뒤 다시 켠다
+    E("__QA.SIMDB.ok=true;__QA.SIMDB.db=null"); E("__QA.SIMDB.open().then(db=>new Promise(r=>{const t=db.transaction('res','readwrite');t.objectStore('res').clear();t.oncomplete=()=>r(1);}))")  # 저장소 비우기
+    E("__QA.SIM.tiles.clear();__QA.simCache.clear();__QA.SIM.lastTile=null"); j1=E("__QA.SIM.jobsRun||0"); E("__QA.SIM.done=false;__QA.SIM.ready=false")
+    go(16,34.8823,128.0963,0); wait(f"(__QA.SIM.jobsRun||0)>{j1}&&__QA.SIM.on&&__QA.SIM.done&&!__QA.SIM.rough",240); pg.wait_for_timeout(2500)
     pg.reload(); pg.wait_for_timeout(1500); E("__QA.CONF.realData=true")
     E("document.querySelector('#simBtn').classList.contains('on')||document.querySelector('#simBtn').click()")
     go(16,34.882,128.096,0); t_re=wait("__QA.SIM.on&&__QA.SIM.done",120); steps=E("__QA.SIM.jobsRun||0")

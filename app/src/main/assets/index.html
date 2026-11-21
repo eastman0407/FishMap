@@ -76,7 +76,7 @@ button:disabled{opacity:.45;cursor:default}
 .nowcard.recv .ncrow,.nowcard.recv #wxChip{display:none!important}.nowcard:not(.recv) #nowRec{display:none!important}
 .ncrec{font-size:13px}.ncrec .rr{display:flex;gap:8px;align-items:baseline;padding:2px 0;cursor:pointer}.ncrec .rr .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ncrec .rr .sc{flex:none;font-weight:700;color:#e6f6ff;font-variant-numeric:tabular-nums}.ncrec .rr .tm,.ncrec .rr .km{flex:none;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
-.ncrec .more{display:flex;justify-content:space-between;color:var(--muted);font-size:11.5px;margin-top:2px}.ncrec .more b{color:var(--accent);font-weight:600;cursor:pointer}
+.ncrec .more{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12.5px;margin-top:2px}.ncrec .more b{color:var(--accent);font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:flex-end;min-width:44px;min-height:44px;margin:-14px 0}
 .nowcard.mini .nchead .samplebadge{display:none}
 /* REQ-69: 카드 폭 고정(화면 양쪽 끝), 줄은 한 줄로 · 넘치면 … */
 .nowcard>*:not(.nchead):not(.ncgrip){min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap!important}
@@ -124,7 +124,7 @@ button:disabled{opacity:.45;cursor:default}
 .info.show{display:block}
 /* REQ-65: 지점 시트 끌어서 접기 — 손잡이(M8-8)·요약 줄(M8-9) */
 .grip{height:18px;margin:-6px 0 2px;display:flex;justify-content:center;align-items:center;cursor:grab;touch-action:none}
-.grip span{width:42px;height:4px;border-radius:2px;background:#4a6a86}
+.grip span{width:42px;height:4px;border-radius:2px;background:#7694b0}
 .nowcard{touch-action:none;overflow:hidden;flex-wrap:nowrap!important;padding-bottom:18px!important}.nowcard .ncgrip{position:absolute;left:0;right:0;bottom:2px;margin:0;height:14px}
 /* REQ-76: 접는 도중 아래 줄은 서서히 사라지고, 펼 때는 서서히 나타남. 접힌 요약도 서서히 */
 .nowcard.snapfold>*:not(.nchead):not(.ncgrip){animation:ncfadeout .15s ease-in forwards}
@@ -200,8 +200,8 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
 /* U-8 (build-49): 시간 막대 — 가운데 자정에 살짝 끊김 + 다음 날 날짜, 진짜 지금 흰 눈금. 끌 때 걸리지 않음(멈춤 없음) */
 .slw{position:relative;flex:1;min-width:0;height:44px;display:flex;align-items:center;--th:22px}
 #slider{-webkit-appearance:none;appearance:none;width:100%;height:44px;margin:0;background:transparent;--p:50%}
-#slider::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--accent) var(--p),#2a4560 var(--p))}
-#slider::-moz-range-track{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--accent) var(--p),#2a4560 var(--p))}
+#slider::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--accent) var(--p),#6a8cab var(--p))}
+#slider::-moz-range-track{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--accent) var(--p),#6a8cab var(--p))}
 #slider::-webkit-slider-thumb{-webkit-appearance:none;width:var(--th);height:var(--th);margin-top:-8px;border-radius:50%;background:#e8f0f7;border:3px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.5)}
 #slider::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#e8f0f7;border:3px solid var(--accent)}
 .slw .slmid{position:absolute;left:50%;top:50%;width:3px;height:10px;margin:-5px 0 0 -1.5px;background:var(--panel);pointer-events:none;border-radius:1px}
@@ -225,6 +225,25 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
 .favpin{font-size:18px;line-height:18px;text-shadow:0 0 3px #000}
 .leaflet-control-attribution{font-size:9px!important;background:rgba(10,21,32,.7)!important;color:#9ab!important}
 .leaflet-control-attribution a{color:#9cd!important}
+/* 1차-가 (U-13·14·17·22·40·42, build-50): 누르는 범위 44 이상 · 글씨 12px 이상 · 부품 대비 3:1 · 버튼 글자 한 줄 */
+.btn{height:44px;min-height:44px;min-width:44px}.btn.play{min-width:48px}
+select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
+.fc-a .btn,.fc-a button{min-height:44px}
+.ptabs button{height:44px}.rchips button{min-height:44px}
+.tchip{font-size:12.5px;position:relative}
+.tchip::after,.nowcard .windchip::after{content:'';position:absolute;left:50%;top:50%;width:max(100%,44px);height:44px;transform:translate(-50%,-50%)}
+.nowcard .windchip{position:relative}
+.rchips button,.ptabs button,.seg button,.btn{white-space:nowrap;overflow:hidden;text-overflow:clip}
+.slw .sldate{font-size:12px}
+.legend,#legendTitle,#legendTicks span{font-size:12px}
+.samplebadge,.nowcard .samplebadge{font-size:12px}
+.stats div{font-size:12px}
+.fc-near{font-size:12.5px}
+#iMore small,#iMore i,#iMore .emo,#iState .tag,#slackLbl,#biteFab small,#timeLabel small,#nowRec span{font-size:12px}
+.lcell small{font-size:12px}
+.sstOn{color:var(--accent);font-weight:600}#iMore [data-sst]{cursor:pointer;min-height:44px}
+.lsep{border:0;border-top:1px solid var(--line);margin:10px 0 0}.lrow{width:100%;margin-top:10px;display:flex;align-items:center;justify-content:space-between;font-size:15px;min-height:48px;height:48px;padding:0 14px}.lrow .lgo{opacity:.7;font-size:18px}
+.cfst,.cfst *{pointer-events:none}
 </style>
 </head>
 <body>
@@ -334,8 +353,9 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
       <div class="lcell"><button class="ibtn" id="simBtn" title="항내 추정 (섬·항구 주변 흐름 계산)"><span>⚓</span></button><small>항내 추정</small></div>
       <div class="lcell"><button class="ibtn" id="rockBtn" title="갯바위·간출암"><span>🪨</span></button><small>바위</small></div>
       <div class="lcell"><button class="ibtn" id="sstBtn" title="위성 수온 (NASA MUR, 1~4일 전)"><span>🌡️</span></button><small>위성 수온</small></div>
-      <div class="lcell"><button class="ibtn" id="setBtn" title="설정"><span>⚙️</span></button><small>설정</small></div>
     </div>
+    <!-- U-20 (build-50): 설정은 켜고 끄는 버튼이 아니므로 줄을 긋고 맨 아래 넓은 줄로 -->
+    <hr class="lsep"><button class="btn lrow" id="setBtn" title="설정"><span>⚙️ 설정 · 키 · 백업</span><span class="lgo">›</span></button>
     <div class="empty" style="padding:8px 0 0;font-size:12px">켜진 것은 초록 테두리 · 바깥을 누르거나 뒤로가기로 닫아요</div>
   </div>
 </div>
@@ -343,11 +363,11 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
   <div class="pbox">
     <h3>설정 <button class="x" id="setClose">×</button></h3>
     <div class="empty" style="padding:0 0 8px">공공데이터포털 → "국립해양조사원_ROMS 수치예측모델 조회" 활용신청 → <b>일반 인증키(Decoding)</b>를 붙여넣으세요.</div>
-    <div class="namebox"><input id="keyIn" placeholder="공공데이터 인증키"></div>
+    <div class="namebox"><input id="keyIn" type="password" autocomplete="off" placeholder="공공데이터 인증키"><button class="btn" data-eye="keyIn" aria-label="키 보기·가리기" title="키 보기">👁</button></div>
     <div class="empty" style="padding:10px 0 4px">요청 주소 (활용신청 화면의 주소와 다르면 수정)</div>
     <div class="namebox"><input id="urlIn"></div>
     <div class="empty" style="padding:10px 0 4px">브이월드 지도 키 (선택 — 비우면 Esri 위성지도)</div>
-    <div class="namebox"><input id="vwIn" placeholder="브이월드 인증키"></div>
+    <div class="namebox"><input id="vwIn" type="password" autocomplete="off" placeholder="브이월드 인증키"><button class="btn" data-eye="vwIn" aria-label="키 보기·가리기" title="키 보기">👁</button></div>
     <div class="namebox" style="margin-top:12px">
       <button class="btn" id="keySave" style="flex:1;background:var(--accent);color:#06221f;border:none;font-weight:700">저장</button>
       <button class="btn" id="keyTest" style="flex:1">연결 시험</button>
@@ -410,7 +430,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
     <div id="tabRec">
       <!-- U-11 (build-49): 어디 기준으로 — 찍은 자리 주변 · 내 위치 주변 · 지역(시·도 → 시·군·구 → 읍·면·동) -->
       <div class="rlab">어디 기준으로</div>
-      <div class="seg rbasis" id="recBasis"><button data-b="pt">📍 찍은 자리 주변</button><button data-b="me">◎ 내 위치 주변</button><button data-b="area">🗺️ 지역</button></div>
+      <div class="seg rbasis" id="recBasis"><button data-b="pt">📍 자리 주변</button><button data-b="me">◎ 내 위치 주변</button><button data-b="area">🗺️ 지역</button></div>
       <div id="recRad" class="rrow"><span class="rlab2">반경</span><span class="seg" id="recKm"><button data-km="3">3km</button><button data-km="5">5km</button><button data-km="10">10km</button></span><span class="rlab2" id="recCenter"></span></div>
       <div id="recAreaBox" class="namebox" style="flex-wrap:wrap;gap:6px"><select id="recSido" style="flex:1;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px;min-width:0" aria-label="시·도"></select>
         <select id="recSgg" style="flex:1.3;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px;min-width:0" aria-label="시·군·구"></select><select id="recDong" style="flex:1 1 100%;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px;min-width:0" aria-label="읍·면·동"></select></div>
@@ -1225,6 +1245,8 @@ onmessage=e=>{const m=e.data;
 let simWorker=null, simJob=0;
 try{simWorker=new Worker(URL.createObjectURL(new Blob([WORKER_SRC],{type:'text/javascript'})));}catch(e){simWorker=null;}
 if(simWorker)simWorker.onmessage=e=>{const m=e.data, J=SIM.job; if(!J||m.id!==J.id)return;
+  // H-11: 끝난 결과는 폰에 저장할 때와 똑같이 줄인 값(q16→f16)으로 화면에도 씀 → 다시 켜도 테두리 지문(h)이 같아 저장 결과를 찾음
+  if(m.done){m.u=f16(q16(m.u)); m.v=f16(q16(m.v));}
   const T=J.tile; T.cur={u:m.u,v:m.v,scale:J.scale,t:J.t,done:m.done,partial:!m.done}; T.steps=m.steps;
   if(m.done){simCache.set(T.key+'|'+J.t,{h:J.h,u:m.u,v:m.v,scale:J.scale});if(simCache.size>60)simCache.delete(simCache.keys().next().value);
     SIMDB.put(simKey(T,J.t,J.h),{u:q16(m.u),v:q16(m.v),scale:J.scale,at:Date.now()});
@@ -1618,6 +1640,8 @@ function sstSet(on){SST.on=on; setPref('sstOn',on?'1':'0'); $('#sstBtn').classLi
   if(on){sstLoad(true); toast('🌡️ 위성 수온: NASA 위성 자료라 1~4일 전 값이에요 · 흰 선 = 0.5℃ 차이(물 경계)',3500); haptic('tick');}
   else{if(SST.ov)map.removeLayer(SST.ov); SST.ov=null; SST.g=null; SST.key=''; SST.err='';} sstLegend(); if(sel)updateUI();}
 $('#sstBtn').onclick=()=>sstSet(!SST.on);
+document.addEventListener('click',e=>{const b=e.target.closest('[data-eye]'); if(!b)return; const i=$('#'+b.dataset.eye); i.type=i.type==='password'?'text':'password'; b.style.opacity=i.type==='text'?'1':'.7';});
+$('#iMore').addEventListener('click',e=>{if(e.target.closest('[data-sst]')){e.stopPropagation();sstSet(true);if(sel)updateUI();toast('🌡️ 위성 수온을 켰어요');}});
 map.on('moveend',()=>{if(!SST.on)return; clearTimeout(SST._t); SST._t=setTimeout(()=>sstLoad(),700);});
 setTimeout(()=>{if(pref('sstOn','0')==='1')sstSet(true);},1200);
 $('#sstTest').onclick=async()=>{const out=$('#tbOut'); out.style.display='block'; out.textContent='위성 수온 물어보는 중…'; const b=sstBox(), t0=performance.now(), lines=[];
@@ -1920,9 +1944,7 @@ function cfDraw(){
   for(const s of CF.st){if(!inB(b,s.la,s.lo))continue; const S=CF.ser.get(s.c), v=S&&S.t?cfAt(S,ms):null;
     const sp=v?Math.hypot(v.vE,v.vN):null, dg=v?Math.atan2(v.vE,v.vN)*180/Math.PI:0;
     const html=`<div class="cfst"><span class="cfar" style="transform:rotate(${dg.toFixed(0)}deg)">${v?'↑':'·'}</span>${v?spdText(sp):''}</div>`;
-    L.marker([s.la,s.lo],{icon:L.divIcon({className:'',html,iconSize:[12,12],iconAnchor:[6,6]})})
-      .on('click',ev=>{L.DomEvent.stopPropagation(ev);
-        toast(v?`📍 조류예보 지점 ${s.n} · ${DIR16[Math.round(((dg%360)+360)%360/22.5)%16]}쪽으로 ${spdText(sp)} (국립해양조사원 지점 예보, 실측 기반)`:`📍 조류예보 지점 ${s.n} · 이 시각 예보 없음`,4500);})
+    L.marker([s.la,s.lo],{icon:L.divIcon({className:'',html,iconSize:[12,12],iconAnchor:[6,6]}),interactive:false,keyboard:false}) // U-39: 딱지는 누를 수 없음 → 뒤 바다를 누른 것과 똑같이 동작 (지점 이름·값은 F28 '근처 조류예보 지점'에서)
       .addTo(CF.layer);}
 }
 // ================= 출조 계획 (REQ-43, 강의자료 1·2부): 3주치 물때·조차·승부 시간·해 뜨고 지는 시각 =================
@@ -2497,7 +2519,7 @@ async function addrOf(la,lo){const k=pref('vworldKey',''); if(!k){ADDR.last='브
     if(R&&R.status==='OK'&&R.result&&R.result.length){const road=R.result.find(x=>x.type==='road'), par=R.result.find(x=>x.type==='parcel'); out={road:road&&road.text||'',parcel:par&&par.text||''};}
     else cacheDrop(url);}catch(e){ADDR.last='인터넷·응답 오류'; cacheDrop(url);}
   ADDR.cache.set(key,out); return out;}
-function pinPop(c,i,sg){const box=$('#pinPop'), sc=shownScore(c.score), g=scoreGrade(sc), w=c.best&&c.best.w, me=recMe(), km=me?distM(me.lat,me.lng,c.la,c.lo)/1000:null;
+function pinPop(c,i,sg){{const t=$('#toast'); if(t){clearTimeout(t._h); t.style.display='none';}} /* U-41: 핀을 눌러 카드가 뜨면 알림 띠는 걷어서 길 안내 버튼을 안 덮음 */ const box=$('#pinPop'), sc=shownScore(c.score), g=scoreGrade(sc), w=c.best&&c.best.w, me=recMe(), km=me?distM(me.lat,me.lng,c.la,c.lo)/1000:null;
   const nm=c.fav||recName(c,sg), dest=c.fav||`${c.dong||sg.n} 낚시 포인트`;
   const why=[c.best?`유속 ${c.best.sp.toFixed(1)}노트${c.best.f>=1?'(알맞음)':c.best.sp<0.3?'(약함)':'(셈)'}`:'',c.rocks?`바위 ${c.rocks}개`:'',c.ch>=0.4?'물골':'',c.T!=null?`수온 ${c.T.toFixed(1)}℃`:''].filter(Boolean).join(' · ');
   box.innerHTML=`<div class="pp-h"><span class="nm">${'①②③④⑤⑥⑦⑧⑨'[i]||(i+1)+'.'} ${escH(nm)}</span><span>${sc}점 <small class="grade g${g.k}">${g.t}</small></span><button class="x" data-a="x">×</button></div>`
@@ -2755,8 +2777,10 @@ function pointView(m){PV.mode=m; const fc=$('#fCard'), inf=$('#info'), mb=$('.ma
 // 떠 있는 창 자리 잡기: 자리 위쪽(지금 카드 아래까지), 안 되면 아래쪽. 화면 밖으로 안 나감. 자리가 화면 밖이면 숨김
 function floatPlace(box,la,lo){if(!box||!box.classList.contains('show'))return; let p; try{p=map.latLngToContainerPoint([la,lo]);}catch(e){return;}
   const M=$('#map'), W=M.clientWidth, H=M.clientHeight, out=p.x<0||p.y<0||p.x>W||p.y>H; box.style.visibility=out?'hidden':''; if(out)return;
-  const w=box.offsetWidth, h=box.offsetHeight, nc=$('#nowCard'), top=(nc&&nc.offsetHeight?nc.offsetTop+nc.offsetHeight:0)+6, G=16;
+  const w=box.offsetWidth, h=box.offsetHeight, nc=$('#nowCard'); let top=(nc&&nc.offsetHeight?nc.offsetTop+nc.offsetHeight:0)+6, G=16;
   let x=Math.max(8,Math.min(W-w-8,p.x-w/2)), y=p.y-h-G, below=false;
+  { // 오른쪽 버튼 줄(☰·📅·내 위치)과 가로로 겹치면 그 줄 아래로 (U-13~ 버튼 키운 뒤 3px 겹침, 1차-가)
+    const sd=$('.side'); if(sd&&sd.offsetHeight){const sr=sd.getBoundingClientRect(), mr=M.getBoundingClientRect(); if(mr.left+x<sr.right&&mr.left+x+w>sr.left)top=Math.max(top,sr.bottom-mr.top+6);} }
   if(y<top){if(p.y+G+h<=H-8){y=p.y+G;below=true;} else y=Math.max(8,Math.min(H-h-8,top));}
   box.style.left=Math.round(x)+'px'; box.style.top=Math.round(y)+'px'; box.classList.toggle('below',below);
   const t=box.querySelector('.tail'); if(t)t.style.left=Math.round(Math.max(12,Math.min(w-24,p.x-x-6)))+'px';}
@@ -2826,7 +2850,7 @@ function drawTide(){
   const day=new Date(t0.getTime()+G.m0*60000), cur=(tMin-G.m0)/10, nowK=(Date.now()-t0.getTime())/60000/10-G.m0/10;
   const font=(px,w)=>xT.font=`${w||''} ${px}px ${F}`;
   const curText=()=>{const h=G.hs[Math.round(cur)], v=G.sp[Math.round(cur)]; return `▶ ${fmt(tMin)}${h!=null?` · ${h.toFixed(1)}m`:''}${v!=null?` · ${v.toFixed(1)}kn`:''}`;};
-  const curBox=()=>{if(cur<0||cur>144)return null; font(11,'700'); const w=xT.measureText(curText()).width+12, x=X(cur); return [Math.max(PL,Math.min(TW-PR-w,x-w/2)),100-8,w];};
+  const curBox=()=>{if(cur<0||cur>144)return null; font(11,'700'); const w=xT.measureText(curText()).width+12, x=X(cur); return [Math.max(PL,Math.min(TW-PR-w,x-w/2)),106,w];}; // U-19: 물높이 곡선 밑, 유속 띠 바로 위 (곡선을 안 가림)
   // ── 제목 줄
   font(11); xT.fillStyle=MU; xT.textAlign='left'; xT.textBaseline='alphabetic';
   xT.fillText(`${day.getMonth()+1}/${day.getDate()}(${WD[day.getDay()]})${G.D?' 내일':''} 물높이 ${G.rel?'(상대, m)':'(m)'}`,0,11);
@@ -2845,10 +2869,10 @@ function drawTide(){
       xT.fillStyle='#d8ecff'; xT.textAlign='left'; xT.fillText(t,tx,ty);});
   } else {font(11); xT.fillStyle=MU; xT.textAlign='center'; xT.textBaseline='middle'; xT.fillText(CONF.realData?'물높이 자료 없음 (조석 받는 중이거나 실패)':'',PL+(TW-PL-PR)/2,(y0+y1)/2);}
   // ── 유속 띠
-  const b0=110, b1=130, okS=G.sp.filter(v=>v!=null);
+  const b0=118, b1=138, okS=G.sp.filter(v=>v!=null);
   font(10); xT.fillStyle=MU; xT.textAlign='right'; xT.textBaseline='middle'; xT.fillText('유속',PL-5,(b0+b1)/2);
   for(let k=0;k<144;k++){const v=G.sp[k]; xT.fillStyle=v==null?'rgba(255,255,255,.06)':COLORS[bucket(v)]; xT.fillRect(X(k),b0,X(k+1)-X(k)+0.6,b1-b0);}
-  xT.textBaseline='alphabetic'; font(10.5); const lab=[]; const put=(t,x,bold)=>{font(10.5,bold?'700':''); const w=xT.measureText(t).width, l=Math.max(0,Math.min(TW-w,x-w/2)); if(lab.some(q=>l<q[1]+6&&l+w>q[0]-6))return; lab.push([l,l+w]); xT.textAlign='left'; xT.fillText(t,l,146);};
+  xT.textBaseline='alphabetic'; font(10.5); const lab=[]; const put=(t,x,bold)=>{font(10.5,bold?'700':''); const w=xT.measureText(t).width, l=Math.max(0,Math.min(TW-w,x-w/2)); if(lab.some(q=>l<q[1]+6&&l+w>q[0]-6))return; lab.push([l,l+w]); xT.textAlign='left'; xT.fillText(t,l,151);};
   xT.fillStyle='#e8f0f7'; G.sl.forEach(k=>{const x=X(k); xT.fillStyle='#fff'; xT.fillRect(x-1.5,b0-3,3,b1-b0+6); xT.fillStyle='#e8f0f7'; put(`정조 ${fmt(G.m0+k*10)}`,x,true);});
   xT.fillStyle=MU; put('0시',X(0)+8); put('24시',X(144)-12);
   // 들물·날물 최대 (정조 사이 구간마다)
@@ -2905,9 +2929,9 @@ function updateUI(){
   // U-6 정보 정리: 바람 밀림·하늘은 빼고(M3에 있음), 자리 정보 2×2 = 이 자리 바람(세기 포함)·위성 수온·조류 지점·달. 재생 시각을 따라 바뀜
   { const ws=windSide(tH(),sel.lat,sel.lng), dd=new Date(t0.getTime()+tH()*3600e3); dd.setHours(0,0,0,0);
     const sa=SST.on?sstAt(sel.lat,sel.lng):null, cf=cfNear(sel.lat,sel.lng,tH());
-    const cell=(t,v)=>`<div><i>${numHtml(t)}</i>${v}</div>`;
+    const cell=(t,v)=>`<div${v.includes('sstOn')?' data-sst="1" role="button" tabindex="0"':''}><i>${numHtml(t)}</i>${v}</div>`; // U-18: 꺼진 수온 칸을 누르면 바로 켜짐
     const cells=[cell('🌬️ 이 자리 바람',ws?numHtml(ws.k==='약'?'바람 약함 · '+ws.base:`${ws.short} ${ws.base}`)+(ws.hint?`<br><small>${ws.hint}</small>`:''):'<small>바람 예보 밖</small>'),
-      cell('🛰️ 위성 수온',sa?numHtml(`${sa.t.toFixed(1)}℃`)+`<br><small>${sa.day} 기준${sa.near?' · 바로 앞바다':''}</small>`:`<small>${SST.on?'이 자리 자료 없음':'꺼짐 · 보기 → 🌡️'}</small>`),
+      cell('🛰️ 위성 수온',sa?numHtml(`${sa.t.toFixed(1)}℃`)+`<br><small>${sa.day} 기준${sa.near?' · 바로 앞바다':''}</small>`:`<small>${SST.on?'이 자리 자료 없음':'<b class="sstOn">꺼짐 · 눌러서 켜기</b>'}</small>`),
       cell('📍 조류 지점',cf?numHtml(`${cf.s.n} ${spdText(Math.hypot(cf.v.vE,cf.v.vN))}`)+`<br><small>${DIR16[Math.round(((Math.atan2(cf.v.vE,cf.v.vN)*180/Math.PI+360)%360)/22.5)%16]}쪽 · ${Math.round(cf.d/10)*10}m</small>`:'<small>500m 안에 없음</small>'),
       cell('🌙 달',numHtml(moonText(dd.getTime(),sel.lat,sel.lng).replace(/^🌙 /,'')))];
     $('#iMore').innerHTML=cells.join(''); $('#iMore').style.display=''; $('#iWind').innerHTML=''; }
@@ -3140,7 +3164,7 @@ $('#favImport').onclick=()=>{
   saveFavs(cur); renderFavList(); $('#favImportBox').style.display='none';
   toast(add?`${add}개를 추가했어요`:'새로 추가할 게 없어요 (이미 있음)');
 };
-$('#setBtn').onclick=()=>{$('#keyIn').value=ROMS.key();$('#urlIn').value=ROMS.url();$('#vwIn').value=pref('vworldKey','');$('#f_dir').value=pref('field_dir','');$('#f_speed').value=pref('field_speed','');
+$('#setBtn').onclick=()=>{['keyIn','vwIn'].forEach(i=>{$('#'+i).type='password';}); /* U-21: 열 때마다 키 가림 */ $('#keyIn').value=ROMS.key();$('#urlIn').value=ROMS.url();$('#vwIn').value=pref('vworldKey','');$('#f_dir').value=pref('field_dir','');$('#f_speed').value=pref('field_speed','');
   $('#dirFrom').checked=pref('dirIsFrom','false')==='true';$('#testOut').textContent='';$('#setPanel').classList.add('show');};
 $('#setClose').onclick=()=>$('#setPanel').classList.remove('show');
 $('#setPanel').addEventListener('click',e=>{if(e.target.id==='setPanel')$('#setPanel').classList.remove('show');});

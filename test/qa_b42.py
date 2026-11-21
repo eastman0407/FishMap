@@ -44,7 +44,8 @@ exec(src+'''
     E("__QA.updateTideChips(); __QA.updateUI&&0"); pg.wait_for_timeout(300)
     c=rect('#nowCard'); t=rect('#tideChip'); ph=rect('#phaseChip')
     check('K1 지금 보기: 카드 높이 낮아짐(4줄, 120px 이하) · 조석과 물때가 한 줄', c[3]<=120 and abs(t[1]-ph[1])<=3 and ph[0]>t[0], [c,t,ph])
-    fit=E("['#tideChip','#phaseChip','#wxChip','#windChip'].map(q=>{const e=document.querySelector(q);return [q,e.scrollWidth<=e.clientWidth+1,e.textContent.slice(0,40)];})")
+    # (build-50) 눌리는 범위 44를 넓히는 투명 ::after 때문에 좁은 칩은 scrollWidth가 몇 px 큼 → 여유 7px
+    fit=E("['#tideChip','#phaseChip','#wxChip','#windChip'].map(q=>{const e=document.querySelector(q);return [q,e.scrollWidth<=e.clientWidth+7,e.textContent.slice(0,40)];})")
     check('K2 모든 줄이 카드 폭 안에 들어감 (잘림 없음)', all(x[1] for x in fit), fit)
     b=rect('.samplebadge'); h=rect('#nowHead'); bt=E("document.querySelector('.samplebadge').textContent")
     check('K3 상태 배지가 머리 줄 안 오른쪽(점 + 짧은 글)', h[1]<=b[1] and b[4]<=h[4] and b[0]>h[0]+150 and len(bt)<=12, [h,b,bt])
