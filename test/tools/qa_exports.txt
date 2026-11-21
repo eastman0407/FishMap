@@ -92,4 +92,12 @@ fcPlace,
 tbTest,
 nowRecKey,
 nowRecQ,
-biteDo
+biteDo,
+placeName,
+shareParse,
+coordsIn,
+shareLocate,
+shareIn,
+SHARE,
+pref,
+setPref

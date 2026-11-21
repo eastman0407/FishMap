@@ -45,11 +45,29 @@ public class MainActivity extends Activity {
     private GeolocationPermissions.Callback pendingGeoCb;
     private String pendingGeoOrigin;
     private final ExecutorService pool = Executors.newFixedThreadPool(4);
+    /** U-26: 지도 앱(네이버지도·TMAP·카카오맵)에서 공유로 받은 글. 화면이 takeShare()로 가져감 */
+    private static String pendingShare = null;
+
+    private void readShare(Intent it) {
+        if (it == null || !Intent.ACTION_SEND.equals(it.getAction())) return;
+        String sub = it.getStringExtra(Intent.EXTRA_SUBJECT), txt = it.getStringExtra(Intent.EXTRA_TEXT);
+        String all = ((sub != null ? sub + "\n" : "") + (txt != null ? txt : "")).trim();
+        if (!all.isEmpty()) pendingShare = all;
+    }
+
+    @Override
+    protected void onNewIntent(Intent it) {
+        super.onNewIntent(it);
+        setIntent(it);
+        readShare(it);
+        if (pendingShare != null && web != null) web.evaluateJavascript("window.__shareIn && window.__shareIn()", null);
+    }
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        readShare(getIntent());
         assets = new WebViewAssetLoader.Builder()
                 .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
                 .build();
@@ -248,6 +266,45 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void dropCache(String url) { cacheFile(url).delete(); }
+
+        /** U-26: 받은 공유 글을 한 번 넘겨주고 비움 (없으면 "") */
+        @JavascriptInterface
+        public String takeShare() { String t = pendingShare; pendingShare = null; return t == null ? "" : t; }
+
+        /** U-26: 짧은 링크(naver.me·tmap.life 등)를 끝까지 따라감 → {"chain":[주소들],"body":"마지막 쪽 앞부분"} 을 window.__nativeCb 로 */
+        @JavascriptInterface
+        public void resolveUrl(final String start, final String cbId) {
+            pool.execute(() -> {
+                int code = 200;
+                String out;
+                try {
+                    org.json.JSONArray chain = new org.json.JSONArray();
+                    String u = start, body = "";
+                    for (int hop = 0; hop < 8; hop++) {
+                        if (!u.startsWith("http://") && !u.startsWith("https://")) break;
+                        chain.put(u);
+                        HttpURLConnection c = (HttpURLConnection) new URL(u).openConnection();
+                        c.setInstanceFollowRedirects(false);
+                        c.setConnectTimeout(10000);
+                        c.setReadTimeout(15000);
+                        c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36");
+                        int rc = c.getResponseCode();
+                        String loc = c.getHeaderField("Location");
+                        if (rc >= 300 && rc < 400 && loc != null) { u = new URL(new URL(u), loc).toString(); c.disconnect(); continue; }
+                        InputStream in = rc >= 400 ? c.getErrorStream() : c.getInputStream();
+                        body = in == null ? "" : read(in);
+                        c.disconnect();
+                        break;
+                    }
+                    JSONObject o = new JSONObject();
+                    o.put("chain", chain);
+                    o.put("body", body.length() > 60000 ? body.substring(0, 60000) : body);
+                    out = o.toString();
+                } catch (Exception e) { code = -1; out = String.valueOf(e.getMessage()); }
+                final String js = "window.__nativeCb(" + JSONObject.quote(cbId) + "," + code + "," + JSONObject.quote(out) + ")";
+                web.post(() -> web.evaluateJavascript(js, null));
+            });
+        }
 
         /** 즐겨찾기 백업 글을 카톡·메모 등으로 보내기 */
         @JavascriptInterface

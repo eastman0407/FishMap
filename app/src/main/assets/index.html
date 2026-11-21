@@ -176,6 +176,7 @@ button:disabled{opacity:.45;cursor:default}
 .fcard .tail,.pinpop .tail{position:absolute;bottom:-7px;width:12px;height:12px;background:var(--glass);border-right:1px solid var(--glassLine);border-bottom:1px solid var(--glassLine);transform:rotate(45deg)}
 .fcard.below .tail,.pinpop.below .tail{bottom:auto;top:-7px;transform:rotate(225deg)}
 .fc-h{display:flex;align-items:center;gap:6px}.fc-h .nm{flex:1;min-width:0;font-size:14.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nm .co{display:block;font-size:12px;font-weight:400;color:var(--muted);margin-top:1px} /* U-16 */
 .fc-h .x{background:none;border:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:2px 4px}
 .fcard .stats{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}.fcard .stats div{background:rgba(0,0,0,.22);padding:5px 8px}
 .fcard .stats b{font-size:16px;overflow:hidden;text-overflow:ellipsis}
@@ -414,7 +415,7 @@ select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
       </div></details>
       <details class="sgrp" id="grpTest"><summary><span>🧪 시험·진단</span><em>문제 생길 때</em></summary><div class="sbody">
         <div class="namebox" style="margin-top:6px"><button class="btn" id="diagBtn" style="flex:1">🔍 진단 보내기</button></div>
-    <div class="namebox" style="margin-top:6px;flex-direction:column;align-items:stretch"><button class="btn" id="tbTest">🧪 조석 시험 (TideBED 응답 보기)</button><button class="btn" id="sstTest" style="margin-top:6px">🛰️ 위성 수온 받기 시험</button><pre id="tbOut" style="display:none;white-space:pre-wrap;word-break:break-all;font-size:11px;background:var(--panel2);border-radius:8px;padding:6px;margin:6px 0 0;max-height:220px;overflow:auto"></pre></div>
+    <div class="namebox" style="margin-top:6px;flex-direction:column;align-items:stretch"><button class="btn" id="tbTest">🧪 조석 시험 (TideBED 응답 보기)</button><button class="btn" id="sstTest" style="margin-top:6px">🛰️ 위성 수온 받기 시험</button><input id="shTestIn" type="text" placeholder="지도 앱 공유 글 붙여넣기" style="margin-top:6px"><button class="btn" id="shTest" style="margin-top:6px">🧪 공유 링크 시험</button><pre id="tbOut" style="display:none;white-space:pre-wrap;word-break:break-all;font-size:11px;background:var(--panel2);border-radius:8px;padding:6px;margin:6px 0 0;max-height:220px;overflow:auto"></pre></div>
     <div class="namebox" style="margin-top:12px;flex-direction:column;align-items:stretch"><button class="btn" id="scBtn">📊 점수 점검 (입질 기록과 점수 비교)</button><div id="scOut" style="display:none;margin-top:6px"></div></div>
     <details style="margin-top:12px;background:var(--panel2)"><summary style="font-size:13px">고급 (자료가 이상할 때)</summary>
       <div class="empty" style="padding:6px 0 4px">요청 주소 (활용신청 화면의 주소와 다르면 수정)</div>
@@ -2348,6 +2349,11 @@ $('#recKm').addEventListener('click',e=>{const x=e.target.closest('button'); if(
 function recSggOpts(a,b){a=a||'#recSido';b=b||'#recSgg';const s=$(a).value;$(b).innerHTML=REC.data.filter(r=>r.s===s).map(r=>`<option value="${r.c}">${r.n} (해안 ${r.km}km)</option>`).join('');}
 // 어떤 점이 속한 해안 시·군·구: 해안선 점 가운데 가장 가까운 곳 (15km 안)
 function sggOf(la,lo){let best=null,bd=1e9;for(const r of REC.data||[]){if(la<r.b[0]-0.15||la>r.b[2]+0.15||lo<r.b[1]-0.15||lo>r.b[3]+0.15)continue;const P=r.p;for(let i=0;i<P.length;i+=2){const d=(P[i]-la)**2+((P[i+1]-lo)*0.82)**2;if(d<bd){bd=d;best=r;}}}return best&&Math.sqrt(bd)*111<15?best:null;}
+// U-16: 찍은 자리 이름 = 가장 가까운 해안 점의 읍·면·동 (sgg.json). '사천 향촌동 앞바다'. 15km 안에 해안 점이 없으면 null
+function placeName(la,lo){let best=null,bi=-1,bd=1e9;for(const r of REC.data||[]){if(la<r.b[0]-0.15||la>r.b[2]+0.15||lo<r.b[1]-0.15||lo>r.b[3]+0.15)continue;const P=r.p;for(let i=0;i<P.length;i+=2){const d=(P[i]-la)**2+((P[i+1]-lo)*0.82)**2;if(d<bd){bd=d;best=r;bi=i/2;}}}
+  if(!best)return null; const km=Math.sqrt(bd)*111; if(km>=15)return null;
+  const g=/[시군]$/.test(best.n)&&best.n.length>2?best.n.slice(0,-1):(/구$/.test(best.n)?best.s+' '+best.n:best.n), dg=best.d&&best.di?best.d[best.di[bi]]:'';
+  return `${g}${dg?' '+dg:''} ${km<3?'앞바다':'바깥 바다'}`;}
 const favsIn=sg=>loadFavs().filter(f=>{const g=sggOf(f.lat,f.lng);return g&&g.c===sg.c;});
 $('#recSido').onchange=()=>{recSggOpts(); recDongOpts();};
 $('#recSgg').onchange=()=>{setPref('recSgg',$('#recSgg').value); recDongOpts();};
@@ -2835,7 +2841,9 @@ function nowApply(fold,temp){const c=$('#nowCard'); if(temp){c.classList.remove(
 const NOW_DRAG=sheetDrag({el:$('#nowCard'),grip:'nowGrip',down:1,isFold:()=>pref('nowMini','0')==='1'&&$('#nowCard').classList.contains('mini'),apply:nowApply,mini:nowMiniH,full:nowFullH,moved:()=>placeSide()});
 function select(lat,lng,name,opts){
   opts=opts||{}; pvBackDrop();
-  sel={lat,lng,name:name||`${lat.toFixed(3)}, ${lng.toFixed(3)}`};
+  const co=`${lat.toFixed(3)}, ${lng.toFixed(3)}`;
+  sel={lat,lng,name:name||co,co,auto:!name};
+  if(!name){const s0=sel, put=()=>{const nm=placeName(lat,lng); if(nm&&sel===s0&&s0.auto){s0.name=nm; updateUI();}}; if(REC.data)put(); else recLoad().then(put);} // U-16
   if(selMarker)map.removeLayer(selMarker);
   if(!opts.noPin) selMarker=L.marker([lat,lng],{icon:L.divIcon({className:'',html:'<div class="pin"></div>',iconSize:[20,20],iconAnchor:[10,10]})}).addTo(map);
   if($('#pinPop').classList.contains('show'))pinPopClose();
@@ -2870,7 +2878,7 @@ $('#fcStar').onclick=e=>{e.stopPropagation(); if(!sel)return; if(findFav(sel.lat
 ['fCard','pinPop'].forEach(id=>{const b=$('#'+id); ['click','pointerdown','dblclick','wheel'].forEach(ev=>b.addEventListener(ev,e=>e.stopPropagation()));});
 // U-27 (build-52): 떠 있는 창(P6 추천 상태창·F28 지점 상태창·M8 시트)이 있으면 지도 누르기 = 창만 닫기(선택 핀도 지움). 창이 없을 때만 그 자리 상태창
 function closeFloats(){let c=false; if($('#pinPop').classList.contains('show')){pinPopClose();c=true;} if(PV.mode!=='none'){pointView('none');c=true;} return c;}
-map.on('click',e=>{if(closeFloats())return; select(e.latlng.lat,e.latlng.lng,null);});
+map.on('click',e=>{if(SHARE.move){const nm=SHARE.move; SHARE.move=null; select(e.latlng.lat,e.latlng.lng,nm); toast('📍 여기로 옮겼어요'); return;} /* U-26 옮겨 찍기: 창 닫기(U-27)보다 먼저 */ if(closeFloats())return; select(e.latlng.lat,e.latlng.lng,null);});
 
 const cT=$('#tide'), xT=cT.getContext('2d');
 // U-7 (build-49): 그래프 = 위 칸 물높이(눈금·만조·간조 이름표) + 아래 유속 띠(색=세기, 정조 시각, 들물·날물 최대). 보고 있는 날 0~24시
@@ -2961,7 +2969,7 @@ function updateUI(){
   drawWindChip();
   if(ROCK.on&&TIDE.cur&&!updateUI._rt){updateUI._rt=1;setTimeout(()=>{updateUI._rt=0;drawRocks();},800);}
   if(!sel)return;
-  $('#iname').textContent=sel.name; $('#fcName').textContent=sel.name;
+  {const h=escH(sel.name)+(sel.co&&sel.name!==sel.co?`<small class="co">${sel.co}</small>`:''); $('#iname').innerHTML=h; $('#fcName').innerHTML=h;} // U-16: 이름 + 좌표는 작게
   // 저장·알림 버튼 상태는 유속 자료가 없는 곳에서도 갱신 (11-16: 자료 없는 곳에서 버튼이 안 바뀌던 문제)
   const fav=findFav(sel.lat,sel.lng); $('#starBtn').textContent=fav?'★ 저장됨':'☆ 저장'; $('#starBtn').classList.toggle('on',!!fav); $('#fcStar').textContent=fav?'★':'☆'; $('#fcStar').classList.toggle('on',!!fav);
   const al=alertHere(sel.lat,sel.lng); $('#alertBtn').textContent=al?'🔔 켜짐':'🔔'; $('#alertBtn').classList.toggle('on',!!al);
@@ -3098,6 +3106,7 @@ document.addEventListener('click',e=>{if(!e.target.closest('.search'))showResult
 let lastQ=0;
 $('#sform').addEventListener('submit',async e=>{
   e.preventDefault(); const q=$('#q').value.trim(); if(!q)return;
+  if(shareParse(q).share){showResults(''); $('#q').blur(); $('#q').value=''; shareIn(q); return;} // U-26: 지도 앱 공유 글을 붙여넣은 경우
   const local=SPOTS.filter(s=>s[0].replace(/\s/g,'').includes(q.replace(/\s/g,'')));
   let html=local.length?'<div class="hd">주요 낚시 포인트</div>'+local.map(s=>item(s[0],'',s[1],s[2])).join(''):'';
   showResults(html+'<div class="hd">검색 중…</div>');
@@ -3109,6 +3118,63 @@ $('#sform').addEventListener('submit',async e=>{
     showResults(html+(list?'<div class="hd">지역 검색</div>'+list:(html?'':'<div class="hd">결과가 없어요</div>')));
   }catch(err){showResults(html+'<div class="hd">지역 검색에 실패했어요 (인터넷 연결 확인)</div>');}
 });
+
+// ================= U-26 지도 앱 공유로 위치 받기 =================
+// 공유 글 모양(11-21 확인): [앱 이름] / 장소 이름(선택) / 주소 / 짧은 링크. 글에 좌표가 없음.
+// 순서: ① (안드) 짧은 링크를 따라가 최종 주소·쪽 안의 좌표 ② 주소 → 브이월드 좌표(도로명 → 지번), 안 되면 OSM ③ 장소 이름 → 브이월드 장소 검색
+const SHARE={move:null,last:null};
+const SIDO_RE='(?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|충청|전북|전남|전라|경북|경남|경상|제주)';
+function shareParse(text){const t=String(text||'').replace(/\r/g,'');
+  const url=(t.match(/https?:\/\/[^\s<>"']+/)||[])[0]||'', one=t.replace(/https?:\/\/[^\s<>"']+/g,' ').replace(/\s+/g,' ').trim();
+  const app=/네이버\s*지도|naver/i.test(t)?'네이버지도':/tmap|티맵/i.test(t)?'TMAP':/카카오\s*맵|kakao/i.test(t)?'카카오맵':'';
+  const am=one.match(new RegExp(SIDO_RE+'\\S*\\s(?:[^\\s\\[\\]]+\\s){0,6}?(?:산\\s?)?\\d+(?:-\\d+)?(?![\\d.])'));
+  const addr=am?am[0].trim():'';
+  let name=(am?one.slice(0,am.index):one).replace(/\[[^\]]*\]/g,' ').replace(/네이버\s*지도|카카오\s*맵|tmap|티맵|naver|kakao/ig,' ').replace(/[|·:]/g,' ').replace(/\s+/g,' ').trim();
+  name=name.split(/[.!?。]\s*/).filter(Boolean).pop()||''; if(name.length>30)name=name.slice(0,30); // '…확인해보세요. 노산공원' → 마지막 문장만
+  return {share:!!(url||(app&&(addr||name))||(addr&&/\d/.test(addr))),app,name,addr,url,san:/\s산\s?\d/.test(addr)};}
+// 글(주소창·쪽 내용)에서 한국 좌표 찾기: 이름 붙은 lat/lng, x/y, 숫자 쌍, 네이버 c=(미터 좌표)
+function coordsIn(str){const t=String(str||''); let d=t; try{d=decodeURIComponent(t);}catch(e){}
+  const ok=(la,lo)=>la>32.8&&la<38.9&&lo>124&&lo<132.2?{la,lo}:null; let m;
+  if((m=d.match(/(?:lat|latitude|y|rGoY|dlat)["'=:\s]+(3[2-8]\.\d{3,})[\s\S]{0,40}?(?:lng|lon|longitude|x|rGoX|dlng)["'=:\s]+(1[23]\d\.\d{3,})/i)))return ok(+m[1],+m[2]);
+  if((m=d.match(/(?:lng|lon|longitude|x|rGoX|dlng)["'=:\s]+(1[23]\d\.\d{3,})[\s\S]{0,40}?(?:lat|latitude|y|rGoY|dlat)["'=:\s]+(3[2-8]\.\d{3,})/i)))return ok(+m[2],+m[1]);
+  if((m=d.match(/[?&]c=(1[34]\d{6}(?:\.\d+)?),(4[0-9]\d{5}(?:\.\d+)?)/))){const lo=m[1]/6378137*180/Math.PI, la=(2*Math.atan(Math.exp(m[2]/6378137))-Math.PI/2)*180/Math.PI; return ok(la,lo);}
+  if((m=d.match(/(3[3-8]\.\d{4,})\s*,\s*(1[23]\d\.\d{4,})/)))return ok(+m[1],+m[2]);
+  if((m=d.match(/(1[23]\d\.\d{4,})\s*,\s*(3[3-8]\.\d{4,})/)))return ok(+m[2],+m[1]);
+  return null;}
+// 안드: 짧은 링크를 끝까지 따라감 (앱 쪽 Bridge.resolveUrl). 웹은 다른 사이트 이동을 못 읽어 건너뜀
+function linkResolve(url){if(!NATIVE||!NATIVE.resolveUrl)return Promise.resolve(null);
+  return new Promise(res=>{const id='r'+Date.now()+Math.random(); const tm=setTimeout(()=>{delete nativeCbs[id];res(null);},15000);
+    nativeCbs[id]=(c,b)=>{clearTimeout(tm); try{res(c===200?JSON.parse(b):{err:b});}catch(e){res(null);}}; NATIVE.resolveUrl(url,id);});}
+async function addrToXY(addr){const k=pref('vworldKey','');
+  if(k)for(const ty of ['road','parcel']){try{const r=await nget(`https://api.vworld.kr/req/address?service=address&request=getcoord&version=2.0&crs=epsg:4326&refine=true&simple=false&format=json&type=${ty}&address=${encodeURIComponent(addr)}&key=${encodeURIComponent(k)}`,43200);
+      const R=JSON.parse(r.text).response; if(R&&R.status==='OK'&&R.result&&R.result.point)return {la:+R.result.point.y,lo:+R.result.point.x,how:'브이월드 '+(ty==='road'?'도로명':'지번')};}catch(e){}}
+  try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=kr&accept-language=ko&limit=1&q='+encodeURIComponent(addr.replace(/\s산\s?(\d)/,' $1'))); const j=await r.json(); if(j&&j[0])return {la:+j[0].lat,lo:+j[0].lon,how:'OSM'};}catch(e){}
+  return null;}
+async function placeToXY(name){const k=pref('vworldKey',''); if(!k||!name)return null;
+  try{const r=await nget(`https://api.vworld.kr/req/search?service=search&request=search&version=2.0&crs=EPSG:4326&size=1&page=1&type=place&format=json&query=${encodeURIComponent(name)}&key=${encodeURIComponent(k)}`,43200);
+    const R=JSON.parse(r.text).response, it=R&&R.result&&R.result.items&&R.result.items[0]; if(it&&it.point)return {la:+it.point.y,lo:+it.point.x,how:'브이월드 장소'};}catch(e){}
+  return null;}
+// 공유 글 → 자리. log 를 주면 단계별 기록(⚙️ 시험용)
+async function shareLocate(text,log){const P=shareParse(text), L=m=>{if(log)log.push(m);};
+  L(`글 읽기: 앱=${P.app||'-'} · 이름=${P.name||'-'} · 주소=${P.addr||'-'} · 링크=${P.url||'-'}`);
+  if(P.url){const r=await linkResolve(P.url);
+    if(!r)L('링크: '+(NATIVE?'응답 없음':'웹판은 링크를 따라갈 수 없어 건너뜀'));
+    else if(r.err)L('링크 오류: '+String(r.err).slice(0,120));
+    else{L('링크 따라감: '+(r.chain||[]).join(' → ').slice(0,400)); const xy=coordsIn((r.chain||[]).join(' '))||coordsIn(r.body);
+      L('링크 좌표: '+(xy?`${xy.la.toFixed(5)}, ${xy.lo.toFixed(5)}`:'못 찾음'));
+      if(xy)return Object.assign(P,xy,{src:'링크 좌표'});}}
+  if(P.addr){const xy=await addrToXY(P.addr); L('주소 → 좌표: '+(xy?`${xy.la.toFixed(5)}, ${xy.lo.toFixed(5)} (${xy.how})`:'못 찾음')+(pref('vworldKey','')?'':' · 브이월드 키 없음')); if(xy)return Object.assign(P,xy,{src:'주소'});}
+  if(P.name){const xy=await placeToXY(P.name); L('장소 이름 → 좌표: '+(xy?`${xy.la.toFixed(5)}, ${xy.lo.toFixed(5)}`:'못 찾음')); if(xy)return Object.assign(P,xy,{src:'장소 이름'});}
+  return Object.assign(P,{fail:true});}
+async function shareIn(text){toast('📍 받은 위치를 찾는 중…',15000);
+  const R=await shareLocate(text); SHARE.last=R;
+  if(R.fail){toast(R.addr&&!pref('vworldKey','')?'주소로 자리를 못 찾았어요 · ⚙️ 브이월드 키를 넣으면 더 잘 찾아요':'받은 글에서 자리를 못 찾았어요 · 검색창에 장소 이름을 넣어 보세요',6000); return;}
+  const nm=R.name||R.addr||null; map.flyTo([R.la,R.lo],15,{duration:1}); select(R.la,R.lo,nm);
+  toastAct(`📍 ${R.app||'공유'}에서 받음 · ${R.src} 기준${R.san&&R.src==='주소'?' (산 번지라 바닷가와 멀 수 있어요)':''} · 여기 맞아요?`,'옮겨 찍기',()=>{SHARE.move=nm||sel&&sel.name||null; toast('옮길 자리를 지도에서 눌러 주세요',6000);},12000);}
+window.__shareIn=()=>{try{const t=NATIVE&&NATIVE.takeShare&&NATIVE.takeShare(); if(t)shareIn(t);}catch(e){}};
+setTimeout(window.__shareIn,1500); // 앱이 공유로 처음 켜졌을 때
+$('#shTest').onclick=async()=>{const out=$('#tbOut'), t=$('#shTestIn').value.trim(); out.style.display='block'; if(!t){out.textContent='지도 앱에서 공유 → 복사한 글을 위 칸에 붙여넣어 주세요';return;}
+  out.textContent='시험 중…'; const log=[]; const R=await shareLocate(t,log); log.push(R.fail?'결과: 못 찾음':`결과: ${R.la.toFixed(5)}, ${R.lo.toFixed(5)} (${R.src})`); out.textContent=keyMask(log.join('\n'));};
 
 // ================= 즐겨찾기 =================
 const FK='fishmap.favs.v1'; let favLayer=L.layerGroup().addTo(map);

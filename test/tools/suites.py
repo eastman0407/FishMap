@@ -12,6 +12,7 @@ GROUPS={
  '기록·계획·알림':['qa_log','qa_plan','qa_alert'],
  '날씨·수온':['qa_wx','qa_b48'],
  '설정·백업·웹판':['qa_web','qa_b47'],
+ '이름·공유 받기':['qa_b53'],
  '터치·감성':['qa_b45'],
 }
 QUICK=['qa_flow','qa_design']
