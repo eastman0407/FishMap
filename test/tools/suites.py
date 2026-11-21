@@ -17,7 +17,7 @@ GROUPS={
 }
 QUICK=['qa_flow','qa_design','qa_b56']  # H-15 ⑥: 흐름 방향 지키는 시험은 빠른 시험에 (11-22)
 # 알려진 실패: 고장탐구 번호가 붙은 것만. 여기 있는 것만 실패해도 '⚠️ 알려진 실패'로 표시(새 실패는 ❌)
-KNOWN_FAIL={}  # H-12 고침(build-56): qa_stage5 Z5 통과
+KNOWN_FAIL={}  # H-12 고침(build-61): qa_stage5 Z5 통과
 def run(names):
     here=os.path.dirname(os.path.abspath(__file__)); subprocess.run(['python3',os.path.join(here,'mkqa.py')],check=True)
     rows=[]; t00=time.time()
