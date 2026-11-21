@@ -246,6 +246,7 @@ select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
 .cfst,.cfst *{pointer-events:none}
 /* U-15 (build-50 2차): 시트 이름은 버튼 줄 위 한 줄을 통째로 씀 → 큰 글씨에서도 이름이 안 사라짐 */
 .ihead{flex-wrap:wrap;row-gap:2px}.ihead .nm{flex:1 0 100%}
+.fcard .stats b .calc{font-size:14px;color:var(--muted,#b8c7d6)}.okck{color:#7ee0a0}
 .mwv{vertical-align:-2px;margin-right:4px;color:var(--accent);overflow:hidden;display:inline-block}.mwv .mw{animation:mwv 1.2s linear infinite}@keyframes mwv{to{transform:translateX(-16px)}}
 @media (prefers-reduced-motion:reduce){.mwv .mw{animation:none}}
 .bdg{font-size:12px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap;line-height:1.2}.rr .bdg{padding:1px 9px}.pp-win .bdg{padding:5px 10px}.bdg.now{background:#1f7a4d;color:#fff}.bdg.soon,.bdg.later{background:#2a4a6a;color:#e8f0f7}.bdg.end{background:#3a4652;color:#d5dde5}
@@ -1494,18 +1495,18 @@ function simAtPx(x,y){
   if(!SIM.ready)return undefined;
   const r=simSample(SIM.view,x,y);
   if(r!==undefined||!SIM.rough)return r;
-  return simSample(SIM.fb||[],x,y); // 지금 단계 결과가 아직 없는 곳은 다른 단계 결과로 대략 표시
+  const f=simSample(SIM.fb||[],x,y); if(f)f.pend=true; return f; // 지금 단계 결과가 아직 없는 곳은 다른 단계 결과로 대략 표시 (U-38: 아직 계산 중으로 표시)
 }
 function simSample(keys,x,y){
-  let su=0,sv=0,sw=0,any=false,low=false;
+  let su=0,sv=0,sw=0,any=false,low=false,pend=false;
   for(const k of keys){const T=SIM.tiles.get(k); if(!T||!T.cur||T.cur.t!==tMin)continue;
     const f=Math.pow(2,T.lv-SIM.sz), PX=(simFrame.x0+x*simFrame.k)*f, PY=(simFrame.y0+y*simFrame.k)*f;
     const X=Math.floor((PX-T.ox)/SC), Y=Math.floor((PY-T.oy)/SC); if(X<1||Y<1||X>=T.gx-1||Y>=T.gy-1)continue;
-    const i=Y*T.gx+X; if(T.solid[i])return null; any=true; if(T.far&&T.far[((Y/FS)|0)*T.fx+((X/FS)|0)])low=true;
+    const i=Y*T.gx+X; if(T.solid[i])return null; any=true; if(!T.cur.done)pend=true; if(T.far&&T.far[((Y/FS)|0)*T.fx+((X/FS)|0)])low=true;
     const d=Math.min(X,Y,T.gx-1-X,T.gy-1-Y), w=Math.max(0.001,Math.min(1,(d-1)/(OVC-2)));
     su+=T.cur.u[i]/T.cur.scale*w; sv+=-T.cur.v[i]/T.cur.scale*w; sw+=w;}
   if(!any)return undefined;
-  return {vE:su/sw, vN:sv/sw, real:CONF.realData, est:true, w:Math.min(1,sw), low};
+  return {vE:su/sw, vN:sv/sw, real:CONF.realData, est:true, w:Math.min(1,sw), low, pend};
 }
 // ================= 흐름선 애니메이션 =================
 const cF=$('#flow'), xF=cF.getContext('2d'); let W=0,H=0,DPR=1, showFlow=true, moving=false;
@@ -1588,7 +1589,7 @@ async function drawRocks(){
     const gan=r[2]===1, tide=gan?tideNow():null, exp=gan?(r[3]!=null&&r[3]>0?false:(r[3]!=null?rockExposed(r[3],tide):null)):null;
     const col=!gan?'#e8f0f7':exp===false?'#5fb4ff':'#ffad5c', fill=!gan?'#8ba4b9':exp===false?'#1d4e7a':'#b36b1f';
     L.circleMarker([r[0],r[1]],{renderer:rockRenderer,pane:'rocks',radius:gan?5:4,color:col,weight:1.5,fillColor:fill,fillOpacity:exp===false?.6:.85})
-      .on('click',ev=>{L.DomEvent.stopPropagation(ev);
+      .on('click',ev=>{L.DomEvent.stopPropagation(ev); closeFloats(); // U-27: 바위를 눌러도 열린 상태창은 닫고 알림만
         let msg;
         if(!gan)msg='노출암 — 항상 드러나 있는 갯바위예요';
         else if(r[3]==null)msg='간출암 — 썰물 때만 드러나는 바위예요. 밀물 때 잠기니 조심!';
@@ -2560,7 +2561,7 @@ function pinPop(c,i,sg){{const t=$('#toast'); if(t){clearTimeout(t._h); t.style.
     +(why?`<div class="pp-l">${numHtml(why)}</div>`:'')
     +`<div class="pp-addr"><span id="ppAddr" class="pp-l q">📫 주소 찾는 중…</span><button class="btn" data-a="copy">복사</button></div>`
     +`<div class="pp-l q" style="margin-top:7px">🚗 길 안내</div><div class="navs" style="margin-top:4px"><button class="btn nav-tmap" data-nav="tmap">TMAP</button><button class="btn nav-kakao" data-nav="kakao">카카오맵</button><button class="btn nav-naver" data-nav="naver">네이버지도</button></div>`
-    +`<div class="acts"><button class="btn" data-a="sel">📍 이 자리 자세히</button><button class="btn" data-a="fav">☆ 저장</button></div><i class="tail"></i>`;
+    +`<div class="acts"><button class="btn" data-a="sel">📈 그래프 ›</button><button class="btn" data-a="fav">☆ 저장</button></div><i class="tail"></i>`;
   if(PV.mode!=='none')pointView('none');
   box._c={c,i,sg,nm,dest,addr:''}; box.classList.add('show'); fcPlace();
   const fb=`${c.dong||sg.n} 해안 근처 (${c.la.toFixed(4)}, ${c.lo.toFixed(4)})`;
@@ -2570,7 +2571,7 @@ $('#pinPop').addEventListener('click',e=>{const box=$('#pinPop'), P=box._c; if(!
   if(b.dataset.nav){navOpen(b.dataset.nav,P.c.la,P.c.lo,P.dest);return;}
   const a=b.dataset.a; if(a==='x'){pinPopClose();return;}
   if(a==='copy'){const t=P.addr||`${P.c.la.toFixed(5)}, ${P.c.lo.toFixed(5)}`; if(NATIVE&&NATIVE.copyText)NATIVE.copyText(t); else{try{navigator.clipboard.writeText(t);}catch(_){}} window.__copied=t; toast('주소를 복사했어요',1800);return;}
-  if(a==='sel'||a==='fav'){pinPopClose(); select(P.c.la,P.c.lo,P.c.fav||`추천 ${P.i+1} ${P.c.dong||P.sg.n}`,{sheet:true}); if(a==='fav')setTimeout(()=>$('#starBtn').click(),50);}});
+  if(a==='sel'||a==='fav'){const back={c:P.c,i:P.i,sg:P.sg,one:REC.onePin}; REC.onePin=null; pinPopClose(); select(P.c.la,P.c.lo,P.c.fav||`추천 ${P.i+1} ${P.c.dong||P.sg.n}`,{sheet:true}); PV.back=back; /* U-28: 시트를 내리면 이 창으로 돌아옴 */ if(a==='fav')setTimeout(()=>$('#starBtn').click(),50);}});
 function pinPopClose(){const b=$('#pinPop'); b.classList.remove('show'); b._c=null; if(REC.onePin){try{map.removeLayer(REC.onePin);}catch(e){} REC.onePin=null;}}
 function recClick(e){if(REC.lpDone){REC.lpDone=false;return;} const ul=e.currentTarget, li=e.target.closest('li'); if(!li||!ul._R)return; const R=ul._R, i=+li.dataset.i, c=(ul._P||R.pick)[i];
   $('#planPanel').classList.remove('show'); map.flyTo([c.la,c.lo],14,{duration:1}); select(c.la,c.lo,c.fav||`추천 ${i+1} ${c.dong||R.sg.n}`);}
@@ -2794,12 +2795,16 @@ function sheetDrag(o){ // o: el, mini(), full(), isFold(), apply(fold), down(+1:
 // M8 지점 시트: 접으면 머리 줄(M8-1) + 숫자 4칸(M8-3)까지만 보임 (M8-9 요약 줄은 없앰)
 function infoMiniH(){return 64;} // U-10: 끝까지 내리면 시트는 닫히고 상태창(F28)이 다시 뜸 (두 모습만 오감)
 function infoFullH(){const el=$('#info'), keep=el.style.height; el.style.height='auto'; const h=Math.min(el.scrollHeight,innerHeight*0.72); el.style.height=keep; return Math.round(h);}
-function infoApply(fold,temp){if(temp)return; $('#info').style.height=''; if(fold)pointView('card');}
+function infoApply(fold,temp){if(temp)return; $('#info').style.height=''; if(!fold)return;
+  const b=PV.back; if(b){PV.back=null; pointView('none'); REC.onePin=b.one; pinPop(b.c,b.i,b.sg); return;} // U-28: P6에서 왔으면 P6로 (길 안내·점수·승부 시간 그대로)
+  pointView('card');}
 const INFO_DRAG=sheetDrag({el:$('#info'),grip:'infoGrip',down:-1,isFold:()=>false,apply:infoApply,mini:infoMiniH,full:infoFullH,moved:()=>placeBottom()});
 function infoFold(on){if(on&&PV.mode==='sheet')INFO_DRAG.animate(true); else if(!on&&PV.mode==='card')pointView('sheet');}
 // ── U-10: 지점 보기 상태는 이 함수 하나에서만 바꿈 — 'card'(상태창) · 'sheet'(그래프 시트) · 'none' ──
 const PV={mode:'none'};
-function pointView(m){PV.mode=m; const fc=$('#fCard'), inf=$('#info'), mb=$('.mapbox');
+// U-28: P6에서 연 시트의 '돌아갈 곳'. 시트가 아닌 모습으로 바뀌면 버림(그 자리 추천 핀 하나도 지움)
+function pvBackDrop(){const b=PV.back; PV.back=null; if(b&&b.one){try{map.removeLayer(b.one);}catch(e){}}}
+function pointView(m){if(m!=='sheet')pvBackDrop(); PV.mode=m; const fc=$('#fCard'), inf=$('#info'), mb=$('.mapbox');
   fc.classList.toggle('show',m==='card'); inf.classList.toggle('show',m==='sheet'); inf.classList.remove('fold'); inf.style.height='';
   mb.classList.toggle('sheeton',m==='sheet');
   if(m==='none'){if(selMarker)map.removeLayer(selMarker); selMarker=null; sel=null; $('#namebox').style.display='none';}
@@ -2829,7 +2834,7 @@ function nowMiniH(){const c=$('#nowCard'), m=c.classList.contains('mini'), keep=
 function nowApply(fold,temp){const c=$('#nowCard'); if(temp){c.classList.remove('mini');return;} setPref('nowMini',fold?'1':'0'); c.style.height=''; nowMini();}
 const NOW_DRAG=sheetDrag({el:$('#nowCard'),grip:'nowGrip',down:1,isFold:()=>pref('nowMini','0')==='1'&&$('#nowCard').classList.contains('mini'),apply:nowApply,mini:nowMiniH,full:nowFullH,moved:()=>placeSide()});
 function select(lat,lng,name,opts){
-  opts=opts||{};
+  opts=opts||{}; pvBackDrop();
   sel={lat,lng,name:name||`${lat.toFixed(3)}, ${lng.toFixed(3)}`};
   if(selMarker)map.removeLayer(selMarker);
   if(!opts.noPin) selMarker=L.marker([lat,lng],{icon:L.divIcon({className:'',html:'<div class="pin"></div>',iconSize:[20,20],iconAnchor:[10,10]})}).addTo(map);
@@ -2863,7 +2868,9 @@ $('#fcNearRec').onclick=async e=>{e.stopPropagation(); if(!sel)return; if(!CONF.
 $('#infoDown').onclick=e=>{e.stopPropagation(); INFO_DRAG.animate(true);};
 $('#fcStar').onclick=e=>{e.stopPropagation(); if(!sel)return; if(findFav(sel.lat,sel.lng)){$('#starBtn').click();return;} pointView('sheet'); $('#starBtn').click();};
 ['fCard','pinPop'].forEach(id=>{const b=$('#'+id); ['click','pointerdown','dblclick','wheel'].forEach(ev=>b.addEventListener(ev,e=>e.stopPropagation()));});
-map.on('click',e=>{if($('#pinPop').classList.contains('show')){pinPopClose();return;} select(e.latlng.lat,e.latlng.lng,null);});
+// U-27 (build-52): 떠 있는 창(P6 추천 상태창·F28 지점 상태창·M8 시트)이 있으면 지도 누르기 = 창만 닫기(선택 핀도 지움). 창이 없을 때만 그 자리 상태창
+function closeFloats(){let c=false; if($('#pinPop').classList.contains('show')){pinPopClose();c=true;} if(PV.mode!=='none'){pointView('none');c=true;} return c;}
+map.on('click',e=>{if(closeFloats())return; select(e.latlng.lat,e.latlng.lng,null);});
 
 const cT=$('#tide'), xT=cT.getContext('2d');
 // U-7 (build-49): 그래프 = 위 칸 물높이(눈금·만조·간조 이름표) + 아래 유속 띠(색=세기, 정조 시각, 들물·날물 최대). 보고 있는 날 0~24시
@@ -2937,7 +2944,7 @@ function offShow(off){$('#offBar').classList.toggle('show',!!off); if(!off&&offS
 window.addEventListener('offline',()=>offShow(true)); window.addEventListener('online',()=>{offShow(false); try{requestReal();}catch(e){}});
 if(navigator.onLine===false)setTimeout(()=>offShow(true),0);
 // 숫자가 바뀔 때만 굴러 올라감 (재생 중·움직임 줄이기면 바로 바꿈)
-function rollText(el,t){const old=el.textContent; el.textContent=t; if(old===t||(()=>{try{return playing;}catch(e){return false;}})()||RM()||!/\d/.test(t)||!/\d/.test(old)||el._k!==selKey()){el._k=selKey();return;}
+function rollText(el,t){const old=el.textContent.replace(' ✓',''); el.textContent=t; if(old===t||(()=>{try{return playing;}catch(e){return false;}})()||RM()||!/\d/.test(t)||!/\d/.test(old)||el._k!==selKey()){el._k=selKey();return;}
   el.classList.remove('rollin'); void el.offsetWidth; el.classList.add('rollin'); window.__rolled=(window.__rolled||0)+1;}
 const selKey=()=>sel?sel.lat.toFixed(5)+','+sel.lng.toFixed(5):'';
 // U-8: 시간 막대 꾸미기 — 채운 부분, 진짜 지금 눈금, 자정 날짜
@@ -2971,15 +2978,23 @@ function updateUI(){
   $('#iNear').textContent=nf?(nf.k==='sea'?'(바로 앞바다)':'(바깥 바다 예보)'):''; $('#iNear').style.display=nf?'':'none';
   if(!v){['#iSpeed','#iDir','#iState','#iSlack'].forEach(q=>$(q).textContent='-');
     $('#iState').textContent=CONF.realData?'자료 없음':'-'; $('#iSum').textContent=CONF.realData?'이 자리 유속 자료가 없어요':''; $('#fcTide').innerHTML=tideShort(); drawTide(); fcPlace(); return;}
+  // U-38 (build-52): ⚓ 계산이 덜 끝난 값(덜 된 결과·다른 단계 대략 값)은 숫자 대신 '계산 중', 끝나면 숫자 + ✓ 0.6초. ROMS·조류예보 값은 바로 표시
+  const sk=selKey();
+  if(v.pend){const sp0=$('#iSpeed'); sp0.innerHTML='<span class="calc">🐟 계산 중…</span>'; sp0._k=sk; $('#iDir').textContent='—'; $('#iState').innerHTML='<span class="tag s">계산 중</span>';
+    const ns0=EV.slack.find(x=>x>tMin); $('#iSlack').textContent=ns0!=null?(Math.floor(ns0/1440)!==Math.floor(tMin/1440)?dayTag(ns0)+' ':'')+fmt(ns0):'-';
+    $('#iTide').innerHTML=tideSummary(); $('#iSum').innerHTML=MWAVE+numHtml(`유속 계산 중 · 다음 정조 ${$('#iSlack').textContent}`);
+    $('#fcTide').innerHTML=tideShort(); updateUI._pend=sk; drawTide(); fcPlace(); return;}
+  const justDone=updateUI._pend===sk; updateUI._pend=null;
   const sp=Math.hypot(v.vE,v.vN), deg=bearing(v.vE,v.vN);
   // 상태 = 낚시 기준 고정 단계 이름(지도 색과 같음) + 추정 여부
   let [st,cls]=(v.real||v.est)?[speedName(sp)+(v.est?(v.low?' · 추정·자료 부족':' · 추정'):''), sp>=RED.kn?'e':sp>=VIEW.breaks[3]?'f':'s']:stateOf(v.s);
   rollText($('#iSpeed'),(v.est?'약 ':'')+sp.toFixed(sp<1?2:1)+' kn');
+  if(justDone){const el=$('#iSpeed'); el.insertAdjacentHTML('beforeend','<span class="okck" aria-label="계산 끝"> ✓</span>'); clearTimeout(updateUI._ck); updateUI._ck=setTimeout(()=>{const k=el.querySelector('.okck'); if(k)k.remove();},600);}
   $('#iDir').textContent=dirName(deg)+'쪽';
   $('#iState').innerHTML=`<span class="tag ${cls}">${st}</span>`;
   const ns=EV.slack.find(x=>x>tMin); $('#iSlack').textContent=ns!=null?(Math.floor(ns/1440)!==Math.floor(tMin/1440)?dayTag(ns)+' ':'')+fmt(ns):'-';
   $('#iTide').innerHTML=tideSummary();
-  $('#iSum').innerHTML=numHtml(`${$('#iSpeed').textContent} ${$('#iDir').textContent} · ${st} · 다음 정조 ${$('#iSlack').textContent}`)+(nf?` <small style="color:#ffd98a">${$('#iNear').textContent}</small>`:'');
+  $('#iSum').innerHTML=numHtml(`${$('#iSpeed').textContent.replace(' ✓','')} ${$('#iDir').textContent} · ${st} · 다음 정조 ${$('#iSlack').textContent}`)+(nf?` <small style="color:#ffd98a">${$('#iNear').textContent}</small>`:'');
   $('#fcTide').innerHTML=tideShort();
   drawTide(); fcPlace();
 }

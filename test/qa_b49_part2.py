@@ -1,5 +1,5 @@
     # ── U-7 그래프 ──
-    go(13,34.92,128.07,0); pg.wait_for_timeout(800); tap(200,470); E("document.querySelector('#fcGraph').click()"); pg.wait_for_timeout(500)
+    go(13,34.92,128.07,0); pg.wait_for_timeout(800); tapn(200,470); E("document.querySelector('#fcGraph').click()"); pg.wait_for_timeout(500)
     g=E("(()=>{const c=document.querySelector('#tide'),G=c._g;return [c.clientHeight,G.sp.filter(v=>v!=null).length,G.hs.filter(v=>v!=null).length,G.ex.length,G.sl.length,G.D]})()")
     check('G1 그래프 0~24시: 물높이 145칸·유속 145칸·만조/간조·정조 시각', g[0]==200 and g[1]>=140 and g[2]>=140 and g[3]>=2 and g[4]>=1 and g[5]==0, g)
     pg.screenshot(path='/tmp/b49_graph_today.png')
@@ -33,7 +33,7 @@
     E("document.querySelector('#planClose').click()"); pg.wait_for_timeout(300)
     # 상태창 주변 추천
     go(13,34.93,128.07,0); pg.wait_for_timeout(1500)
-    tap(200,470); cen=E("[__QA.sel().lat,__QA.sel().lng]")
+    tapn(200,470); cen=E("[__QA.sel().lat,__QA.sel().lng]")
     E("document.querySelector('#fcNearRec').click()"); pg.wait_for_timeout(300); ok=recwait()
     R=E("(()=>{const R=__QA.REC.res; return R&&!R.err?{q:[R.Q.type,R.Q.km,R.Q.la,R.Q.lo],p:R.pick.filter(c=>!c.fav).map(c=>[c.la,c.lo]),n:R.pick.length,lay:__QA.REC.layer.getLayers().map(l=>l.options&&l.options.dashArray||'')}:R})()")
     tst=E("[document.querySelector('#toast').textContent,getComputedStyle(document.querySelector('#toast')).display]")
@@ -44,7 +44,7 @@
     check('R7 목록 › → 출조 도우미 ⭐ 추천 탭에 같은 목록', li[0] and li[1]==R['n'] and '찍은 자리 주변 5km' in li[2], li)
     E("document.querySelector('#planClose').click()"); pg.wait_for_timeout(300)
     # M3 오늘 추천 빠른 기준 칩
-    tap(200,470); E("__QA.REC.todayKey=''"); E("document.querySelector('#nowSeg [data-v=rec]').click()"); pg.wait_for_timeout(500); recwait()
+    tapn(200,470); E("__QA.REC.todayKey=''"); E("document.querySelector('#nowSeg [data-v=rec]').click()"); pg.wait_for_timeout(500); recwait()
     pg.wait_for_timeout(500)
     m3=E("[[...document.querySelectorAll('#nowRec .rchips button')].map(b=>b.textContent+(b.classList.contains('on')?'*':'')),document.querySelectorAll('#nowRec .rr').length,document.querySelector('#nowRec .more').textContent]")
     check('R8 M3 오늘 추천: 빠른 기준 칩, 찍은 곳 있으면 📍 기본, 상위 3곳', m3[0]==['◎ 내 주변','📍 찍은 곳 주변*'] and 1<=m3[1]<=3 and '찍은 곳 주변 5km' in m3[2], m3)

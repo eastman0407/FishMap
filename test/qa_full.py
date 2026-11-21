@@ -197,6 +197,7 @@ with sync_playwright() as p:
     E(pg,"_map.fire('click',{latlng:{lat:36.33,lng:126.5}})"); pg.wait_for_timeout(500)
     check('H3 서해 지점 누르면 7물때식', any(k in pg.inner_text('#timeLabel') for k in ['물','조금','무시']), pg.inner_text('#timeLabel').replace('\n',' '))
     E(pg,"_map._z=13;_map._c={lat:34.92,lng:128.07};_map.fire('moveend')"); pg.wait_for_timeout(5000)
+    E(pg,"__QA.pointView('none')")  # U-27(build-52): 창이 떠 있으면 지도 누르기 = 닫기 → 먼저 닫고 새 자리 누름
     E(pg,"_map.fire('click',{latlng:{lat:34.915,lng:128.06}})"); pg.wait_for_timeout(800)
     ts=pg.inner_text('#iTide')
     check('H4 물높이·만조·간조 표시(REQ-22)', '물높이' in ts and ('만조' in ts or '간조' in ts), ts)

@@ -20,6 +20,9 @@ exec(src+'''
     w=E("__QA.flowAt(34.84,128.13,__QA.tH())")
     check('F3 예보 점 가까운 곳은 자료 부족 아님', w is not None and not w.get('low'), w)
     E(f"_map.fire('click',{{latlng:{{lat:{HOLE[0]},lng:{HOLE[1]}}}}})"); pg.wait_for_timeout(500)
+    for _ in range(300):  # U-38(build-52): ⚓ 계산이 덜 끝났으면 '계산 중' → 끝날 때까지 기다림
+        if '계산 중' not in pg.inner_text('#iState'): break
+        pg.wait_for_timeout(200)
     check('F4 정보카드에 "자료 부족" 표시', '자료 부족' in pg.inner_text('#iState'), pg.inner_text('#iState'))
     check('F5 스크립트 오류 없음', not errs, errs[:2])
     br.close()

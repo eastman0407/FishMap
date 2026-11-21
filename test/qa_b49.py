@@ -22,9 +22,11 @@ exec(src+r'''
         E(f"(()=>{{const m=document.querySelector('#map').getBoundingClientRect(); _map.fire('click',{{latlng:_map.containerPointToLatLng([{x}-m.left,{y}-m.top])}});}})()"); pg.wait_for_timeout(400)
     W=411
     # ── U-10 상태창 ──
+    def tapn(x,y):  # U-27(build-52): 떠 있는 창이 있으면 지도 누르기 = 닫기 → 이 시험은 '새 자리 찍기'를 보므로 먼저 닫고 누름
+        E("__QA.pinPopClose();__QA.pointView('none')"); tap(x,y)
     go(13,34.92,128.07,0); pg.wait_for_timeout(1500)
     E("document.querySelector('#nowSeg button[data-v=now]').click()"); pg.wait_for_timeout(300)
-    tap(200,470)
+    tapn(200,470)
     fc=rect('#fCard'); inf=shown('#info'); pin=E("(()=>{const p=__QA.map.latLngToContainerPoint([__QA.sel().lat,__QA.sel().lng]);const m=document.querySelector('#map').getBoundingClientRect();return [p.x+m.left,p.y+m.top]})()")
     check('C1 바다를 찍으면 시트 대신 상태창(F28)이 뜸', fc and fc[4]=='block' and not inf, [fc,inf])
     tl=E("(()=>{const t=document.querySelector('#fCard .tail').getBoundingClientRect();return [t.left+t.width/2,t.top+t.height/2]})()")
@@ -41,10 +43,10 @@ exec(src+r'''
     check('C6 지도를 움직이면 상태창이 자리를 따라감', fc2 and abs((fc2[0]-fc[0])+30)<=2 and abs((fc2[1]-fc[1])-40)<=2, [fc[:2],fc2[:2]])
     E("_map.panBy(-30,40)"); pg.wait_for_timeout(300)
     # 위쪽 자리: 아래로
-    tap(200,175); fc3=rect('#fCard'); p3=E("(()=>{const p=__QA.map.latLngToContainerPoint([__QA.sel().lat,__QA.sel().lng]);const m=document.querySelector('#map').getBoundingClientRect();return [p.x+m.left,p.y+m.top]})()")
+    tapn(200,175); fc3=rect('#fCard'); p3=E("(()=>{const p=__QA.map.latLngToContainerPoint([__QA.sel().lat,__QA.sel().lng]);const m=document.querySelector('#map').getBoundingClientRect();return [p.x+m.left,p.y+m.top]})()")
     nc=rect('#nowCard')
     check('C7 화면 위쪽 자리는 상태창이 아래로 (지금 카드에 안 가려짐)', fc3 and fc3[1]>p3[1] and E("document.querySelector('#fCard').classList.contains('below')"), [fc3,p3,nc])
-    tap(200,470)
+    tapn(200,470)
     # 그래프 → 시트
     E("document.querySelector('#fcGraph').click()"); pg.wait_for_timeout(500)
     check('C8 [📈 그래프] → 상태창 닫히고 시트(그래프) 열림', shown('#info') and not shown('#fCard') and E("__QA.PV.mode")=='sheet')
@@ -70,15 +72,15 @@ exec(src+r'''
     b1=E("window.__onBack()"); pg.wait_for_timeout(500); m1=E("__QA.PV.mode")
     b2=E("window.__onBack()"); pg.wait_for_timeout(200); m2=E("__QA.PV.mode")
     check('C15 뒤로가기: 시트 → 상태창 → 닫힘', b1 and m1=='card' and b2 and m2=='none' and not E("!!__QA.sel()"), [b1,m1,b2,m2])
-    tap(200,470); E("document.querySelector('#fcClose').click()"); pg.wait_for_timeout(200)
+    tapn(200,470); E("document.querySelector('#fcClose').click()"); pg.wait_for_timeout(200)
     check('C16 ✕ → 둘 다 닫힘', not shown('#fCard') and not shown('#info') and not E("!!__QA.sel()"))
-    tap(200,470); pg.screenshot(path='/tmp/b49_card.png')
+    tapn(200,470); pg.screenshot(path='/tmp/b49_card.png')
     # 상태창 ☆ (저장 안 된 곳 → 시트에서 이름 칸)
     E("document.querySelector('#fcStar').click()"); pg.wait_for_timeout(300)
     check('C17 상태창 ☆ → 시트 열고 이름 칸', shown('#info') and E("getComputedStyle(document.querySelector('#namebox')).display")=='flex')
     E("window.__onBack()"); E("window.__onBack()"); pg.wait_for_timeout(300)
     # 누르는 범위
-    tap(200,470)
+    tapn(200,470)
     hits=E("""(()=>{const o=[];for(const q of ['#fcStar','#fcClose','#fcGraph','#fcNearRec']){const e=document.querySelector(q),r=e.getBoundingClientRect(),a=getComputedStyle(e,'::after');
       const w=Math.max(r.width,parseFloat(a.width)||0),h=Math.max(r.height,parseFloat(a.height)||0); const top=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2); o.push([q,Math.round(w),Math.round(h),top===e||e.contains(top)]);}return o;})()""")
     check('C18 상태창 버튼 누르는 범위 40+ · 가운데 누르면 자기 자신', all(h[1]>=40 and h[2]>=40 and h[3] for h in hits), hits)
