@@ -162,6 +162,20 @@ public class MainActivity extends Activity {
     }
 
     /** 화면(자바스크립트)에서 부르는 기능들 */
+    // U-47 손전등: 앱이 뒤로 가면 꼭 끔 (배터리·안전)
+    private boolean torchOn = false;
+    private String torchId() {
+        try { android.hardware.camera2.CameraManager cm = (android.hardware.camera2.CameraManager) getSystemService(Context.CAMERA_SERVICE);
+            for (String id : cm.getCameraIdList()) { Boolean f = cm.getCameraCharacteristics(id).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE);
+                if (f != null && f) return id; }
+        } catch (Exception ignored) { }
+        return "";
+    }
+    @Override protected void onPause() {
+        super.onPause();
+        if (torchOn) { try { ((android.hardware.camera2.CameraManager) getSystemService(Context.CAMERA_SERVICE)).setTorchMode(torchId(), false); } catch (Exception ignored) { } torchOn = false;
+            if (web != null) web.post(() -> web.evaluateJavascript("window.__torchOff&&window.__torchOff()", null)); }
+    }
     class Bridge {
         private SharedPreferences prefs() { return getSharedPreferences("fishmap", Context.MODE_PRIVATE); }
 
@@ -218,6 +232,22 @@ public class MainActivity extends Activity {
                         : android.view.HapticFeedbackConstants.VIRTUAL_KEY;
                 web.performHapticFeedback(c);
             } catch (Exception ignored) { } });
+        }
+        /** U-46 밤낚시: 화면 밝기 낮춤(켬) / 폰 설정대로(끔) — 권한 필요 없음 */
+        @JavascriptInterface public void setNight(final boolean on) {
+            runOnUiThread(() -> { try {
+                android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
+                lp.screenBrightness = on ? 0.12f : android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
+                getWindow().setAttributes(lp);
+            } catch (Exception ignored) { } });
+        }
+        /** U-47 손전등: 플래시 있는 카메라 id (없으면 "") */
+        @JavascriptInterface public String torchOk() { return torchId(); }
+        /** U-47 손전등 켜기/끄기 (CameraManager.setTorchMode — 카메라 권한 필요 없음, API 23+) → "ok" / "no" / "err:…" */
+        @JavascriptInterface public String torch(boolean on) {
+            try { String id = torchId(); if (id.isEmpty()) return "no";
+                ((android.hardware.camera2.CameraManager) getSystemService(Context.CAMERA_SERVICE)).setTorchMode(id, on); torchOn = on; return "ok";
+            } catch (Exception e) { return "err:" + e.getMessage(); }
         }
         @JavascriptInterface public String getPref(String k) { return prefs().getString(k, ""); }
         @JavascriptInterface public void setPref(String k, String v) { prefs().edit().putString(k, v).apply(); }

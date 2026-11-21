@@ -8,32 +8,32 @@
 <script src="lib/leaflet.min.js"></script>
 <script>if(!window.L)document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>');</script>
 <style>
-:root{--bg:#0a1520;--panel:#112131;--panel2:#0d1c2a;--line:#1e3347;--text:#e8f0f7;--muted:#8ba4b9;--accent:#4fd1c5;--flood:#5fb4ff;--ebb:#ffad5c}
+:root{--surf:10,21,32;--bg:#0a1520;--panel:#112131;--panel2:#0d1c2a;--line:#1e3347;--text:#e8f0f7;--muted:#8ba4b9;--accent:#4fd1c5;--flood:#5fb4ff;--ebb:#ffad5c}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;-webkit-tap-highlight-color:transparent;overflow:hidden}
 .app{position:fixed;inset:0;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
 .mapbox{position:relative;flex:1;min-height:0}
-#map{position:absolute;inset:0;background:#0d2638}
+#map{position:absolute;inset:0;background:var(--b0d2638,#0d2638)}
 #flow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:450}
 /* 상단 검색 */
 .top{position:absolute;top:10px;left:10px;right:10px;z-index:1050;display:flex;gap:8px}
 .search{flex:1;position:relative}
-.search input{width:100%;height:44px;border-radius:12px;border:1px solid var(--line);background:rgba(10,21,32,.92);color:var(--text);padding:0 40px 0 14px;font-size:15px;outline:none}
+.search input{width:100%;height:44px;border-radius:12px;border:1px solid var(--line);background:rgba(var(--surf),.92);color:var(--text);padding:0 40px 0 14px;font-size:15px;outline:none}
 .search input:focus{border-color:var(--accent)}
 .search .go{position:absolute;right:4px;top:4px;height:36px;width:36px;border:none;background:none;color:var(--muted);font-size:18px;cursor:pointer}
-.results{position:absolute;top:50px;left:0;right:0;background:rgba(10,21,32,.97);border:1px solid var(--line);border-radius:12px;max-height:50vh;overflow:auto;display:none}
+.results{position:absolute;top:50px;left:0;right:0;background:rgba(var(--surf),.97);border:1px solid var(--line);border-radius:12px;max-height:50vh;overflow:auto;display:none}
 .results div{padding:11px 14px;border-bottom:1px solid var(--line);font-size:14px;cursor:pointer}
 .results div:last-child{border-bottom:none}
 .results small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.results .hd{font-size:11.5px;color:var(--muted);padding:7px 14px;cursor:default;background:#0c1a27}
-.ibtn{height:44px;width:44px;border-radius:12px;border:1px solid var(--line);background:rgba(10,21,32,.92);color:var(--text);font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.results .hd{font-size:11.5px;color:var(--muted);padding:7px 14px;cursor:default;background:var(--b0c1a27,#0c1a27)}
+.ibtn{height:44px;width:44px;border-radius:12px;border:1px solid var(--line);background:rgba(var(--surf),.92);color:var(--text);font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
 .ibtn.on{color:var(--accent);border-color:var(--accent)}
-.ibtn.follow{background:var(--accent);color:#06221f;border-color:var(--accent)}
+.ibtn.follow{background:var(--accent);color:var(--onAcc,#06221f);border-color:var(--accent)}
 .side{position:absolute;right:10px;top:66px;z-index:1000;display:flex;flex-direction:column;gap:8px}
 .side .ibtn{font-size:12px;font-weight:600;flex-direction:column;line-height:1.15}
 .side .ibtn span{font-size:18px}
 .tip{position:absolute;z-index:1100;display:none;background:rgba(232,240,247,.95);color:#0a1520;font-size:12.5px;font-weight:700;padding:5px 9px;border-radius:8px;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.4)}
-.legend{position:absolute;left:10px;bottom:22px;z-index:1000;background:rgba(10,21,32,.85);border:1px solid var(--line);border-radius:10px;padding:6px 8px;font-size:10.5px;color:var(--muted)}
+.legend{position:absolute;left:10px;bottom:22px;z-index:1000;background:rgba(var(--surf),.85);border:1px solid var(--line);border-radius:10px;padding:6px 8px;font-size:10.5px;color:var(--muted)}
 .legend .bar{display:flex;margin-top:4px}.legend .bar span{width:22px;height:6px}
 .legend .ticks{display:flex;justify-content:space-between;width:154px;margin-top:2px}
 /* REQ-75 터치·감성 (공통 표준 3·4장): 보이는 크기는 그대로, 눌리는 범위만 44 이상 */
@@ -49,21 +49,21 @@ button:active:not(:disabled),.fav:active{transform:scale(.96);filter:brightness(
 button:disabled{opacity:.45;cursor:default}
 .toast .undo{margin-left:10px;background:none;border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:6px 10px;font-size:13px;font-weight:700;cursor:pointer;position:relative}
 .toast .undo::after{content:'';position:absolute;left:50%;top:50%;width:max(100%,44px);height:max(100%,44px);transform:translate(-50%,-50%)}
-.toast{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:1100;background:rgba(10,21,32,.95);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font-size:13px;display:none;max-width:86%;text-align:center}
-.windchip{font-size:11.5px;padding:3px 9px;border-radius:99px;background:rgba(10,21,32,.88);color:#cfe6ff;border:1px solid #2a4a6a;display:none;align-items:center;gap:5px}
+.toast{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);z-index:1100;background:rgba(var(--surf),.95);border:1px solid var(--line);border-radius:10px;padding:9px 14px;font-size:13px;display:none;max-width:86%;text-align:center}
+.windchip{font-size:11.5px;padding:3px 9px;border-radius:99px;background:rgba(var(--surf),.88);color:var(--hiT,#cfe6ff);border:1px solid #2a4a6a;display:none;align-items:center;gap:5px}
 .windchip .wa{display:inline-block;transition:transform .3s}
 .winfo{font-size:12px;color:var(--muted);margin-top:6px}
-.winfo .num{font-variant-numeric:tabular-nums;font-weight:700;color:#d8ecff;font-family:Roboto,'Noto Sans KR',sans-serif}.winfo .emo,.nowcard .emo{font-family:'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif}
+.winfo .num{font-variant-numeric:tabular-nums;font-weight:700;color:var(--hiT,#d8ecff);font-family:Roboto,'Noto Sans KR',sans-serif}.winfo .emo,.nowcard .emo{font-family:'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif}
 .topchips{position:absolute;left:10px;top:62px;right:66px;z-index:1000;display:flex;flex-wrap:wrap;gap:5px;align-items:center;pointer-events:none}
-.nowcard{flex-direction:column;align-items:stretch;gap:2px;right:10px;max-width:none;background:rgba(10,21,32,.92);border:1px solid var(--line);border-radius:12px;padding:6px 10px 7px}
+.nowcard{flex-direction:column;align-items:stretch;gap:2px;right:10px;max-width:none;background:rgba(var(--surf),.92);border:1px solid var(--line);border-radius:12px;padding:6px 10px 7px}
 .nowcard .nchead{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;cursor:pointer;padding-bottom:2px}
 .nowcard .nchead span{color:var(--accent);font-size:12px}
 .nowcard .nchead{align-items:center}.nowcard .ncfold{border:none;background:none;color:var(--muted);font-size:15px;padding:0 0 0 4px;line-height:1;cursor:pointer}
-.nowcard .ncmini{display:none;color:#e6f6ff!important;font-size:12.5px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.nowcard .ncmini{display:none;color:var(--hiT,#e6f6ff)!important;font-size:12.5px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
 .nowcard.mini>*:not(.nchead):not(.ncgrip){display:none!important}.nowcard.mini .ncmini{display:inline}
 .nowcard .tchip,.nowcard .windchip{border:none;background:none;padding:1px 0;font-size:13.5px;border-radius:0}
 .sctab{width:100%;border-collapse:collapse;font-size:12.5px}.sctab td,.sctab th{padding:3px 4px;border-bottom:1px solid var(--line);text-align:left}.scbar{display:inline-block;height:8px;background:var(--accent);border-radius:4px;vertical-align:middle}
-.nowcard .tchip.wx{color:#bfe9ff}.nowcard .num{font-variant-numeric:tabular-nums;font-weight:700;color:#e6f6ff}.nowcard .emo{font-family:'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif}.nowcard .dd{color:var(--muted);font-size:12.5px}.nowcard .tchip.warn{color:#ffb35c;white-space:normal;font-weight:600}.nowcard .wl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nowcard .tchip.wx{color:var(--hiT,#bfe9ff)}.nowcard .num{font-variant-numeric:tabular-nums;font-weight:700;color:var(--hiT,#e6f6ff)}.nowcard .emo{font-family:'Noto Color Emoji','Apple Color Emoji','Segoe UI Emoji',sans-serif}.nowcard .dd{color:var(--muted);font-size:12.5px}.nowcard .tchip.warn{color:var(--tffb35c,#ffb35c);white-space:normal;font-weight:600}.nowcard .wl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nowcard .samplebadge{align-self:flex-start;font-size:11px;max-width:100%}
 /* REQ-71: 지금 카드 재배치 — 머리 줄 = 보기 토글(M3-8) + 상태 배지(M3-1, 점) + ▴. 조석|물때, 바람|경고를 한 줄에 */
 .nowcard .nchead{gap:8px}.nowcard .nchead .samplebadge{background:none!important;border:none!important;padding:0;margin-left:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto}
@@ -75,27 +75,27 @@ button:disabled{opacity:.45;cursor:default}
 .ncrow .phase{flex:none}.ncrow.wrap{flex-wrap:wrap;row-gap:0}.ncrow.wrap .warn{margin-left:auto}
 .nowcard.recv .ncrow{display:none!important}.nowcard:not(.recv) #nowRec{display:none!important}
 .ncrec{font-size:13px}.ncrec .rr{display:flex;gap:8px;align-items:baseline;padding:2px 0;cursor:pointer}.ncrec .rr .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ncrec .rr .sc{flex:none;font-weight:700;color:#e6f6ff;font-variant-numeric:tabular-nums}.ncrec .rr .tm,.ncrec .rr .km{flex:none;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.ncrec .rr .sc{flex:none;font-weight:700;color:var(--hiT,#e6f6ff);font-variant-numeric:tabular-nums}.ncrec .rr .tm,.ncrec .rr .km{flex:none;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
 .ncrec .more{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12.5px;margin-top:2px}.ncrec .more b{color:var(--accent);font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:flex-end;min-width:44px;min-height:44px;margin:-14px 0}
 .nowcard.mini .nchead .samplebadge{display:none}
 /* REQ-69: 카드 폭 고정(화면 양쪽 끝), 줄은 한 줄로 · 넘치면 … */
 .nowcard>*:not(.nchead):not(.ncgrip){min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap!important}
 .side.under{flex-direction:row;transition:top .15s}
-.biteFab{position:absolute;right:12px;bottom:22px;z-index:1000;width:58px;height:58px;border-radius:50%;border:2px solid var(--accent);background:rgba(10,21,32,.94);color:var(--accent);font-size:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4)}
+.biteFab{position:absolute;right:12px;bottom:22px;z-index:1000;width:58px;height:58px;border-radius:50%;border:2px solid var(--accent);background:rgba(var(--surf),.94);color:var(--accent);font-size:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4)}
 .biteFab small{font-size:11px;font-weight:700;margin-top:2px}
 #layerPanel .lsheet{position:absolute;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);border-radius:16px 16px 0 0;padding:14px 14px calc(16px + env(safe-area-inset-bottom))}
 #layerPanel h3{margin:0 0 12px;font-size:16px;display:flex;justify-content:space-between;align-items:center}
 .lgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 8px}
 .lcell{display:flex;flex-direction:column;align-items:center;gap:4px}.lcell .ibtn{width:52px;height:52px}.lcell .ibtn span{font-size:21px}.lcell small{font-size:12px;color:var(--muted)}
 .topchips>*{pointer-events:auto}
-.tchip{font-size:11.5px;padding:3px 9px;border-radius:99px;background:rgba(10,21,32,.88);color:#cfe6ff;border:1px solid #2a4a6a;display:none;white-space:nowrap}
-.tchip.tide{cursor:pointer;color:#9fe7ff} .tchip.phase{color:#ffe08a;border-color:#5a4a1c}
-.cfst{white-space:nowrap;font-size:11px;padding:1px 6px 1px 3px;border-radius:6px;background:rgba(40,16,60,.85);color:#e2b8ff;border:1px solid #8a4ec0;transform:translate(-8px,-50%);display:inline-flex;align-items:center;gap:2px;cursor:pointer}
+.tchip{font-size:11.5px;padding:3px 9px;border-radius:99px;background:rgba(var(--surf),.88);color:var(--hiT,#cfe6ff);border:1px solid #2a4a6a;display:none;white-space:nowrap}
+.tchip.tide{cursor:pointer;color:var(--hiT,#9fe7ff)} .tchip.phase{color:var(--hiY,#ffe08a);border-color:#5a4a1c}
+.cfst{white-space:nowrap;font-size:11px;padding:1px 6px 1px 3px;border-radius:6px;background:rgba(40,16,60,.85);color:var(--te2b8ff,#e2b8ff);border:1px solid #8a4ec0;transform:translate(-8px,-50%);display:inline-flex;align-items:center;gap:2px;cursor:pointer}
 .cfar{display:inline-block;font-weight:700;font-size:13px;line-height:13px}
-.grade{font-size:11px;padding:1px 6px;border-radius:99px;margin-left:4px;border:1px solid var(--line)}.grade.g3{color:#7ee0a1;border-color:#1f6b52}.grade.g2{color:#9fe7ff;border-color:#2a6a8a}.grade.g1{color:#ffe08a;border-color:#5a4a1c}.grade.g0{color:var(--muted)}
+.grade{font-size:11px;padding:1px 6px;border-radius:99px;margin-left:4px;border:1px solid var(--line)}.grade.g3{color:var(--t7ee0a1,#7ee0a1);border-color:#1f6b52}.grade.g2{color:var(--hiT,#9fe7ff);border-color:#2a6a8a}.grade.g1{color:var(--hiY,#ffe08a);border-color:#5a4a1c}.grade.g0{color:var(--muted)}
 .kindbox label{display:flex;align-items:center;gap:4px;padding:4px 8px;border:1px solid var(--line);border-radius:99px;background:var(--panel2)}
 .kindbox input{width:auto;height:auto;margin:0}
-.tidest{white-space:nowrap;font-size:11px;padding:2px 6px;border-radius:99px;background:rgba(10,21,32,.85);color:#9fe7ff;border:1px solid #2a6a8a;transform:translate(-4px,-50%);display:inline-block;cursor:pointer}
+.tidest{white-space:nowrap;font-size:11px;padding:2px 6px;border-radius:99px;background:rgba(var(--surf),.85);color:var(--hiT,#9fe7ff);border:1px solid #2a6a8a;transform:translate(-4px,-50%);display:inline-block;cursor:pointer}
 .ptabs{display:flex;gap:6px;margin:0 0 10px;position:sticky;top:30px;z-index:2;background:var(--panel);padding-bottom:6px}
 #planPanel .pbox h3{position:sticky;top:-14px;z-index:3;background:var(--panel);margin:-14px -14px 0;padding:14px 14px 10px}.ptabs button{flex:1;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);font-size:14px}
 .ptabs button.on{color:var(--accent);border-color:var(--accent);font-weight:700}
@@ -106,23 +106,23 @@ button:disabled{opacity:.45;cursor:default}
 .rchips button.on{color:var(--accent);border-color:var(--accent);font-weight:700}
 .plan{list-style:none;margin:6px 0 0;padding:0}.plan>li{border-bottom:1px solid var(--line);padding:9px 2px;cursor:pointer}
 .plan .l1{font-size:14.5px;display:flex;justify-content:space-between;gap:6px}.plan .l2{font-size:12px;color:var(--muted);margin-top:3px}
-.plan li.today .l1{color:var(--accent);font-weight:700}.plan .gold{color:#ffd24a}
+.plan li.today .l1{color:var(--accent);font-weight:700}.plan .gold{color:var(--hiY,#ffd24a)}
 .plan .det{display:none;margin-top:8px;font-size:13px;line-height:1.6;background:var(--panel2);border-radius:10px;padding:8px 10px;cursor:default}
 .plan li.open .det{display:block}.plan .det b{color:var(--text)}.plan .det .sub{color:var(--muted);font-size:12px}
 .plan .lg input{width:100%;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);padding:0 8px;font-size:13px;margin-top:5px}
 .plan .lg .row{display:flex;gap:6px;margin-top:6px}.plan .lg .row button{flex:1;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:12.5px}
-.plan li.fav .l1>span:first-child{color:#4fd1c5}
-.rs-h{font-size:15px;font-weight:700;color:var(--text)}.rs-l{margin-top:3px;color:var(--muted)}.rs-t{margin-top:6px;background:#1c3550;border-radius:10px;padding:5px 9px;color:#dbe9f7;line-height:1.4}#recSub:has(.rs-h){background:rgba(255,255,255,.05);border-radius:12px;padding:10px 12px!important;margin-top:8px}
+.plan li.fav .l1>span:first-child{color:var(--t4fd1c5,#4fd1c5)}
+.rs-h{font-size:15px;font-weight:700;color:var(--text)}.rs-l{margin-top:3px;color:var(--muted)}.rs-t{margin-top:6px;background:var(--b1c3550,#1c3550);border-radius:10px;padding:5px 9px;color:var(--tdbe9f7,#dbe9f7);line-height:1.4}#recSub:has(.rs-h){background:rgba(255,255,255,.05);border-radius:12px;padding:10px 12px!important;margin-top:8px}
 .plan li.rc{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:8px 0;background:rgba(255,255,255,.03)}.plan li.rc.first{border-color:#2f9e8f;box-shadow:0 0 0 1px #2f9e8f inset}
-.rc .rcn{flex:1;min-width:0;font-size:15.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rc .rk{display:inline-flex;width:24px;height:24px;border-radius:50%;background:#2a4a6a;align-items:center;justify-content:center;font-size:13px;font-style:normal;font-weight:700;margin-right:7px;vertical-align:1px}.rc.first .rk{background:var(--accent);color:#06221f}
-.rc .rcs{display:flex;align-items:center;gap:2px;white-space:nowrap}.rc .rcs b{font-size:22px;color:#ffd166;font-variant-numeric:tabular-nums}
+.rc .rcn{flex:1;min-width:0;font-size:15.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rc .rk{display:inline-flex;width:24px;height:24px;border-radius:50%;background:#2a4a6a;align-items:center;justify-content:center;font-size:13px;font-style:normal;font-weight:700;margin-right:7px;vertical-align:1px}.rc.first .rk{background:var(--accent);color:var(--onAcc,#06221f)}
+.rc .rcs{display:flex;align-items:center;gap:2px;white-space:nowrap}.rc .rcs b{font-size:22px;color:var(--hiY,#ffd166);font-variant-numeric:tabular-nums}
 .rc .rc-w{display:flex;align-items:center;gap:8px;margin-top:6px}.rc .rc-w .tm{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}.rc .rc-w .st{flex:1;min-width:0;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rc .rc-c{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}.rc .chip{font-size:12px;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,.08);color:var(--text);white-space:nowrap}.rc .chip.ok{background:#1f4d3c;color:#bff0d3}
+.rc .rc-c{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}.rc .chip{font-size:12px;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,.08);color:var(--text);white-space:nowrap}.rc .chip.ok{background:var(--b1f4d3c,#1f4d3c);color:var(--tbff0d3,#bff0d3)}
 .recpin{width:22px;height:22px;border-radius:50%;background:#ffd24a;color:#1a1200;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;border:2px solid #1a1200;box-shadow:0 0 4px #000}
 .logpin{font-size:16px;filter:drop-shadow(0 0 2px #000)}
 .tidelist{list-style:none;margin:8px 0 0;padding:0} .tidelist li{display:flex;justify-content:space-between;padding:9px 4px;border-bottom:1px solid var(--line);font-size:15px}
 .tidelist li.past{opacity:.45} .tidelist li.next{color:var(--accent);font-weight:700}
-.samplebadge{font-size:11px;padding:3px 8px;border-radius:99px;background:#3a2a12;color:#ffc874;border:1px solid #6a4a1c}
+.samplebadge{font-size:11px;padding:3px 8px;border-radius:99px;background:var(--b3a2a12,#3a2a12);color:var(--tffc874,#ffc874);border:1px solid #6a4a1c}
 /* 하단 시트 */
 .sheet{position:relative;background:var(--panel);border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom));z-index:1000}
 /* REQ-70: 지점 시트(M8)는 지도 위에 떠 있는 창 → 펴고 접어도 지도(M4) 크기 그대로 */
@@ -134,7 +134,7 @@ button:disabled{opacity:.45;cursor:default}
 .nowcard{touch-action:none;overflow:hidden;flex-wrap:nowrap!important;padding-bottom:7px!important}
 .ncpages,.ncpages *{user-select:none;-webkit-user-select:none;-webkit-user-drag:none}.ncpages{overflow:hidden;width:100%;margin-top:4px}.ncslide{display:flex;transition:transform .22s var(--ease,ease-out);will-change:transform}.ncpg{flex:0 0 100%;min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden}
 .nowcard .ncpg>.tchip,.nowcard .ncpg>.windchip,.nowcard .ncgrp>.tchip{background:rgba(255,255,255,.08);border-radius:10px;padding:6px 10px;font-size:14px;flex:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3}.ncgrp{display:flex;gap:6px;flex:none}
-.nowcard .tchip.drift{color:#cfe6ff}.nowcard .tchip.sky{font-size:13px!important}.nowcard .tchip.sky .wic{font-size:18px;vertical-align:-2px}
+.nowcard .tchip.drift{color:var(--hiT,#cfe6ff)}.nowcard .tchip.sky{font-size:13px!important}.nowcard .tchip.sky .wic{font-size:18px;vertical-align:-2px}
 .ncdots{display:flex;gap:6px;margin-top:5px;height:4px}.ncdots i{flex:1;border-radius:2px;background:rgba(255,255,255,.14)}.ncdots i.on{background:#7fa6c9}.nowcard.recv #ncPages,.nowcard.recv #ncDots,.nowcard.recv #warnChip{display:none!important}.ncdots.one{visibility:hidden}.nowcard .ncgrip{position:absolute;left:0;right:0;bottom:2px;margin:0;height:14px}
 /* REQ-76: 접는 도중 아래 줄은 서서히 사라지고, 펼 때는 서서히 나타남. 접힌 요약도 서서히 */
 .nowcard.snapfold>*:not(.nchead):not(.ncgrip){animation:ncfadeout .15s ease-in forwards}
@@ -143,7 +143,7 @@ button:disabled{opacity:.45;cursor:default}
 @keyframes ncfade{from{opacity:0}to{opacity:1}}@keyframes ncfadeout{from{opacity:1}to{opacity:0}}
 .dragging{transition:none!important}
 /* REQ-72: M10 추천 찾는 중 로딩(지도 가운데, 반투명, 눌러도 지도로 통과) · P6 추천 핀 팝업 */
-.loadov{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1050;display:none;flex-direction:column;align-items:center;gap:8px;background:rgba(10,21,32,.72);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:18px 22px;pointer-events:none;color:#d8ecff;font-size:13.5px;text-align:center;max-width:70%}
+.loadov{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1050;display:none;flex-direction:column;align-items:center;gap:8px;background:rgba(var(--surf),.72);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:18px 22px;pointer-events:none;color:var(--hiT,#d8ecff);font-size:13.5px;text-align:center;max-width:70%}
 .loadov.show{display:flex}.loadov small{color:var(--muted);font-size:11.5px}
 /* U-12 ①: 계산 중 = 물결 위 물고기, 끝나면 ✓ (0.2~0.4초, 움직임 줄이기면 멈춤) */
 .loadov .ok{display:none}.loadov.done .wave{display:none}.loadov.done .ok{display:block;animation:okpop .35s var(--ease)}.loadov.done .ok path{stroke-dasharray:30;stroke-dashoffset:30;animation:okdraw .3s .05s var(--ease) forwards}
@@ -164,14 +164,14 @@ button:disabled{opacity:.45;cursor:default}
 .loadov .spin{width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.18);border-top-color:var(--accent);animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 .pinpop{position:absolute;left:10px;right:10px;bottom:22px;z-index:1060;display:none;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px 12px;box-shadow:0 6px 18px rgba(0,0,0,.45);font-size:13px}
 .pinpop.show{display:block}.pinpop .pp-h{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700}.pinpop .pp-h .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pinpop .pp-l{margin-top:5px;color:#cfe6ff;line-height:1.45}.pinpop .pp-l.q{color:var(--muted)}.pinpop .pp-addr{display:flex;gap:8px;align-items:center;margin-top:6px}.pinpop .pp-addr span{flex:1;min-width:0}
+.pinpop .pp-l{margin-top:5px;color:var(--hiT,#cfe6ff);line-height:1.45}.pinpop .pp-l.q{color:var(--muted)}.pinpop .pp-addr{display:flex;gap:8px;align-items:center;margin-top:6px}.pinpop .pp-addr span{flex:1;min-width:0}
 .pinpop .navs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}.pinpop .navs button,.pinpop .acts button{padding:9px 4px;font-weight:700;font-size:13px}
 .pinpop .acts{display:grid;grid-template-columns:2fr 1fr;gap:6px;margin-top:6px}.pinpop .x{background:none;border:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer}
 .pinpop .nav-tmap{border-color:#3d6bff}.pinpop .nav-kakao{border-color:#e8c400}.pinpop .nav-naver{border-color:#03c75a}.snap{transition:height .3s cubic-bezier(.34,1.35,.64,1)!important}
 .ihead{display:flex;align-items:center;gap:8px}
 .ihead .nm{flex:1;min-width:0;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .star{background:none;border:1px solid var(--line);color:var(--muted);border-radius:10px;height:34px;padding:0 10px;font-size:13px;cursor:pointer;white-space:nowrap}
-.star.on{color:#ffd166;border-color:#6a5520}
+.star.on{color:var(--hiY,#ffd166);border-color:#6a5520}
 .x{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;width:30px}
 .stats{display:flex;gap:6px;margin-top:8px}
 .stats div{flex:1;background:var(--panel2);border-radius:10px;padding:7px 8px;font-size:11px;color:var(--muted);min-width:0}
@@ -190,16 +190,16 @@ button:disabled{opacity:.45;cursor:default}
 .fc-h .x{background:none;border:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:2px 4px}
 .fcard .stats{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}.fcard .stats div{background:rgba(0,0,0,.22);padding:5px 8px}
 .fcard .stats b{font-size:16px;overflow:hidden;text-overflow:ellipsis}
-.fc-near{font-size:11.5px;color:#ffd98a;margin-top:4px}.fc-l{font-size:12px;color:#cfe6ff;margin-top:5px;line-height:1.4}
+.fc-near{font-size:11.5px;color:var(--tffd98a,#ffd98a);margin-top:4px}.fc-l{font-size:12px;color:var(--hiT,#cfe6ff);margin-top:5px;line-height:1.4}
 .fc-a{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:7px}.fc-a .btn{min-height:44px;font-weight:700;font-size:13px;padding:6px 2px;white-space:nowrap}.fc-a.noemo .be{display:none}
 .fc-v{margin-top:6px;font-size:13.5px;line-height:1.5}.fc-v b{font-size:15px;font-variant-numeric:tabular-nums}.fc-v .wt{white-space:nowrap}
 .fcard .navs,.pinpop .navs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}.fcard .navs button{min-height:44px;font-weight:700;font-size:13px;padding:6px 2px}
 .fcard .nav-tmap{border-color:#3d6bff}.fcard .nav-kakao{border-color:#e8c400}.fcard .nav-naver{border-color:#03c75a}
 .fcard .fc-big{margin:6px 0 0}.fcard .fc-big .tm{font-size:24px}
-.pinpop .pp-addr span{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pinpop .pp-addr .btn{height:auto;min-height:0;min-width:0;background:none;border:none;text-decoration:underline;color:var(--accent);padding:4px 6px;position:relative} /* 시안처럼 글자 링크, 누르는 범위는 ::after 44px */.pinpop .pp-addr .btn::after{content:'';position:absolute;left:50%;top:50%;width:max(100%,44px);height:44px;transform:translate(-50%,-50%)}.pinpop .pp-h .star{height:34px}.pinpop .pp-sc{display:flex;flex-wrap:wrap;gap:2px 6px;align-items:center;margin-top:3px}.pinpop .pp-sc .sc{color:#ffd166;font-size:14px}
+.pinpop .pp-addr span{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pinpop .pp-addr .btn{height:auto;min-height:0;min-width:0;background:none;border:none;text-decoration:underline;color:var(--accent);padding:4px 6px;position:relative} /* 시안처럼 글자 링크, 누르는 범위는 ::after 44px */.pinpop .pp-addr .btn::after{content:'';position:absolute;left:50%;top:50%;width:max(100%,44px);height:44px;transform:translate(-50%,-50%)}.pinpop .pp-h .star{height:34px}.pinpop .pp-sc{display:flex;flex-wrap:wrap;gap:2px 6px;align-items:center;margin-top:3px}.pinpop .pp-sc .sc{color:var(--hiY,#ffd166);font-size:14px}
 .isum{font-size:13.5px;color:var(--text);margin-top:4px;line-height:1.45}.isum .num{font-variant-numeric:tabular-nums;font-weight:700}
 .igrid{display:grid!important;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.igrid[style*="none"]{display:none!important}
-.igrid>div{background:var(--panel2);border-radius:10px;padding:7px 8px;font-size:12px;color:#cfe6ff;line-height:1.4;min-width:0}
+.igrid>div{background:var(--panel2);border-radius:10px;padding:7px 8px;font-size:12px;color:var(--hiT,#cfe6ff);line-height:1.4;min-width:0}
 .igrid>div>i{display:block;font-style:normal;font-size:11px;color:var(--muted);margin-bottom:2px}.igrid>div small{color:var(--muted)}
 .mapbox.sheeton .legend,.mapbox.sheeton #biteFab{opacity:0;pointer-events:none}
 .legend,#biteFab{transition:opacity var(--dFast)}
@@ -210,8 +210,8 @@ button:disabled{opacity:.45;cursor:default}
 .trow{display:flex;align-items:center;gap:8px}
 .tl{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:118px;line-height:1.15}
 .tl small{display:block;font-size:11px;font-weight:600;color:var(--accent);margin-top:2px}
-.btn{background:#18304a;border:1px solid var(--line);color:var(--text);border-radius:10px;height:38px;min-width:42px;padding:0 8px;font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0}
-.btn.play{background:var(--accent);color:#06221f;border:none;font-weight:700;min-width:46px;font-size:15px}
+.btn{background:var(--b18304a,#18304a);border:1px solid var(--line);color:var(--text);border-radius:10px;height:38px;min-width:42px;padding:0 8px;font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.btn.play{background:var(--accent);color:var(--onAcc,#06221f);border:none;font-weight:700;min-width:46px;font-size:15px}
 input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
 /* U-8 (build-49): 시간 막대 — 가운데 자정에 살짝 끊김 + 다음 날 날짜, 진짜 지금 흰 눈금. 끌 때 걸리지 않음(멈춤 없음) */
 .slw{position:relative;flex:1;min-width:0;height:44px;display:flex;align-items:center;--th:22px}
@@ -239,8 +239,8 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
 .me{width:16px;height:16px;border-radius:50%;background:#2f8cff;border:3px solid #fff;box-shadow:0 0 0 6px rgba(47,140,255,.25)}
 .pin{width:14px;height:14px;border-radius:50%;background:var(--accent);border:3px solid #0a1520;box-shadow:0 0 0 2px var(--accent)}
 .favpin{font-size:18px;line-height:18px;text-shadow:0 0 3px #000}
-.leaflet-control-attribution{font-size:9px!important;background:rgba(10,21,32,.7)!important;color:#9ab!important}
-.leaflet-control-attribution a{color:#9cd!important}
+.leaflet-control-attribution{font-size:9px!important;background:rgba(var(--surf),.7)!important;color:var(--t9ab,#9ab)!important}
+.leaflet-control-attribution a{color:var(--t9cd,#9cd)!important}
 /* 1차-가 (U-13·14·17·22·40·42, build-50): 누르는 범위 44 이상 · 글씨 12px 이상 · 부품 대비 3:1 · 버튼 글자 한 줄 */
 .btn{height:44px;min-height:44px;min-width:44px}.btn.play{min-width:48px}
 select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
@@ -262,13 +262,27 @@ select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
 .cfst,.cfst *{pointer-events:none}
 /* U-15 (build-50 2차): 시트 이름은 버튼 줄 위 한 줄을 통째로 씀 → 큰 글씨에서도 이름이 안 사라짐 */
 .ihead{flex-wrap:wrap;row-gap:2px}.ihead .nm{flex:1 0 100%}
-.fcard .stats b .calc{font-size:14px;color:var(--muted,#b8c7d6)}.okck{color:#7ee0a0}
+.fcard .stats b .calc{font-size:14px;color:var(--muted,#b8c7d6)}.okck{color:var(--t7ee0a0,#7ee0a0)}
 .mwv{vertical-align:-2px;margin-right:4px;color:var(--accent);overflow:hidden;display:inline-block}.mwv .mw{animation:mwv 1.2s linear infinite}@keyframes mwv{to{transform:translateX(-16px)}}
 @media (prefers-reduced-motion:reduce){.mwv .mw{animation:none}}
-.bdg{font-size:12px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap;line-height:1.2}.rr .bdg{padding:1px 9px}.pp-win .bdg{padding:5px 10px}.bdg.now{background:#1f7a4d;color:#fff}.bdg.soon,.bdg.later{background:#2a4a6a;color:#e8f0f7}.bdg.end{background:#3a4652;color:#d5dde5}
+.bdg{font-size:12px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap;line-height:1.2}.rr .bdg{padding:1px 9px}.pp-win .bdg{padding:5px 10px}.bdg.now{background:#1f7a4d;color:#fff}.bdg.soon,.bdg.later{background:#2a4a6a;color:#e8f0f7}.bdg.end{background:var(--b3a4652,#3a4652);color:var(--td5dde5,#d5dde5)}
 .pp-win{background:rgba(255,255,255,.06);border-radius:10px;padding:8px 10px;margin:6px 0}.pp-win .lb{font-size:12px;color:var(--muted)}.pp-win .tmx{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px}.pp-win .tm{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}.pp-win .sb{font-size:12px;color:var(--muted);margin-top:3px}.pp-win .sb .en{white-space:nowrap}
 .rr .bdg{margin-left:auto;flex-shrink:0;align-self:center}
-.sgroups{margin-top:12px;display:flex;flex-direction:column;gap:8px}.sgrp{background:var(--panel2);border-radius:12px}.sgrp>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:0 12px;font-size:15px;cursor:pointer}.sgrp>summary::-webkit-details-marker{display:none}.sgrp>summary::before{content:'▸';color:var(--muted);margin-right:8px;font-size:12px}.sgrp[open]>summary::before{content:'▾'}.sgrp>summary span{flex:1}.sgrp>summary em{font-style:normal;font-size:12.5px;color:var(--muted)}.sgrp>summary em.ok{color:#7be0a0}.sgrp .sbody{padding:0 12px 12px}
+.sgroups{margin-top:12px;display:flex;flex-direction:column;gap:8px}.sgrp{background:var(--panel2);border-radius:12px}.sgrp>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:0 12px;font-size:15px;cursor:pointer}.sgrp>summary::-webkit-details-marker{display:none}.sgrp>summary::before{content:'▸';color:var(--muted);margin-right:8px;font-size:12px}.sgrp[open]>summary::before{content:'▾'}.sgrp>summary span{flex:1}.sgrp>summary em{font-style:normal;font-size:12.5px;color:var(--muted)}.sgrp>summary em.ok{color:var(--t7be0a0,#7be0a0)}.sgrp .sbody{padding:0 12px 12px}
+
+/* ── U-46 화면 모드 (11-22): 시스템·밝게·어둡게·밤낚시. 위성 지도는 그대로, 창·카드·막대·글자만 바뀜 ── */
+html[data-theme=light]{--onAcc:#ffffff;--bBadgeW:#fbeedd;--tBadgeW:#7a4300;--bBadgeOk:#dff3ea;--tBadgeOk:#0d6648;--tRedTick:#c62828;--tffb35c:#7d582d;--te2b8ff:#685575;--t7ee0a1:#3a674a;--t4fd1c5:#276661;--tdbe9f7:#585d63;--tbff0d3:#4c6054;--tffc874:#755c35;--tffd98a:#6e5d3b;--t9ab:#545d67;--t9cd:#4b646c;--t7ee0a0:#3a674a;--td5dde5:#5c5f62;--t7be0a0:#39674a;--tff6b5e:#9c4139;--b0d2638:#dde1e3;--b0c1a27:#dddfe1;--b1c3550:#dfe3e6;--b1f4d3c:#e0e6e4;--b3a2a12:#e3e1de;--b18304a:#dfe2e6;--b3a4652:#e3e5e7;--b000:#dbdbdb;--b140505:#dedcdc;--b3a0d0a:#e3dddd;--b1a0707:#dfdcdc;--surf:255,255,255;--hiT:#14202c;--hiY:#7a4f00;--bg:#e9eef2;--panel:#ffffff;--panel2:#f2f5f8;--line:#cfd8e0;--text:#14202c;--muted:#52606e;--accent:#0b7a70;--flood:#1565c0;--ebb:#9a4d00;--glass:rgba(255,255,255,.85);--glassLine:rgba(20,32,44,.16);color-scheme:light}
+html[data-theme=light] .ibtn,html[data-theme=light] .biteFab{background:rgba(255,255,255,.95)}
+/* 밤낚시: 붉은 화면 — 지도·창·그림 글자까지 밝기만 남기고 붉게 거름. 흐름선과 범례 색 막대는 색 뜻(유속)을 지키려고 거르지 않고 조금 흐리게 */
+html[data-theme=night]{--nightF:grayscale(1) brightness(.55) sepia(1) saturate(12) hue-rotate(-40deg);background:var(--b000,#000)}
+html[data-theme=night] #map,html[data-theme=night] .mapbox>:not(#map):not(#flow):not(.legend),html[data-theme=night] .sheet,html[data-theme=night] .panel,html[data-theme=night] .legend>:not(.bar){filter:var(--nightF)}
+html[data-theme=night] #flow{opacity:.8} html[data-theme=night] .legend{background:var(--b140505,#140505)}
+#nightBtn.on{border:2px solid #ff5a4d;background:var(--b3a0d0a,#3a0d0a)}
+.torchBtn{position:absolute;right:14px;bottom:92px;z-index:1000;width:54px;height:54px;border-radius:50%;border:2px solid #ff5a4d;background:var(--b1a0707,#1a0707);color:var(--tff6b5e,#ff6b5e);font-size:24px;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+.torchBtn.on{background:#ff5a4d;box-shadow:0 0 18px #ff5a4d}.torchBtn[hidden]{display:none}
+.tseg{display:flex;gap:4px;margin-top:6px}.tseg button{flex:1;min-width:0;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:13px;white-space:nowrap;padding:0 2px;cursor:pointer}
+.tseg button.on{border:2px solid var(--accent);font-weight:700}
+.rc .rcn .vl{font-size:12px;font-weight:400;color:var(--muted);margin-left:4px}
 </style>
 </head>
 <body>
@@ -287,6 +301,7 @@ select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
     </div>
 
     <div class="side">
+      <button class="ibtn" id="nightBtn" title="밤낚시 화면" aria-label="밤낚시 화면 켜고 끄기" aria-pressed="false" data-name="밤낚시"><span>🔴</span></button>
       <button class="ibtn" id="locBtn" title="내 위치" aria-label="내 위치" data-name="내 위치"><span>◎</span></button>
       <button class="ibtn" id="planBtn" title="출조 도우미" aria-label="출조 도우미 (추천·계획·기록)" data-name="출조 도우미"><span>📅</span></button>
       <button class="ibtn" id="layersBtn" title="보기" aria-label="보기 (지도 종류·흐름선·바람·바위·수온·설정)" data-name="보기"><span>☰</span></button>
@@ -307,19 +322,20 @@ select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
     <div class="legend"><span id="legendTitle">유속 (노트)</span><div class="bar" id="legendBar"></div><div class="ticks" id="legendTicks"></div>
       <div id="sstLeg" style="display:none;margin-top:6px"><span id="sstLegT"></span><div class="bar" id="sstBar"></div><div class="ticks" id="sstTicks"></div></div></div>
     <button class="biteFab" id="biteFab" title="입질 기록 (지금 시각·물때·유속 자동 저장)">🎣<small>입질</small></button>
+    <button class="torchBtn" id="torchBtn" aria-label="손전등 켜고 끄기" aria-pressed="false" title="손전등" hidden>🔦</button>
     <div class="toast" id="toast"></div>
 <div id="xferAsk" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;max-width:340px;width:100%;color:var(--text)">
     <div style="font-weight:700;font-size:16px;margin-bottom:8px">📥 설정 옮겨 오기</div>
     <div id="xferMsg" style="font-size:14px;line-height:1.5"></div>
-    <div style="display:flex;gap:8px;margin-top:14px"><button class="btn" id="xferNo" style="flex:1">취소</button><button class="btn" id="xferYes" style="flex:1;background:var(--accent);color:#06221f;border:none;font-weight:700">저장</button></div>
+    <div style="display:flex;gap:8px;margin-top:14px"><button class="btn" id="xferNo" style="flex:1">취소</button><button class="btn" id="xferYes" style="flex:1;background:var(--accent);color:var(--onAcc,#06221f);border:none;font-weight:700">저장</button></div>
   </div></div>
 <div id="biteAsk" role="dialog" aria-label="입질 기록 위치 고르기" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;max-width:340px;width:100%;color:var(--text)">
     <div style="font-weight:700;font-size:16px;margin-bottom:8px">🎣 어디에 기록할까요?</div>
     <div id="biteAskMsg" style="font-size:14px;line-height:1.5"></div>
     <button class="btn" id="biteP" style="width:100%;height:46px;margin-top:12px;font-weight:700;white-space:normal"></button>
-    <button class="btn" id="biteMe" style="width:100%;height:46px;margin-top:8px;font-weight:700;background:var(--accent);color:#06221f;border:none"></button>
+    <button class="btn" id="biteMe" style="width:100%;height:46px;margin-top:8px;font-weight:700;background:var(--accent);color:var(--onAcc,#06221f);border:none"></button>
     <button class="btn" id="biteNo" style="width:100%;height:44px;margin-top:8px">취소</button>
   </div></div>
     <div class="offbar" id="offBar" role="status"><svg width="40" height="32" viewBox="0 0 40 32" aria-hidden="true"><g class="bob"><path d="M10 24a7 7 0 0 1 1-14 9 9 0 0 1 17 2 6 6 0 0 1 1 12z" fill="#2a4560" stroke="#8ba4b9" stroke-width="1.5"/><path d="M15 17l10 6M25 17l-10 6" stroke="#ffd98a" stroke-width="2" stroke-linecap="round"/></g></svg><span><b>인터넷이 끊겼어요</b><small>저장해 둔 예보로 계속 보여 드려요 · 연결되면 알아서 새로 받아요</small></span></div>
@@ -393,6 +409,8 @@ select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
     <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">빨강(낚시 어려움) 시작 유속</span><input id="redKn" type="number" step="0.1" min="1.2" max="3" style="width:80px;flex:none"> <span style="font-size:13px;color:var(--muted)">노트</span></div>
     <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">🔔 안전 알림 시각</span><select id="alertLead" style="height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"><option value="30">30분 전</option><option value="60">1시간 전</option><option value="120">2시간 전</option></select></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="hapChk" style="width:auto;height:auto"> 📳 짧은 진동 <span style="font-size:12px;color:var(--muted)">(기록·저장·추천 완료, 시트 접기·펴기)</span></label></div>
+    <div class="namebox" style="margin-top:12px;flex-direction:column;align-items:stretch"><span style="font-size:14px">🎨 화면 모드</span><div class="tseg" id="themeSeg" role="group" aria-label="화면 모드"><button data-t="system">📱 시스템</button><button data-t="light">☀️ 밝게</button><button data-t="dark">🌙 어둡게</button><button data-t="night">🔴 밤낚시</button></div></div>
+    <div class="namebox" style="margin-top:12px;flex-direction:column;align-items:stretch"><span style="font-size:14px">🌊 물때 이름 방식 <small style="color:var(--muted);font-size:12px">(자동 = 서해 7물식, 그 밖 8물식)</small></span><div class="tseg" id="mulSeg" role="group" aria-label="물때 이름 방식"><button data-m="auto">자동</button><button data-m="7">7물식</button><button data-m="8">8물식</button></div></div>
     <div class="sgroups">
       <details class="sgrp" id="grpKey"><summary><span>🔑 키·연결</span><em id="sumKey"></em></summary><div class="sbody">
     <div class="empty" style="padding:0 0 8px">공공데이터포털 → "국립해양조사원_ROMS 수치예측모델 조회" 활용신청 → <b>일반 인증키(Decoding)</b>를 붙여넣으세요.</div>
@@ -400,7 +418,7 @@ select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
     <div class="empty" style="padding:10px 0 4px">브이월드 지도 키 (선택 — 비우면 Esri 위성지도)</div>
     <div class="namebox"><input id="vwIn" type="password" autocomplete="off" placeholder="브이월드 인증키"><button class="btn" data-eye="vwIn" aria-label="키 보기·가리기" title="키 보기">👁</button></div>
     <div class="namebox" style="margin-top:12px">
-      <button class="btn" id="keySave" style="flex:1;background:var(--accent);color:#06221f;border:none;font-weight:700">저장</button>
+      <button class="btn" id="keySave" style="flex:1;background:var(--accent);color:var(--onAcc,#06221f);border:none;font-weight:700">저장</button>
       <button class="btn" id="keyTest" style="flex:1">연결 시험</button>
     </div>
       </div></details>
@@ -413,7 +431,7 @@ select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
       <div style="font-size:12px;color:var(--muted);margin-bottom:6px">백업 파일(.json)을 고르거나, 백업 글을 붙여넣고 '넣기'를 누르세요. 키·설정·즐겨찾기·조과 기록이 들어가요. 📤 설정 옮기기 링크를 받았다면 링크를 통째로 붙여넣어도 돼요.</div>
       <input type="file" id="bakFile" accept=".json,.txt,application/json,text/plain" style="width:100%;height:auto;padding:6px 0">
       <textarea id="bakText" style="width:100%;height:80px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:8px;box-sizing:border-box;margin-top:6px" placeholder="바다흐름지도-백업:{...}"></textarea>
-      <button class="btn" id="bakApply" style="width:100%;margin-top:6px;background:var(--accent);color:#06221f;border:none;font-weight:700">넣기</button>
+      <button class="btn" id="bakApply" style="width:100%;margin-top:6px;background:var(--accent);color:var(--onAcc,#06221f);border:none;font-weight:700">넣기</button>
     </div>
     <div class="namebox" style="margin-top:8px"><button class="btn" id="xferOut" style="flex:1">📤 설정 옮기기 링크 (아이폰·다른 폰)</button></div>
     <div id="xferBox" style="display:none;margin-top:8px;font-size:14px">
@@ -421,7 +439,7 @@ select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
       <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="xfVw" checked> 브이월드 키 (주소)</label>
       <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="xfFav"> ⭐ 즐겨찾기</label>
       <div style="font-size:12px;color:var(--muted);margin:4px 0 6px">링크는 <b>7일</b> 동안만 쓸 수 있어요. 키가 들어 있으니 <b>그 사람에게만</b> 보내세요. 받은 사람은 링크를 누르면 웹판이 열리고 저장할지 물어봐요. 아이폰 홈 화면 아이콘으로 쓸 때는 링크를 복사해서 ⚙️ → 📥 백업 가져오기에 붙여넣어요.</div>
-      <button class="btn" id="xferMake" style="width:100%;background:var(--accent);color:#06221f;border:none;font-weight:700">링크 만들어 보내기</button>
+      <button class="btn" id="xferMake" style="width:100%;background:var(--accent);color:var(--onAcc,#06221f);border:none;font-weight:700">링크 만들어 보내기</button>
     </div>
       </div></details>
       <details class="sgrp" id="grpMap"><summary><span>🗺️ 지도 표시</span><em id="sumMap"></em></summary><div class="sbody">
@@ -475,7 +493,7 @@ select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
         <select id="recSgg" style="flex:1.3;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px;min-width:0" aria-label="시·군·구"></select><select id="recDong" style="flex:1 1 100%;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px;min-width:0" aria-label="읍·면·동"></select></div>
       <div class="namebox kindbox" style="margin-top:8px;gap:6px;flex-wrap:wrap;font-size:13px"><label><input type="checkbox" data-k="l"> 🚗 육지</label><label><input type="checkbox" data-k="b"> 🌉 다리로 가는 섬</label><label><input type="checkbox" data-k="f"> ⛴️ 배 타는 섬</label></div>
       <div class="namebox" style="margin-top:8px;align-items:center"><span style="font-size:13px;color:var(--muted);flex:none">날짜</span><select id="recDay" style="flex:1;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"></select><select id="recSort" style="flex:none;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"><option value="score">점수순</option><option value="near">가까운 순</option></select></div>
-      <div class="namebox" style="margin-top:8px"><button class="btn" id="recGo" style="flex:2;background:var(--accent);color:#06221f;border:none;font-weight:700">추천 받기</button><button class="btn" id="recClear" style="flex:1">핀 지우기</button></div>
+      <div class="namebox" style="margin-top:8px"><button class="btn" id="recGo" style="flex:2;background:var(--accent);color:var(--onAcc,#06221f);border:none;font-weight:700">추천 받기</button><button class="btn" id="recClear" style="flex:1">핀 지우기</button></div>
       <div class="empty" id="recSub" style="padding:8px 0 0;font-size:12.5px;text-align:left"></div>
       <ul class="plan" id="recList"></ul>
       <button class="btn" id="recShow" style="width:100%;margin-top:8px;display:none">🗺️ 지도에서 핀으로 보기</button>
@@ -502,7 +520,7 @@ select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
     </div>
     <div id="favImportBox" style="display:none;margin-top:8px">
       <textarea id="favImportText" placeholder="백업한 글을 여기에 붙여넣기" style="width:100%;height:80px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:8px;font-size:12px"></textarea>
-      <button class="btn" id="favImport" style="width:100%;margin-top:6px;background:var(--accent);color:#06221f;border:none;font-weight:700">추가하기</button>
+      <button class="btn" id="favImport" style="width:100%;margin-top:6px;background:var(--accent);color:var(--onAcc,#06221f);border:none;font-weight:700">추가하기</button>
     </div>
   </div>
 </div>
@@ -951,9 +969,9 @@ function updateBadge(){
   const el=$('.samplebadge');
   if(!CONF.realData){el.textContent=SIM.on?'샘플 + 항내 추정':'흐름: 샘플 데이터';el.style.cssText='';return;}
   if(RD.staleMin&&!RD.loading&&map.getZoom()>=REAL_MIN_ZOOM){
-    el.style.cssText='background:#3a2a12;color:#ffc874;border-color:#6a4a1c';
+    el.style.cssText='background:var(--bBadgeW,#3a2a12);color:var(--tBadgeW,#ffc874);border-color:#6a4a1c';
     el.textContent=`📴 저장된 예보 ${staleText(RD.staleMin)}`; return;}
-  el.style.cssText='background:#0f3a2e;color:#7ee0a1;border-color:#1f6b52';
+  el.style.cssText='background:var(--bBadgeOk,#0f3a2e);color:var(--tBadgeOk,#7ee0a1);border-color:#1f6b52';
   el.textContent=map.getZoom()<REAL_MIN_ZOOM?'확대하면 실제 조류':RD.loading?('조류 받는 중'+(RD.prog?' '+RD.prog:'')):RD.empty?'예보 없는 구역':RD.failed&&RD.failed.length?`⚠️ ${RD.failed.length}칸 못 받음`:
     (SIM.on?(SIM.done?'항내 추정':simProg()):'실제 예보'); // REQ-69: 상태만 (단계·칸 크기는 진단에)
 }
@@ -1203,7 +1221,7 @@ const fmtKn=v=>v>=1?v.toFixed(1).replace(/\.0$/,''):(+v.toFixed(2)).toString();
 function setRed(R){R=Math.min(3,Math.max(1.2,+R||2));RED.kn=R;VIEW.breaks=redBreaks(R);drawLegend();}
 function drawLegend(){
   const B=VIEW.breaks;
-  $('#legendTicks').innerHTML=`<span>0</span><span>${fmtKn(B[1])}</span><span>${fmtKn(B[2])}</span><span style="color:#ff8a80">${fmtKn(B[5])}+</span>`;
+  $('#legendTicks').innerHTML=`<span>0</span><span>${fmtKn(B[1])}</span><span>${fmtKn(B[2])}</span><span style="color:var(--tRedTick,#ff8a80)">${fmtKn(B[5])}+</span>`;
   $('#legendTitle').textContent='유속 (노트) · 빨강=낚시 어려움';
 }
 // 약한 흐름도 움직임이 보이게 이동 속도만 화면에 맞춰 조절 (색은 고정)
@@ -1663,10 +1681,10 @@ function stepFlow(){
   xF.lineWidth=1.5; xF.lineCap='round';
   for(let q=1;q<=4;q++){xF.globalAlpha=q/4; CP[q].forEach((pa,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(pa);});}
   xF.globalAlpha=0.35; DP.forEach((pa,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(pa);}); // 자료 부족(추정만)
-  xF.strokeStyle=FLOW_WHITE; for(let q=0;q<4;q++){xF.globalAlpha=0.7*(1-q/4); xF.stroke(WP[q]);} // 계산 중: 예보 방향을 흰 선으로
+  xF.strokeStyle=mode==='street'?'#2b3742':'#ffffff'; for(let q=0;q<4;q++){xF.globalAlpha=0.7*(1-q/4); xF.stroke(WP[q]);} // 계산 중: 예보 방향을 흰 선으로
   xF.globalAlpha=0.22; xF.stroke(FP); xF.globalAlpha=1; // 해안 앞(큰 예보 없음): 아주 옅은 흰 선
 }
-const FLOW_WHITE='#ffffff'; // U-46 밝게 모드에선 진한 회색으로 바꿀 자리
+
 map.on('movestart zoomstart',()=>{moving=true;xF.clearRect(0,0,W,H);});
 map.on('moveend',()=>{moving=false;buildMask();requestReal();windRequest();drawRocks();drawTidal();tideEnsure();updateTideChips();computeViewScale();cfEnsure();});
 map.on('resize',()=>{resizeFlow();buildMask();});
@@ -2649,7 +2667,12 @@ async function recCompute(sg,day0,say,o){o=o||{}; const B=o.bounds||[[sg.b[0],sg
 // 보이는 점수 (REQ-58): 현실적으로 나오는 최고 조합(약 0.8)을 100점으로 → ×1.25, 100에서 멈춤
 const shownScore=s=>Math.min(100,Math.round(s*125));
 const scoreGrade=v=>v>=80?{k:3,t:'좋음'}:v>=65?{k:2,t:'괜찮음'}:v>=50?{k:1,t:'보통'}:{k:0,t:'약함'};
-const recName=(c,sg)=>c.fav?`⭐ ${c.fav}`:`${KIND_ICON[c.isl]||''} ${c.dong||c.sgN||sg.n}${c.isl&&c.isl!=='l'?' 섬':''} 해안`;
+const recName=(c,sg)=>c.fav?`⭐ ${c.fav}`:`${KIND_ICON[c.isl]||''} ${c.dong||c.sgN||sg.n}${c.isl&&c.isl!=='l'?' 섬':''} 해안${c.ri?' · '+c.ri:''}`;
+// U-45 ⑤(11-22 사용자 결정 1-A): 이름이 같은 자리가 둘 이상이면 브이월드 지번 주소의 '리' 이름을 작게 붙여 구분. 못 가져오면 안 붙임
+const riOf=a=>{const m=a&&a.parcel&&a.parcel.match(/(\S+리)\s+(산\s*)?\d/); return m?m[1]:'';};
+function recVillage(ul,P,sg){const nm=P.map(c=>c.fav?'':recName(Object.assign({},c,{ri:''}),sg)), cnt={}; nm.forEach(n=>{if(n)cnt[n]=(cnt[n]||0)+1;});
+  P.forEach((c,i)=>{if(!nm[i]||cnt[nm[i]]<2||c.ri)return;
+    addrOf(c.la,c.lo).then(a=>{const r=riOf(a); if(!r)return; c.ri=r; const li=ul.querySelector(`li[data-i="${i}"] .rcn`); if(li&&ul._P===P&&!li.querySelector('.vl'))li.insertAdjacentHTML('beforeend',`<span class="vl">· ${escH(r)}</span>`);}).catch(()=>{});});}
 // 내 위치에서 거리 (낚시GO 참고, REQ-57): 현위치가 있으면 km 표시, '가까운 순'이면 거리순
 function recMe(){try{return meMarker?meMarker.getLatLng():null;}catch(e){return null;}}
 function recCircle(Q){try{L.circle([Q.la,Q.lo],{radius:Q.km*1000,color:'#ffd24a',weight:1.5,dashArray:'6 6',fill:false,interactive:false}).addTo(REC.layer);}catch(e){}}
@@ -2665,7 +2688,7 @@ function recRender(ul,R){
       c.T!=null?[`${E_T} ${c.T.toFixed(1)}℃${c.tnote?' '+c.tnote:''}`,'']:null, c.wav!=null&&c.wav>=1.5?[`⚠️ 파고 ${c.wav.toFixed(1)}m`,'']:null,
       c.km!=null?[`🧭 ${c.km<10?c.km.toFixed(1):Math.round(c.km)}km`,'']:null, c.isl&&!c.fav&&mix?[`${KIND_NAME[c.isl]}${c.isl!=='l'&&!/^(osm|pre)$/.test(R.kindSrc)?'(추정)':''}`,'']:null,
       c.kind?[c.kind,/잔잔/.test(c.kind)?'ok':'']:null].filter(Boolean);
-    return `<li data-i="${i}" class="rc${i===0?' first':''}${c.fav?' fav':''}"${c.isl&&c.isl!=='l'?` data-ring="${c.ring}"`:''}><div class="l1 rc-h"><span class="rcn"><i class="rk">${i+1}</i>${escH(recName(c,sg))}</span><span class="rcs"><b>${sc}</b><small class="grade g${g.k}">${g.t}</small></span></div>`
+    return `<li data-i="${i}" class="rc${i===0?' first':''}${c.fav?' fav':''}"${c.isl&&c.isl!=='l'?` data-ring="${c.ring}"`:''}><div class="l1 rc-h"><span class="rcn"><i class="rk">${i+1}</i>${escH(recName(Object.assign({},c,{ri:''}),sg))}${c.ri?`<span class="vl">· ${escH(c.ri)}</span>`:''}</span><span class="rcs"><b>${sc}</b><small class="grade g${g.k}">${g.t}</small></span></div>`
       +(w?`<div class="rc-w"><span class="tm">⏰ ${hhmm(w.s)}~${hhmm(w.t)}</span><span class="st">${w.hi==null?'':w.hi?'만조':'간조'} ${hhmm(w.ms)}${c.best.st?` · ${escH(c.best.st)}`:''}</span>${bdgHtml(winBadge(w))}</div>`:'')
       +`<div class="rc-c">${ch.map(x=>`<span class="chip${x[1]?' '+x[1]:''}">${numHtml(x[0])}</span>`).join('')}</div></li>`;}).join('');
   // REQ-74: 즐겨찾기 추천은 숫자 핀을 그리지 않고 ⭐ 핀(L5)을 누르면 이 추천 팝업을 띄움 (겹침 방지)
@@ -2673,6 +2696,7 @@ function recRender(ul,R){
   P.forEach((c,i)=>{if(c.fav){REC.favRec[favKey(c.la,c.lo)]={c,i,sg};return;}
     L.marker([c.la,c.lo],{icon:L.divIcon({className:'',html:`<div class="recpin">${i+1}</div>`,iconSize:[22,22],iconAnchor:[11,11]})})
     .on('click',ev=>{L.DomEvent.stopPropagation(ev);pinPop(c,i,sg);}).addTo(REC.layer);});
+  recVillage(ul,P,sg);
 }
 // ── REQ-72: M10 로딩 표시 — P4-4 추천 계산 중에 지도로 나오면 지도 가운데에 ──
 function loadOv(){const on=!!REC.ovOn&&!$('#planPanel').classList.contains('show'), el=$('#loadOv');
@@ -2916,7 +2940,8 @@ function mulddae(ms,west){
 }
 
 // 서해(대략 경도 126.6 서쪽, 위도 34.4 북쪽)는 7물때식, 그 밖은 8물때식
-function isWestSea(lat,lon){return lon<126.6&&lat>34.4;}
+const MULSYS={v:'auto'}; // H-7(11-22): ⚙️ 물때 이름 방식 — 자동(위치)·7물식·8물식
+function isWestSea(lat,lon){if(MULSYS.v==='7')return true; if(MULSYS.v==='8')return false; return lon<126.6&&lat>34.4;}
 function mulText(ms,lat,lon){const r=mulddae(ms,isWestSea(lat,lon));return `음 ${r.ld}일 · ${r.name}`;}
 
 // ================= 선택 지점 정보 =================
@@ -3364,7 +3389,7 @@ function renderFavList(){
 $('#favBtn').onclick=()=>{renderFavList();$('#favImportBox').style.display='none';$('#favPanel').classList.add('show');};
 // 백업: 즐겨찾기를 글(텍스트)로 만들어 카톡·메모 등으로 보내기 → 새 폰/재설치 후 붙여넣어 복원
 // ── 백업 내보내기·가져오기 (REQ-50): 안드로이드 앱 ↔ HTML 버전 사이 옮기기 ──
-const BAK_PREFIX='바다흐름지도-백업:', BAK_PREFS=['dataKey','romsUrl','vworldKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit','tideMode','cfOn','depthOn','tideSt2','cfSt1','recKinds','islOv','recSort','nowMini','nowView','sstOn'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
+const BAK_PREFIX='바다흐름지도-백업:', BAK_PREFS=['theme','nightOn','mulSys','dataKey','romsUrl','vworldKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit','tideMode','cfOn','depthOn','tideSt2','cfSt1','recKinds','islOv','recSort','nowMini','nowView','sstOn'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
 function bakMake(){const P={},S={};for(const k of BAK_PREFS){const v=pref(k,null);if(v!=null&&v!=='')P[k]=v;}for(const k of BAK_LS){try{const v=localStorage.getItem(k);if(v)S[k]=v;}catch(e){}}
   return BAK_PREFIX+JSON.stringify({v:1,at:new Date().toISOString(),from:NATIVE?'app':'web',prefs:P,ls:S});}
 function bakApply(txt){txt=String(txt||'').trim(); const i=txt.indexOf('{'); if(i<0)throw new Error('백업 내용이 아니에요');
@@ -3472,6 +3497,35 @@ $('#favPanel').addEventListener('click',e=>{
     toastUndo('즐겨찾기를 지웠어요',()=>{saveFavs(old); renderFavList(); updateUI();}); return;}
   const it=e.target.closest('.fav'); if(it){const f=a[+it.dataset.i];$('#favPanel').classList.remove('show');map.flyTo([f.lat,f.lng],12,{duration:1});select(f.lat,f.lng,f.name);}
 });
+
+
+// ================= U-46 화면 모드 · U-47 손전등 · H-7 물때 방식 (11-22) =================
+const THEME={pref:pref('theme','system'),night:pref('nightOn','')==='1',torch:false};
+const torchAvail=()=>{try{return !!(NATIVE&&NATIVE.torchOk&&NATIVE.torchOk());}catch(e){return false;}};
+function themeName(){if(THEME.night)return 'night'; if(THEME.pref==='light'||THEME.pref==='dark')return THEME.pref;
+  let l=false; try{l=matchMedia('(prefers-color-scheme: light)').matches;}catch(e){} return l?'light':'dark';}
+function themeApply(){const t=themeName(); document.documentElement.dataset.theme=t;
+  const mt=document.querySelector('meta[name=theme-color]'); if(mt)mt.content=t==='light'?'#e9eef2':t==='night'?'#140505':'#0a1520';
+  const nb=$('#nightBtn'); nb.classList.toggle('on',THEME.night); nb.setAttribute('aria-pressed',String(THEME.night));
+  document.querySelectorAll('#themeSeg button').forEach(b=>b.classList.toggle('on',THEME.night?b.dataset.t==='night':b.dataset.t===THEME.pref));
+  const tb=$('#torchBtn'); tb.hidden=!(THEME.night&&torchAvail()); if(!THEME.night&&THEME.torch)torchSet(false);
+  try{if(NATIVE&&NATIVE.setNight)NATIVE.setNight(THEME.night);}catch(e){}}
+// 🔴 한 번 = 밤낚시, 다시 = 원래 모드(시스템·밝게·어둡게)
+function setNight(on){THEME.night=!!on; setPref('nightOn',on?'1':''); themeApply(); haptic('tick');}
+function setTheme(t){if(t==='night'){setNight(true);return;} THEME.pref=t; setPref('theme',t); THEME.night=false; setPref('nightOn',''); themeApply(); haptic('tick');}
+function torchUI(){const tb=$('#torchBtn'); tb.classList.toggle('on',THEME.torch); tb.setAttribute('aria-pressed',String(THEME.torch));}
+function torchSet(on){let r='no'; try{r=NATIVE&&NATIVE.torch?String(NATIVE.torch(!!on)):'no';}catch(e){r='err';} THEME.torch=!!on&&r==='ok'; torchUI();
+  if(on&&r!=='ok')toast('손전등을 켤 수 없어요'+(r.startsWith('err:')?' ('+r.slice(4,40)+')':''),2500); else haptic('tick');}
+window.__torchOff=()=>{THEME.torch=false; torchUI();}; // 앱이 뒤로 가면(자바 onPause) 꺼짐
+$('#nightBtn').onclick=e=>{if(e.currentTarget._lp)return; setNight(!THEME.night);};
+$('#torchBtn').onclick=()=>torchSet(!THEME.torch);
+$('#themeSeg').onclick=e=>{const b=e.target.closest('button'); if(b)setTheme(b.dataset.t);};
+try{matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>{if(THEME.pref==='system')themeApply();});}catch(e){}
+themeApply();
+// H-7 물때 이름 방식
+function mulApply(){document.querySelectorAll('#mulSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===MULSYS.v));}
+MULSYS.v=pref('mulSys','auto'); mulApply();
+$('#mulSeg').onclick=e=>{const b=e.target.closest('button'); if(!b)return; MULSYS.v=b.dataset.m; setPref('mulSys',MULSYS.v); mulApply(); updateUI(); haptic('tick');};
 
 // ================= 시작 =================
 function loop(){frame++;

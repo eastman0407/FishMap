@@ -26,7 +26,7 @@ exec(src+'''
         if E("!!__QA.TIDE.cur"): break
         pg.wait_for_timeout(500)
     side=E("[...document.querySelectorAll('.side .ibtn')].map(b=>b.id)")
-    check('U1 오른쪽 버튼은 ◎·📅·☰ 3개 (+ 위 ★) — build-49 U-4', side==['locBtn','planBtn','layersBtn'] and E("!!document.querySelector('.top #favBtn')"), side)
+    check('U1 오른쪽 버튼은 🔴·◎·📅·☰ 4개 (+ 위 ★) — build-49 U-4, build-62 🔴 추가', side==['nightBtn','locBtn','planBtn','layersBtn'] and E("!!document.querySelector('.top #favBtn')"), side)
     E("document.querySelector('#layersBtn').click()")
     ids=E("[...document.querySelectorAll('#layerPanel .ibtn')].map(b=>b.id)")
     check('U2 보기 시트에 켜고 끄는 도구 6개 + 맨 아래 ⚙️ 설정 줄 (build-50 U-20)', E("document.querySelector('#layerPanel').classList.contains('show')") and ids==['layerBtn','flowBtn','windBtn','simBtn','rockBtn','sstBtn'] and E("!!document.querySelector('#layerPanel .lsep + #setBtn.lrow')"), ids)

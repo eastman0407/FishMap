@@ -60,7 +60,7 @@
     E("__QA.pointView('none')"); pg.wait_for_timeout(200)
     m2=E("[...document.querySelectorAll('.side .ibtn')].map(b=>[b.id,b.textContent.trim(),b.getAttribute('aria-label'),Math.round(b.getBoundingClientRect().width),Math.round(b.getBoundingClientRect().height)])")
     inl=E("!!document.querySelector('#layerPanel #planBtn')")
-    check('U4a M2 = [◎][📅][☰] 아이콘만 44×44, 접근성 이름, 출조 도우미는 보기 시트에서 빠짐', [x[0] for x in m2]==['locBtn','planBtn','layersBtn'] and [x[1] for x in m2]==['◎','📅','☰'] and all(x[2] and x[3]>=44 and x[4]>=44 for x in m2) and not inl, m2)
+    check('U4a M2 = [🔴][◎][📅][☰](build-62 U-46 🔴 밤낚시 추가) 아이콘만 44×44, 접근성 이름, 출조 도우미는 보기 시트에서 빠짐', [x[0] for x in m2]==['nightBtn','locBtn','planBtn','layersBtn'] and [x[1] for x in m2]==['🔴','◎','📅','☰'] and all(x[2] and x[3]>=44 and x[4]>=44 for x in m2) and not inl, m2)
     check('U4b 보기 시트 제목 "보기"', E("document.querySelector('#layerPanel h3').firstChild.textContent.trim()")=='보기')
     b=E("(()=>{const r=document.querySelector('#planBtn').getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2]})()")
     pg.mouse.move(b[0],b[1]); pg.mouse.down(); pg.wait_for_timeout(700); tip=E("[document.querySelector('#tip')&&document.querySelector('#tip').textContent,document.querySelector('#tip')&&getComputedStyle(document.querySelector('#tip')).display]"); pg.mouse.up(); pg.wait_for_timeout(200)

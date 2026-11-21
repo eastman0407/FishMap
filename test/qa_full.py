@@ -72,7 +72,7 @@ with sync_playwright() as p:
     # ===== B. 실제 예보 모드 =====
     print('\n[B] 실제 예보 모드 (키 있음)')
     pg,errs=page(br,{'dataKey':'TESTKEY'})
-    check('B1 실제 예보 배지', any(w in pg.inner_text('.samplebadge') for w in ('실제','확대','항내')), pg.inner_text('.samplebadge'))
+    check('B1 실제 예보 배지', any(w in pg.inner_text('.samplebadge') for w in ('실제','확대','항내','정밀')), pg.inner_text('.samplebadge'))
     E(pg,"_map._z=11;_map.fire('moveend')"); pg.wait_for_timeout(4000)
     check('B2 ROMS 자료 수신·보간(REQ-07)', E(pg,"__QA.RD.pts.length")>0 and E(pg,"__QA.RD.times.length")>0, f"{E(pg,'__QA.RD.pts.length')}지점 {E(pg,'__QA.RD.times.length')}시각")
     v=E(pg,"(()=>{const f=__QA.flowAt(34.9,128.05,__QA.tMin()/60);return f?Math.hypot(f.vE,f.vN):null})()")

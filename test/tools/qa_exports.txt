@@ -134,3 +134,14 @@ simProg,
 interpAt
 ,
 bcHash
+,
+THEME,
+setTheme,
+setNight,
+themeName,
+torchSet,
+MULSYS,
+isWestSea
+,
+riOf,
+recVillage
