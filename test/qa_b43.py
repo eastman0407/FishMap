@@ -44,7 +44,7 @@ exec(src+'''
     E("_map.fire('moveend')"); pg.wait_for_timeout(2500)
     def mid(q): r=E(f"(()=>{{const r=document.querySelector('{q}').getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2];}})()"); return r
     E("document.querySelector('#planBtn').click()"); pg.wait_for_timeout(300)
-    E("document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(1200)
+    E("AndroidBridge._p.recBasis='area'; document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(1200)
     for _ in range(200):
         if E("!__QA.REC.busy"): break
         pg.wait_for_timeout(300)
@@ -58,9 +58,10 @@ exec(src+'''
         pg.wait_for_timeout(150)
     cs=E("(()=>{const r=document.querySelector('#loadOv').getBoundingClientRect(),m=document.querySelector('#map').getBoundingClientRect();return [Math.round(r.left+r.width/2-(m.left+m.width/2)),Math.round(r.top+r.height/2-(m.top+m.height/2)),getComputedStyle(document.querySelector('#loadOv')).pointerEvents];})()")
     check('P1 추천 계산 중 지도로 나오면 가운데 반투명 로딩 (단계 n/4 표시, 지도 조작 통과)', seen and any('/4 ' in x for x in subs) and E("getComputedStyle(document.querySelector('#loadOv')).pointerEvents")=='none', [seen,list(subs)[:4]])
+    pg.wait_for_timeout(900)  # build-49 U-12: 끝나면 ✓ "다 찾았어요"를 0.7초 보여 준 뒤 사라짐
     after=E("[document.querySelector('#loadOv').classList.contains('show'), document.querySelector('#toast').textContent]")
     check('P2 끝나면 로딩 사라지고 "추천 N곳을 지도에 표시" 알림', (not after[0]) and '지도에 표시' in after[1], after)
-    E("document.querySelector('#planBtn').click()"); pg.wait_for_timeout(300); E("document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(300)
+    E("document.querySelector('#planBtn').click()"); pg.wait_for_timeout(300); E("AndroidBridge._p.recBasis='area'; document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(300)
     E("__QA.REC.ovOn=true; __QA.loadOv()"); inP=E("document.querySelector('#loadOv').classList.contains('show')"); E("__QA.REC.ovOn=false; __QA.loadOv()")
     E("while(window.__onBack&&window.__onBack()){}")
     check('P3 출조 도우미 창이 열려 있으면 로딩 안 띄움 (창 안에 진행 글이 있으니까)', not inP)
@@ -92,12 +93,12 @@ exec(src+'''
     E("__QA.REC.layer._items[0].fire('click')"); pg.wait_for_timeout(300); E("document.querySelector('#pinPop [data-a=fav]').click()"); pg.wait_for_timeout(400)
     fv=E("[document.querySelector('#info').classList.contains('show'), getComputedStyle(document.querySelector('#namebox')).display]")
     check('P11 뒤로가기로 팝업 닫힘, ☆ 저장 = 지점 시트 + 이름 칸', (not b1) and fv[0] and fv[1]!='none', [b1,fv])
-    E("document.querySelector('#closeInfo').click()"); E("document.querySelector('#planBtn').click()"); pg.wait_for_timeout(300); E("document.querySelector('.ptabs [data-tab=today]').click()")
+    E("__QA.pointView('none')")
     for _ in range(200):
-        if E("!__QA.REC.busy&&!!__QA.REC.today&&!!__QA.REC.today.pick"): break
+        if E("!__QA.REC.busy&&!!__QA.REC.res&&!!__QA.REC.res.pick"): break
         pg.wait_for_timeout(300)
     E("while(window.__onBack&&window.__onBack()){}"); E("__QA.REC.layer._items[0].fire('click')"); pg.wait_for_timeout(300)
-    check('P12 오늘 탭(P4-1) 핀도 같은 팝업', E("document.querySelector('#pinPop').classList.contains('show')"))
+    check('P12 추천 탭(P4-1) 핀을 다시 눌러도 같은 팝업', E("document.querySelector('#pinPop').classList.contains('show')"))
     d=E("__QA.runDiag()"); check('P13 진단에 주소 찾기 결과', '주소 찾기(브이월드)' in d)
     check('P14 스크립트 오류 없음', not errs, errs[:2])
     br.close()

@@ -26,10 +26,10 @@ exec(src+'''
         if E("!!__QA.TIDE.cur"): break
         pg.wait_for_timeout(500)
     side=E("[...document.querySelectorAll('.side .ibtn')].map(b=>b.id)")
-    check('U1 오른쪽 버튼은 ◎·레이어 2개 (+ 위 ★)', side==['locBtn','layersBtn'] and E("!!document.querySelector('.top #favBtn')"), side)
+    check('U1 오른쪽 버튼은 ◎·📅·☰ 3개 (+ 위 ★) — build-49 U-4', side==['locBtn','planBtn','layersBtn'] and E("!!document.querySelector('.top #favBtn')"), side)
     E("document.querySelector('#layersBtn').click()")
     ids=E("[...document.querySelectorAll('#layerPanel .ibtn')].map(b=>b.id)")
-    check('U2 레이어 시트에 도구 8개 (build-48 🌡️ 위성 수온 추가)', E("document.querySelector('#layerPanel').classList.contains('show')") and ids==['layerBtn','flowBtn','windBtn','simBtn','rockBtn','sstBtn','planBtn','setBtn'], ids)
+    check('U2 보기 시트에 도구 7개 (build-49: 출조 도우미는 M2로)', E("document.querySelector('#layerPanel').classList.contains('show')") and ids==['layerBtn','flowBtn','windBtn','simBtn','rockBtn','sstBtn','setBtn'], ids)
     pg.screenshot(path='/tmp/ui_layer.png')
     on0=E("document.querySelector('#flowBtn').classList.contains('on')"); E("document.querySelector('#flowBtn').click()"); on1=E("document.querySelector('#flowBtn').classList.contains('on')")
     E("document.querySelector('#flowBtn').click()")
@@ -69,7 +69,7 @@ exec(src+'''
     for _ in range(200):
         pg.wait_for_timeout(300)
         if E("!__QA.REC.busy"): break
-    E("document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(800)
+    E("AndroidBridge._p.recBasis='area'; document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(800)
     E("__QA.REC.res=null; document.querySelector('#recGo').click()")
     for _ in range(300):
         if E("!__QA.REC.busy&&!!__QA.REC.res"): break

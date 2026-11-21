@@ -44,7 +44,7 @@ exec(src+'''
     E("_map.fire('moveend')"); pg.wait_for_timeout(2500)
     def mid(q): r=E(f"(()=>{{const r=document.querySelector('{q}').getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2];}})()"); return r
     E("__QA.CONF.realData=true; __QA.REC.today={sg:{n:'사천시',s:'경남',c:'x'},pick:[{la:34.91,lo:128.05,score:.76,dong:'향촌동',isl:'l',best:{w:{s:Date.now()+3600e3*9,t:Date.now()+3600e3*11}}},{la:34.92,lo:128.0,score:.73,dong:'서포면',isl:'l',best:{w:{s:Date.now()+3600e3*3,t:Date.now()+3600e3*5}}},{la:34.9,lo:128.06,score:.70,dong:'향촌동',isl:'l',best:{w:{s:Date.now()+3600e3*9,t:Date.now()+3600e3*11}}}]}")
-    E("__QA.REC.todayKey=null; __QA.nowView('rec')"); pg.wait_for_timeout(500)
+    pg.evaluate("__QA.recLoad()"); E("__QA.REC.todayKey=__QA.nowRecKey(__QA.nowRecQ()); __QA.nowView('rec')"); pg.wait_for_timeout(500)
     R="(()=>{const c=document.querySelector('#nowCard'),r=c.getBoundingClientRect(),q=s=>{const e=c.querySelector(s);if(!e)return null;const b=e.getBoundingClientRect();return [Math.round(b.left),Math.round(b.top),Math.round(b.width),Math.round(b.bottom)]};return {card:[Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.bottom)],cls:c.className,rec:q('#nowRec'),grip:q('#nowGrip'),op:getComputedStyle(c.querySelector('#nowRec')).opacity,mini:c.querySelector('#nowMini').textContent}})()"
     o=E(R); E("document.querySelector('#nowFold').click()"); mids=[]
     for _ in range(4): pg.wait_for_timeout(45); mids.append(E(R))

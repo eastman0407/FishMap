@@ -28,7 +28,7 @@ exec(src+'''
     for _ in range(200):
         pg.wait_for_timeout(300)
         if E("!__QA.REC.busy"): break
-    E("document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(1500)
+    E("AndroidBridge._p.recBasis='area'; document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(1500)
     sd=E("[...document.querySelectorAll('#recSido option')].map(o=>o.textContent)")
     sg=E("[...document.querySelectorAll('#recSgg option')].map(o=>o.textContent)")
     cur=E("document.querySelector('#recSgg').selectedOptions[0].textContent")
@@ -65,7 +65,7 @@ exec(src+'''
     kinds=E("__QA.REC.res.pick.map(c=>c.kind)"); st=E("__QA.REC.res.str")
     allk=E("(()=>{const R=__QA.REC.res;return R.pick.length})()")
     check('R11 센 곳·잔잔한 곳은 지역 안 비교 → 조금 날엔 센 곳이, 사리 날엔 잔잔한 곳이 위로', (st=='weak' and kinds.count('센 곳')>=kinds.count('잔잔한 곳')) or (st=='strong' and kinds.count('잔잔한 곳')>=kinds.count('센 곳')) or st=='mid', [st,kinds])
-    E("document.querySelector('#planBtn').click()"); E("document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(500)
+    E("document.querySelector('#planBtn').click()"); E("AndroidBridge._p.recBasis='area'; document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(500)
     opts=E("[...document.querySelectorAll('#recDay option')].map(o=>o.textContent)")
     E("const s=document.querySelector('#recDay');s.value='2';"); E("document.querySelector('#recGo').click()")
     for _ in range(200):

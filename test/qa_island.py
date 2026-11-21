@@ -41,7 +41,7 @@ exec(src+'''
     for _ in range(200):
         pg.wait_for_timeout(300)
         if E("!__QA.REC.busy"): break
-    E("document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(1500)
+    E("AndroidBridge._p.recBasis='area'; document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(1500)
     cbs=E("[...document.querySelectorAll('#tabRec .kindbox input')].map(x=>[x.dataset.k,x.checked])")
     check('I2 체크 3개 (기본: 육지·다리 섬 켬, 배 섬 끔)', cbs==[['l',True],['b',True],['f',False]], cbs)
     def run():
@@ -65,7 +65,7 @@ exec(src+'''
     # 모두 고르면 종합
     E("const b=[...document.querySelectorAll('#tabRec .kindbox input')];for(const x of b){x.checked=true;x.onchange();}")
     pg.wait_for_timeout(300); R3=run(); k3=[c.get('isl') for c in R3['pick'] if not c.get('fav')]
-    check('I7 셋 다 고르면 한 목록에서 점수로 종합', len(k3)>=3 and R3['kinds']=='lbf' and E("document.querySelectorAll('#tabToday .kindbox input:checked').length")==3, [k3, R3['kinds']])
+    check('I7 셋 다 고르면 한 목록에서 점수로 종합', len(k3)>=3 and R3['kinds']=='lbf' and E("document.querySelectorAll('#tabRec .kindbox input:checked').length")==3, [k3, R3['kinds']])
     # 길게 눌러 바꾸기
     i=next((n for n,c in enumerate(R3['pick']) if c.get('isl')=='f'),None)
     if i is not None:

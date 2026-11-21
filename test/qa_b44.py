@@ -44,7 +44,7 @@ exec(src+'''
     E("_map.fire('moveend')"); pg.wait_for_timeout(2500)
     def mid(q): r=E(f"(()=>{{const r=document.querySelector('{q}').getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2];}})()"); return r
     E("document.querySelector('#planBtn').click()"); pg.wait_for_timeout(300)
-    E("document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(1200)
+    E("AndroidBridge._p.recBasis='area'; document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(1200)
     for _ in range(200):
         if E("!__QA.REC.busy"): break
         pg.wait_for_timeout(300)
@@ -67,15 +67,16 @@ exec(src+'''
     # 뒤로가기: 팝업 → 시트 → 끝(false)
     E("document.querySelector('#pinPop [data-a=sel]').click()"); pg.wait_for_timeout(400)
     E("__QA.favLayer._items[0].fire('click')"); pg.wait_for_timeout(400)
-    seq=[E("[document.querySelector('#pinPop').classList.contains('show'),document.querySelector('#info').classList.contains('show')]")]
-    r1=E("window.__onBack()"); seq.append(E("[document.querySelector('#pinPop').classList.contains('show'),document.querySelector('#info').classList.contains('show')]"))
-    r2=E("window.__onBack()"); seq.append(E("[document.querySelector('#pinPop').classList.contains('show'),document.querySelector('#info').classList.contains('show')]"))
-    r3=E("window.__onBack()")
-    check('B5 뒤로가기: 팝업 먼저 → 지점 시트 → 열린 창 없으면 false(앱 뒤로)', seq==[[True,True],[False,True],[False,False]] and r1 and r2 and r3 is False, [seq,r1,r2,r3])
+    S="[document.querySelector('#pinPop').classList.contains('show'),document.querySelector('#fCard').classList.contains('show')||document.querySelector('#info').classList.contains('show')]"
+    seq=[E(S)]
+    r1=E("window.__onBack()"); seq.append(E(S))
+    r2=E("window.__onBack()")
+    # build-49: 추천 상태창(P6)을 열면 지점 상태창·시트는 닫힘(떠 있는 창 하나만) → 뒤로가기 한 번이면 끝
+    check('B5 뒤로가기: 추천 상태창 먼저 닫힘 → 열린 창 없으면 false(앱 뒤로)', seq==[[True,False],[False,False]] and r1 and r2 is False, [seq,r1,r2])
     E("document.querySelector('#recClear').click()"); pg.wait_for_timeout(200)
     E("__QA.favLayer._items[0].fire('click')"); pg.wait_for_timeout(500)
-    st=E("[document.querySelector('#pinPop').classList.contains('show'),document.querySelector('#info').classList.contains('show'),document.querySelector('#iname').textContent]")
-    check('B6 추천을 지우면 ⭐ 누를 때 지점 시트(예전처럼)', st[0] is False and st[1] and '테스트포인트' in st[2], st)
+    st=E("[document.querySelector('#pinPop').classList.contains('show'),document.querySelector('#fCard').classList.contains('show'),document.querySelector('#fcName').textContent]")
+    check('B6 추천을 지우면 ⭐ 누를 때 지점 상태창(F28, build-49)', st[0] is False and st[1] and '테스트포인트' in st[2], st)
     check('B7 스크립트 오류 없음', not errs, errs[:2])
     br.close()
 print(f"결과: {sum(res)}/{len(res)}")

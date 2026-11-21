@@ -59,7 +59,7 @@ exec(src+'''
     check('M8 달: 2026-11-24 보름(98%↑), 11-09 그믐(2%↓), 뜨고 지는 시각 계산', mp[0]['pct']>=98 and mp[0]['name']=='보름달' and mp[1]['pct']<=2 and mp[2]['rise'] and mp[2]['set'], [mp[0]['pct'],mp[1]['pct']])
     E("__QA.select(34.92,128.07,'시험 자리')"); pg.wait_for_timeout(500)
     im=E("document.querySelector('#iMore').innerHTML")
-    check('M9 지점 시트에 바람(앞/뒷/옆)·달·하늘', '🌙' in im and any(x in im for x in ['앞바람','뒷바람','옆바람','바람 약함']) and '흐림' in im, im[:200])
+    check('M9 지점 시트에 바람(앞/뒷/옆)·달 (build-49: 하늘은 M3에만 — 정보는 한 집)', '🌙' in im and any(x in im for x in ['앞바람','뒷바람','옆바람','바람 약함']) and '흐림' not in im, im[:200])
     E("while(window.__onBack()){}")
     E("__QA.placeMe(34.93,128.06,20); while(window.__onBack()){}"); E("document.querySelector('#biteFab').click()"); pg.wait_for_timeout(800)
     L=E("JSON.parse(localStorage.getItem('fishmap.log.v1')||'[]')")
@@ -76,7 +76,7 @@ exec(src+'''
         t=E("document.querySelector('#tbOut').textContent")
         if '── xml' in t: break
         pg.wait_for_timeout(250)
-    check('M13 ⚙ 조석 시험: json·xml 응답코드·앞부분 표시, 키는 안 보임', 'json' in t and '── xml' in t and '결과코드' in t and 'SeCrEtKeY' not in t and 'serviceKey=***' in t, t[:200])
+    check('M13 ⚙ 조석 시험: 6가지 모양 응답코드·앞부분 표시, 키는 안 보임 (build-49 H-10)', '① 문서 예시' in t and '⑥ 지금 방식' in t and '결과코드' in t and 'SeCrEtKeY' not in t and ('되는 모양' in t or '모두 안 됨' in t), t[:200])
     mk=E("__QA.keyMask('a?serviceKey=SeCrEtKeY12%2B%2F%3Dabc&x=1 SeCrEtKeY12+/=abc')")
     check('M14 키 가리기 (원문·인코딩 둘 다)', 'SeCrEtKeY' not in mk, mk)
     E("window.AndroidBridge._p.dataKey='K'")

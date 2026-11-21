@@ -58,7 +58,7 @@ exec(src+'''
     for _ in range(200):
         pg.wait_for_timeout(300)
         if E("!__QA.REC.busy"): break
-    E("document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(800)
+    E("AndroidBridge._p.recBasis='area'; document.querySelector('.ptabs [data-tab=rec]').click()"); pg.wait_for_timeout(800)
     E("window.__wav=0.5; window.__rn=0; window.__pcp='강수없음'; __QA.RAIN.key=''")
     E("__QA.REC.res=null; document.querySelector('#recGo').click()")
     for _ in range(300):

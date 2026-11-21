@@ -64,16 +64,18 @@ exec(src+'''
     check('H4 눌린 모양: 누르면 0.08초 안에 작아지고 밝아짐', '0.08s' in st[0] and st[1], st)
     E("__QA.REC.busy=true; __QA.recBtn()"); d=E("(()=>{const b=document.querySelector('#recGo');return [b.disabled,b.textContent,getComputedStyle(b).opacity];})()")
     E("__QA.REC.busy=false; __QA.recBtn()"); d2=E("[document.querySelector('#recGo').disabled,document.querySelector('#recGo').textContent]")
-    check('H5 계산 중엔 추천 받기 흐리게 + "계산 중…", 끝나면 원래대로', d==[True,'계산 중…','0.45'] and d2==[False,'이 지역 추천 받기'], [d,d2])
+    check('H5 계산 중엔 추천 받기 흐리게 + "계산 중…", 끝나면 원래대로', d==[True,'계산 중…','0.45'] and d2==[False,'추천 받기'], [d,d2])
     # 진동
     E("window.__hapN=[]; document.querySelector('#biteBtn').click()"); pg.wait_for_timeout(200)
     h1=E("window.__hapN.slice()")
     E("window.AndroidBridge._p.haptic='0'; window.__hapN=[]; document.querySelector('#biteBtn').click()"); h2=E("window.__hapN.length"); E("window.AndroidBridge._p.haptic='1'")
     check('H6 입질 기록하면 확인 진동, 설정에서 끄면 안 울림', h1==['done'] and h2==0, [h1,h2])
-    E("window.__hapN=[]; __QA.INFO_DRAG.animate(true)"); pg.wait_for_timeout(450); f1=E("window.__hapN.slice()")
-    E("__QA.INFO_DRAG.animate(true)"); pg.wait_for_timeout(450); f2=E("window.__hapN.length")
-    E("__QA.INFO_DRAG.animate(false)"); pg.wait_for_timeout(450); f3=E("window.__hapN.length")
-    sp=E("(()=>{const e=document.querySelector('#info');e.classList.add('snap');const t=getComputedStyle(e).transitionTimingFunction+' '+getComputedStyle(e).transitionDuration;e.classList.remove('snap');return t;})()")
+    # build-49: M8은 접기 대신 상태창으로 → 같은 규칙을 M3 지금 카드(NOW_DRAG)로 확인
+    E("window.AndroidBridge._p.nowMini='0'; __QA.nowView('now')"); pg.wait_for_timeout(300)
+    E("window.__hapN=[]; __QA.NOW_DRAG.animate(true)"); pg.wait_for_timeout(450); f1=E("window.__hapN.slice()")
+    E("__QA.NOW_DRAG.animate(true)"); pg.wait_for_timeout(450); f2=E("window.__hapN.length")
+    E("__QA.NOW_DRAG.animate(false)"); pg.wait_for_timeout(450); f3=E("window.__hapN.length")
+    sp=E("(()=>{const e=document.querySelector('#nowCard');e.classList.add('snap');const t=getComputedStyle(e).transitionTimingFunction+' '+getComputedStyle(e).transitionDuration;e.classList.remove('snap');return t;})()")
     check('H7 시트 접기·펴기 바뀔 때만 톡 + 스프링(끝에서 살짝 넘침, 0.3초)', f1==['tick'] and f2==1 and f3==2 and '1.35' in sp and '0.3s' in sp, [f1,f2,f3,sp])
     # 되돌리기: 입질 기록 지우기
     n0=E("__QA.loadLog().length"); E("__QA.renderLog()")

@@ -76,7 +76,7 @@ exec(src+'''
     t1=E("__QA.cfNearText(34.92,128.07,__QA.tH())"); t2=E("__QA.cfNearText(34.928,128.07,__QA.tH())")
     check('N8 근처(500m 안) 조류예보 지점 값·방향·거리, 멀면 안 보임', '시험지점 1.4노트' in t1 and '북서쪽' in t1 and '180m' in t1 and t2=='', [t1,t2])
     E("__QA.updateUI()"); im=E("document.querySelector('#iMore').textContent")
-    check('N9 지점 시트에 근처 지점 줄 표시', '근처 조류예보 지점' in im, im[:120])
+    check('N9 지점 시트에 근처 지점 칸 표시 (build-49: 자리 정보 2×2의 "📍 조류 지점")', '조류 지점' in im and '시험지점' in im, im[:120])
     ac=E("""(()=>{const gx=40,gy=40,ch=new Uint8Array(gx*gy).fill(1); for(let y=0;y<gy;y++)for(let x=15;x<=20;x++)ch[y*gx+x]=0;
       const T={gx,gy,solid:ch}, open={gx,gy,solid:new Uint8Array(gx*gy)};
       const a=__QA.anchorCells(T,{cx:17,cy:20,vE:0,vN:1.5},94), b=__QA.anchorCells(open,{cx:17,cy:20,vE:0,vN:1.5},94), c=__QA.anchorCells(T,{cx:17,cy:20,vE:0,vN:0},94);

@@ -85,7 +85,7 @@ with sync_playwright() as p:
     check('B5 색 단계 고정(빨강 2.0) + 움직임 속도만 화면에 맞춤(REQ-19→37)', E(pg,"__QA.VIEW.breaks")==[0.3,0.6,1,1.4,1.7,2] and 0<E(pg,"__QA.VIEW.G")<=3, [E(pg,"__QA.VIEW.breaks"),E(pg,"__QA.VIEW.G")])
     # 지점 선택·정보카드
     E(pg,"_map.fire('click',{latlng:{lat:34.9,lng:128.05}})"); pg.wait_for_timeout(800)
-    check('B6 지점 정보카드', pg.is_visible('#info') and 'kn' in pg.inner_text('#iSpeed'), pg.inner_text('#iSpeed')+' '+pg.inner_text('#iDir'))
+    check('B6 지점 정보카드(상태창 F28, build-49)', pg.is_visible('#fCard') and 'kn' in pg.inner_text('#iSpeed'), pg.inner_text('#iSpeed')+' '+pg.inner_text('#iDir'))
     check('B7 유속 그래프 이벤트(물 약해짐)', len(E(pg,"__QA.EV().slack"))>0, pg.inner_text('#iSlack'))
     # 시간 슬라이더
     t0=E(pg,"__QA.tMin()"); pg.click('#nowBtn'); pg.fill('#slider','600'); pg.dispatch_event('#slider','input'); pg.wait_for_timeout(300)
@@ -93,7 +93,7 @@ with sync_playwright() as p:
     pg.click('#play'); pg.wait_for_timeout(1500); t1=E(pg,"__QA.tMin()"); pg.click('#play')
     check('B9 재생 버튼', t1>600, f"600→{t1:.0f}")
     # 즐겨찾기
-    pg.click('#starBtn'); pg.fill('#favName','테스트포인트'); pg.click('#favSave'); pg.wait_for_timeout(300)
+    pg.evaluate("document.querySelector('#info').classList.contains('show')||document.querySelector('#fcGraph').click()"); pg.wait_for_timeout(300); pg.click('#starBtn'); pg.fill('#favName','테스트포인트'); pg.click('#favSave'); pg.wait_for_timeout(300)
     check('B10 즐겨찾기 저장(REQ-06)', any(f['name']=='테스트포인트' for f in E(pg,"__QA.loadFavs()")))
     pg.click('#favBtn'); pg.wait_for_timeout(300)
     check('B11 즐겨찾기 목록에 현재 흐름', 'kn' in pg.inner_text('#favList') or '불러와요' in pg.inner_text('#favList'), pg.inner_text('#favList')[:60])
@@ -210,7 +210,7 @@ with sync_playwright() as p:
     E(pg,"_map.fire('dragstart')"); pg.wait_for_timeout(300)
     check('H7 지도 손으로 움직이면 따라가기 꺼짐', not E(pg,"__QA.FOLLOW.on"))
     # 즐겨찾기 백업
-    pg.click('#starBtn'); pg.fill('#favName','백업시험A'); pg.click('#favSave'); pg.wait_for_timeout(200)
+    pg.evaluate("document.querySelector('#info').classList.contains('show')||document.querySelector('#fcGraph').click()"); pg.wait_for_timeout(300); pg.click('#starBtn'); pg.fill('#favName','백업시험A'); pg.click('#favSave'); pg.wait_for_timeout(200)
     pg.click('#favBtn'); pg.click('#favExport'); pg.wait_for_timeout(300)
     shared=E(pg,"window.__shared||''")
     check('H8 즐겨찾기 백업 보내기(REQ-25)', shared.startswith('바다흐름지도-즐겨찾기:') and '백업시험A' in shared, shared[:60])
