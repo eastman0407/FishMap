@@ -181,7 +181,12 @@ button:disabled{opacity:.45;cursor:default}
 .fcard .stats{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}.fcard .stats div{background:rgba(0,0,0,.22);padding:5px 8px}
 .fcard .stats b{font-size:16px;overflow:hidden;text-overflow:ellipsis}
 .fc-near{font-size:11.5px;color:#ffd98a;margin-top:4px}.fc-l{font-size:12px;color:#cfe6ff;margin-top:5px;line-height:1.4}
-.fc-a{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}.fc-a .btn{min-height:40px;font-weight:700;font-size:13px;padding:6px 4px}
+.fc-a{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:7px}.fc-a .btn{min-height:44px;font-weight:700;font-size:13px;padding:6px 2px;white-space:nowrap}.fc-a.noemo .be{display:none}
+.fc-v{margin-top:6px;font-size:13.5px;line-height:1.5}.fc-v b{font-size:15px;font-variant-numeric:tabular-nums}.fc-v .wt{white-space:nowrap}
+.fcard .navs,.pinpop .navs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}.fcard .navs button{min-height:44px;font-weight:700;font-size:13px;padding:6px 2px}
+.fcard .nav-tmap{border-color:#3d6bff}.fcard .nav-kakao{border-color:#e8c400}.fcard .nav-naver{border-color:#03c75a}
+.fcard .fc-big{margin:6px 0 0}.fcard .fc-big .tm{font-size:24px}
+.pinpop .pp-addr span{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pinpop .pp-addr .btn{height:auto;min-height:0;min-width:0;background:none;border:none;text-decoration:underline;color:var(--accent);padding:4px 6px;position:relative} /* 시안처럼 글자 링크, 누르는 범위는 ::after 44px */.pinpop .pp-addr .btn::after{content:'';position:absolute;left:50%;top:50%;width:max(100%,44px);height:44px;transform:translate(-50%,-50%)}.pinpop .pp-h .star{height:34px}.pinpop .pp-sc{display:flex;flex-wrap:wrap;gap:2px 6px;align-items:center;margin-top:3px}.pinpop .pp-sc .sc{color:#ffd166;font-size:14px}
 .isum{font-size:13.5px;color:var(--text);margin-top:4px;line-height:1.45}.isum .num{font-variant-numeric:tabular-nums;font-weight:700}
 .igrid{display:grid!important;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.igrid[style*="none"]{display:none!important}
 .igrid>div{background:var(--panel2);border-radius:10px;padding:7px 8px;font-size:12px;color:#cfe6ff;line-height:1.4;min-width:0}
@@ -309,15 +314,13 @@ select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
     <!-- U-10 (build-49): 지점 상태창 F28 — 찍은 자리 위에 떠 있는 작은 창. 꼬리가 자리를 가리킴 -->
     <div class="fcard" id="fCard" role="dialog" aria-label="이 자리 물 상태">
       <div class="fc-h"><span class="nm" id="fcName">-</span><button class="star" id="fcStar" aria-label="즐겨찾기">☆</button><button class="x" id="fcClose" aria-label="닫기">×</button></div>
-      <div class="stats">
-        <div>유속<b id="iSpeed">-</b></div>
-        <div>방향<b id="iDir">-</b></div>
-        <div>상태<b id="iState">-</b></div>
-        <div><span id="slackLbl">다음 정조</span><b id="iSlack">-</b></div>
-      </div>
+      <!-- U-43 (build-54): P6과 같은 틀 — 큰 칸(다음 정조) → 유속·방향·상태·수온 한 줄 → 물높이 → 버튼 3개 -->
+      <div class="pp-win fc-big"><div class="lb"><span class="emo">🌊</span> <span id="slackLbl">다음 정조</span></div><div class="tmx"><b class="tm" id="iSlack">-</b><span class="bdg soon" id="iSlackIn" style="display:none"></span></div></div>
+      <div class="fc-v"><span>유속 <b id="iSpeed">-</b></span> <b id="iDir">-</b><span class="dt"> · </span><span id="iState">-</span><span class="wt" id="fcTemp"></span></div>
       <div class="fc-near" id="iNear" style="display:none"></div>
       <div class="fc-l" id="fcTide"></div>
-      <div class="fc-a"><button class="btn" id="fcGraph">📈 그래프 ›</button><button class="btn" id="fcNearRec">⭐ 주변 추천</button></div>
+      <div class="fc-a"><button class="btn" id="fcGraph"><span class="be">📈</span> 그래프</button><button class="btn" id="fcNav"><span class="be">🚗</span> 길 안내</button><button class="btn" id="fcNearRec"><span class="be">⭐</span> 주변 추천</button></div>
+      <div class="navs" id="fcNavs" style="display:none"><button class="btn nav-tmap" data-nav="tmap">TMAP</button><button class="btn nav-kakao" data-nav="kakao">카카오맵</button><button class="btn nav-naver" data-nav="naver">네이버지도</button></div>
       <i class="tail"></i>
     </div>
   </div>
@@ -1035,8 +1038,31 @@ async function dtObs(lat,lon){
   try{const r=await nget(url,20); DTO.calls++; const it=ROMS.findItems(JSON.parse(r.text)); if(!it||!it.length){cacheDrop(url);DTO.last=apiCode(r.text);return null;}
     DTO.last='00'; const rows=it.filter(x=>x.obsrvnDt).sort((a,b)=>a.obsrvnDt<b.obsrvnDt?-1:1), L=rows[rows.length-1], P3=rows[rows.length-4];
     const num=v=>v===''||v==null||!isFinite(+v)?null:+v;
-    return {st:st.n,km:+(bd/1000).toFixed(1),at:L.obsrvnDt,wtem:num(L.wtem),atmpr:num(L.atmpr),dp3:P3&&num(L.atmpr)!=null&&num(P3.atmpr)!=null?+(num(L.atmpr)-num(P3.atmpr)).toFixed(1):null};
+    return {st:st.n,sc:st.c,la:st.la,lo:st.lo,km:+(bd/1000).toFixed(1),at:L.obsrvnDt,wtem:num(L.wtem),atmpr:num(L.atmpr),dp3:P3&&num(L.atmpr)!=null&&num(P3.atmpr)!=null?+(num(L.atmpr)-num(P3.atmpr)).toFixed(1):null};
   }catch(e){return null;}}
+// U-49 (build-54): 찍은 자리 수온 = 예보 + K × (가까운 조위관측소 실측 − 그 자리 예보). 최적 내삽(OI)을 관측소 한 곳으로 줄인 꼴
+// K = 거리무게 exp(−(d/L)²) × σb²/(σb²+σo²) × 시간무게 exp(−Δt/τ). 30km 넘으면 예보만. 위성 수온은 안 섞음. 시작값은 가정 → 아래 기록으로 맞춰 감
+const WT_P={L:15,sb:1.0,so:0.5,tau:1}, WT={obs:new Map(),pend:new Set()};
+function wtNear(lat,lon){const S=DTO.st; if(!S)return null; let st=null,bd=30000; for(const a of S){const d=distM(lat,lon,a.la,a.lo); if(d<bd){bd=d;st=a;}} return st?{st,d:bd}:null;}
+function wtObsMs(o){const ms=Date.parse(String(o.at).replace(' ','T')+'+09:00'); return isFinite(ms)?ms:null;}
+// 관측−예보 차이를 날마다 저장(최근 60일) → 나중에 L·σ 값을 맞추는 자료
+function wtSaveDiff(o){try{const ms=wtObsMs(o); if(ms==null||o.wtem==null)return; const fs=tempAt(o.la,o.lo,(ms-t0.getTime())/3600000); if(fs==null)return;
+  const D=JSON.parse(pref('wtDiff','{}')), day=new Date(ms+9*3600e3).toISOString().slice(0,10); (D[o.sc]=D[o.sc]||{})[day]=[+o.wtem.toFixed(2),+fs.toFixed(2)];
+  const cut=new Date(Date.now()-60*86400e3).toISOString().slice(0,10); for(const k in D){for(const d in D[k])if(d<cut)delete D[k][d];}
+  setPref('wtDiff',JSON.stringify(D));}catch(e){}}
+function wtEnsure(lat,lon,cb){ if(!CONF.realData)return; dtStations().then(()=>{const n=wtNear(lat,lon); if(!n)return; const c=n.st.c, e=WT.obs.get(c); if(e&&Date.now()-e.at<600000)return; if(WT.pend.has(c))return; WT.pend.add(c);
+  dtObs(lat,lon).then(o=>{WT.pend.delete(c); if(o&&o.wtem!=null){WT.obs.set(c,{o,at:Date.now()}); wtSaveDiff(o); if(cb)cb();} else WT.obs.set(c,{o:null,at:Date.now()-540000});}).catch(()=>{WT.pend.delete(c);});});}
+function wtemp(lat,lon,th){const f=tempAt(lat,lon,th); if(f==null)return null; const out={v:f,f,K:0,src:'예보'};
+  const n=wtNear(lat,lon), e=n&&WT.obs.get(n.st.c), o=e&&e.o; if(!o||o.wtem==null)return out;
+  const ms=wtObsMs(o); if(ms==null)return out; const tho=(ms-t0.getTime())/3600000, fs=tempAt(n.st.la,n.st.lo,tho); if(fs==null)return out;
+  const K=Math.exp(-(((n.d/1000)/WT_P.L)**2))*(WT_P.sb**2/(WT_P.sb**2+WT_P.so**2))*Math.exp(-Math.abs(th-tho)/24/WT_P.tau);
+  return {v:f+K*(o.wtem-fs),f,K,src:'섞음',st:n.st.n,km:n.d/1000,obs:o.wtem,fs,dt:th-tho};}
+const wtText=(lat,lon,th)=>{const w=wtemp(lat,lon,th); return w?'<span class="dt"> · </span>'+numHtml(`${E_T} ${w.v.toFixed(1)}℃`):'';};
+function fcTempRefresh(){if(!sel)return; $('#fcTemp').innerHTML=wtText(sel.lat,sel.lng,tH()); fcFit(); fcPlace();}
+// 큰 글씨 등으로 버튼 글자가 넘치면 그림 글자를 뺌 (U-43)
+function fcFit(){for(const a of document.querySelectorAll('.fc-a')){a.classList.remove('noemo'); if(!a.offsetParent)continue; if([...a.children].some(b=>b.scrollWidth>b.clientWidth+1))a.classList.add('noemo');}}
+function slackIn(ns){const m=Math.round(ns-tMin); return m<=0?'':m<60?`${m}분 뒤`:`${Math.round(m/60)}시간 뒤`;}
+function setSlackIn(ns){const b=$('#iSlackIn'),t=ns!=null?slackIn(ns):''; b.textContent=t; b.style.display=t?'':'none';}
 // 지금 카드: 수온 + 경고 (파도·큰비)
 function wxWarn(th,lat,lon,short){const o=[], w=wxAt(th), r=rain48();
   if(w&&w.wav!=null&&w.wav>=1.5)o.push(`🌊 파고 ${w.wav.toFixed(1)}m${w.wav>=2.5?(short?' · 갯바위 위험':' — 갯바위 위험'):(short?' · 너울 주의':' — 너울 주의')}`);
@@ -2316,7 +2342,9 @@ $('#alertLead').value=pref('alertLead','60'); $('#alertLead').onchange=()=>setPr
 // ================= 시·군·구 추천 장소 (REQ-46, 강의자료 1부 3·4장 + 2부 1장) =================
 // 해안선 점(400m 간격)마다 점수: 승부 시간 유속이 알맞은가(0.4) + 300m 안 바위(0.3) + 주변보다 센 물길(물골, 0.15) + 오늘 물때와 장소 성격(0.15)
 const REC={data:null,layer:L.layerGroup().addTo(map),res:null,busy:false};
-async function recLoad(){if(REC.data)return REC.data;try{REC.data=await loadAsset('sgg.json');}catch(e){REC.data=null;}return REC.data;}
+// U-44: 읽을 때 한 곳에서 '창원시성산구' → '창원시 성산구' (시 아래 구가 붙은 이름만)
+const sggFixName=n=>n.replace(/^(.{1,6}시)(.{1,6}구)$/,'$1 $2');
+async function recLoad(){if(REC.data)return REC.data;try{REC.data=await loadAsset('sgg.json');for(const r of REC.data)r.n=sggFixName(r.n);}catch(e){REC.data=null;}return REC.data;}
 async function recInit(){
   const d=await recLoad(); if(!d){$('#recSub').textContent='행정구역 자료를 못 읽었어요';return;}
   { const cur=$('#recDay').value, d0=tideDay(); // 오늘부터 7일 (유속 예보가 있는 기간)
@@ -2346,13 +2374,15 @@ function recQ(){const b=recBasis(), km=+pref('recKm','5');
   return {type:'area',sg,dong:isNaN(dong)?-1:dong,b,label:sg.n+(dong>=0&&sg.d?' '+sg.d[dong]:'')};}
 $('#recBasis').addEventListener('click',e=>{const x=e.target.closest('button'); if(x)recBasisUI(x.dataset.b);});
 $('#recKm').addEventListener('click',e=>{const x=e.target.closest('button'); if(x){setPref('recKm',x.dataset.km); recBasisUI();}});
-function recSggOpts(a,b){a=a||'#recSido';b=b||'#recSgg';const s=$(a).value;$(b).innerHTML=REC.data.filter(r=>r.s===s).map(r=>`<option value="${r.c}">${r.n} (해안 ${r.km}km)</option>`).join('');}
+function recSggOpts(a,b){a=a||'#recSido';b=b||'#recSgg';const s=$(a).value;$(b).innerHTML=REC.data.filter(r=>r.s===s).map(r=>`<option value="${r.c}">${r.n} (해안선 ${r.km}km)</option>`).join('');}
 // 어떤 점이 속한 해안 시·군·구: 해안선 점 가운데 가장 가까운 곳 (15km 안)
 function sggOf(la,lo){let best=null,bd=1e9;for(const r of REC.data||[]){if(la<r.b[0]-0.15||la>r.b[2]+0.15||lo<r.b[1]-0.15||lo>r.b[3]+0.15)continue;const P=r.p;for(let i=0;i<P.length;i+=2){const d=(P[i]-la)**2+((P[i+1]-lo)*0.82)**2;if(d<bd){bd=d;best=r;}}}return best&&Math.sqrt(bd)*111<15?best:null;}
 // U-16: 찍은 자리 이름 = 가장 가까운 해안 점의 읍·면·동 (sgg.json). '사천 향촌동 앞바다'. 15km 안에 해안 점이 없으면 null
-function placeName(la,lo){let best=null,bi=-1,bd=1e9;for(const r of REC.data||[]){if(la<r.b[0]-0.15||la>r.b[2]+0.15||lo<r.b[1]-0.15||lo>r.b[3]+0.15)continue;const P=r.p;for(let i=0;i<P.length;i+=2){const d=(P[i]-la)**2+((P[i+1]-lo)*0.82)**2;if(d<bd){bd=d;best=r;bi=i/2;}}}
-  if(!best)return null; const km=Math.sqrt(bd)*111; if(km>=15)return null;
-  const g=/[시군]$/.test(best.n)&&best.n.length>2?best.n.slice(0,-1):(/구$/.test(best.n)?best.s+' '+best.n:best.n), dg=best.d&&best.di?best.d[best.di[bi]]:'';
+// U-43: 가장 가까운 해안 점 (U-16 이름과 F28 길 안내가 같은 점을 씀)
+function coastPt(la,lo){let best=null,bi=-1,bd=1e9;for(const r of REC.data||[]){if(la<r.b[0]-0.15||la>r.b[2]+0.15||lo<r.b[1]-0.15||lo>r.b[3]+0.15)continue;const P=r.p;for(let i=0;i<P.length;i+=2){const d=(P[i]-la)**2+((P[i+1]-lo)*0.82)**2;if(d<bd){bd=d;best=r;bi=i/2;}}}
+  if(!best)return null; return {best,bi,km:Math.sqrt(bd)*111,la:best.p[bi*2],lo:best.p[bi*2+1]};}
+function placeName(la,lo){const cp=coastPt(la,lo); if(!cp)return null; const best=cp.best, bi=cp.bi, km=cp.km; if(km>=15)return null;
+  const g=/[시군]$/.test(best.n)&&best.n.length>2?best.n.slice(0,-1):(/^.+시 .+구$/.test(best.n)?best.n.replace(/시 /,' '):(/구$/.test(best.n)?best.s+' '+best.n:best.n)), dg=best.d&&best.di?best.d[best.di[bi]]:'';
   return `${g}${dg?' '+dg:''} ${km<3?'앞바다':'바깥 바다'}`;}
 const favsIn=sg=>loadFavs().filter(f=>{const g=sggOf(f.lat,f.lng);return g&&g.c===sg.c;});
 $('#recSido').onchange=()=>{recSggOpts(); recDongOpts();};
@@ -2560,22 +2590,26 @@ async function addrOf(la,lo){const k=pref('vworldKey',''); if(!k){ADDR.last='브
   ADDR.cache.set(key,out); return out;}
 function pinPop(c,i,sg){{const t=$('#toast'); if(t){clearTimeout(t._h); t.style.display='none';}} /* U-41: 핀을 눌러 카드가 뜨면 알림 띠는 걷어서 길 안내 버튼을 안 덮음 */ const box=$('#pinPop'), sc=shownScore(c.score), g=scoreGrade(sc), w=c.best&&c.best.w, me=recMe(), km=me?distM(me.lat,me.lng,c.la,c.lo)/1000:null;
   const nm=c.fav||recName(c,sg), dest=c.fav||`${c.dong||sg.n} 낚시 포인트`;
-  const why=[c.best?`유속 ${c.best.sp.toFixed(1)}노트${c.best.f>=1?'(알맞음)':c.best.sp<0.3?'(약함)':'(셈)'}`:'',c.rocks?`바위 ${c.rocks}개`:'',c.ch>=0.4?'물골':'',c.T!=null?`수온 ${c.T.toFixed(1)}℃`:''].filter(Boolean).join(' · ');
-  box.innerHTML=`<div class="pp-h"><span class="nm">${'①②③④⑤⑥⑦⑧⑨'[i]||(i+1)+'.'} ${escH(nm)}</span><span>${sc}점 <small class="grade g${g.k}">${g.t}</small></span><button class="x" data-a="x">×</button></div>`
-    +`<div class="pp-l">${[c.isl&&!c.fav?KIND_NAME[c.isl]:'',km!=null?`🧭 ${km<10?km.toFixed(1):Math.round(km)}km`:''].filter(Boolean).join(' · ')}</div>`
+  const thW=w?(w.s-t0.getTime())/3600000:tH(), spT=c.best?(c.best.f>=1?'알맞음':c.best.sp<0.3?'약함':'셈'):'', spC=c.best?(c.best.f>=1?'f':c.best.sp<0.3?'s':'e'):'s';
+  const sub=[c.isl&&!c.fav?KIND_NAME[c.isl]:'',km!=null?`🧭 ${km<10?km.toFixed(1):Math.round(km)}km`:'',c.rocks?`바위 ${c.rocks}개`:'',c.ch>=0.4?'물골':''].filter(Boolean).join(' · ');
+  box.innerHTML=`<div class="pp-h"><span class="nm">${'①②③④⑤⑥⑦⑧⑨'[i]||(i+1)+'.'} ${escH(nm)}</span><button class="star" data-a="fav" aria-label="즐겨찾기">☆</button><button class="x" data-a="x" aria-label="닫기">×</button></div>`
+    +`<div class="pp-sc"><b class="sc">${sc}점</b><small class="grade g${g.k}">${g.t}</small>${sub?`<span class="pp-l" style="margin:0">${numHtml(sub)}</span>`:''}</div>`
     +(w?(()=>{const b=winBadge(w), same=new Date(w.s).toDateString()===new Date().toDateString(); return `<div class="pp-win"><div class="lb">⏰ 승부 시간</div><div class="tmx"><span class="tm">${hhmm(w.s)} ~ ${hhmm(w.t)}</span>${bdgHtml(b)}</div><div class="sb">${same?'':dstr(w.ms)+' '}${w.hi==null?'':w.hi?'만조':'간조'} ${hhmm(w.ms)} 앞뒤 ${winDur((w.t-w.s)/120000)}${b.end?' · <span class="en">'+b.end+'</span>':''}</div></div>`;})():'')
-    +(why?`<div class="pp-l">${numHtml(why)}</div>`:'')
+    +`<div class="fc-v">${c.best?`<span>유속 <b>${c.best.sp.toFixed(1)}kn</b></span><span class="dt"> · </span><span class="tag ${spC}">${spT}</span>`:''}<span class="wt" id="ppTemp">${wtText(c.la,c.lo,thW)}</span></div>`
     +`<div class="pp-addr"><span id="ppAddr" class="pp-l q">📫 주소 찾는 중…</span><button class="btn" data-a="copy">복사</button></div>`
-    +`<div class="pp-l q" style="margin-top:7px">🚗 길 안내</div><div class="navs" style="margin-top:4px"><button class="btn nav-tmap" data-nav="tmap">TMAP</button><button class="btn nav-kakao" data-nav="kakao">카카오맵</button><button class="btn nav-naver" data-nav="naver">네이버지도</button></div>`
-    +`<div class="acts"><button class="btn" data-a="sel">📈 그래프 ›</button><button class="btn" data-a="fav">☆ 저장</button></div><i class="tail"></i>`;
+    +`<div class="fc-a"><button class="btn" data-a="sel"><span class="be">📈</span> 그래프</button><button class="btn" data-a="navs"><span class="be">🚗</span> 길 안내</button><button class="btn" data-a="near"><span class="be">⭐</span> 주변 추천</button></div>`
+    +`<div class="navs" style="display:none"><button class="btn nav-tmap" data-nav="tmap">TMAP</button><button class="btn nav-kakao" data-nav="kakao">카카오맵</button><button class="btn nav-naver" data-nav="naver">네이버지도</button></div><i class="tail"></i>`;
+  wtEnsure(c.la,c.lo,()=>{if(box._c&&box._c.c===c){const e=$('#ppTemp'); if(e)e.innerHTML=wtText(c.la,c.lo,thW); fcFit(); fcPlace();}}); // U-49
   if(PV.mode!=='none')pointView('none');
   box._c={c,i,sg,nm,dest,addr:''}; box.classList.add('show'); fcPlace();
   const fb=`${c.dong||sg.n} 해안 근처 (${c.la.toFixed(4)}, ${c.lo.toFixed(4)})`;
-  addrOf(c.la,c.lo).then(a=>{if(box._c&&box._c.c!==c)return; const t=a?(a.road||a.parcel):''; box._c.addr=t||fb; const el=$('#ppAddr'); if(!el)return;
+  fcFit(); addrOf(c.la,c.lo).then(a=>{if(box._c&&box._c.c!==c)return; const t=a?(a.road||a.parcel):''; box._c.addr=t||fb; const el=$('#ppAddr'); if(!el)return;
     el.textContent='📫 '+(t?t+(a.road&&a.parcel?' ('+a.parcel.replace(/^.*?(\S+\s\S+)$/,'$1')+')':''):fb); el.classList.toggle('q',!t);});}
 $('#pinPop').addEventListener('click',e=>{const box=$('#pinPop'), P=box._c; if(!P)return; const b=e.target.closest('button'); if(!b)return; e.stopPropagation();
   if(b.dataset.nav){navOpen(b.dataset.nav,P.c.la,P.c.lo,P.dest);return;}
   const a=b.dataset.a; if(a==='x'){pinPopClose();return;}
+  if(a==='navs'){const n=box.querySelector('.navs'); n.style.display=n.style.display==='none'?'':'none'; fcPlace(); return;}
+  if(a==='near'){pinPopClose(); nearRecFrom(P.c.la,P.c.lo); return;}
   if(a==='copy'){const t=P.addr||`${P.c.la.toFixed(5)}, ${P.c.lo.toFixed(5)}`; if(NATIVE&&NATIVE.copyText)NATIVE.copyText(t); else{try{navigator.clipboard.writeText(t);}catch(_){}} window.__copied=t; toast('주소를 복사했어요',1800);return;}
   if(a==='sel'||a==='fav'){const back={c:P.c,i:P.i,sg:P.sg,one:REC.onePin}; REC.onePin=null; pinPopClose(); select(P.c.la,P.c.lo,P.c.fav||`추천 ${P.i+1} ${P.c.dong||P.sg.n}`,{sheet:true}); PV.back=back; /* U-28: 시트를 내리면 이 창으로 돌아옴 */ if(a==='fav')setTimeout(()=>$('#starBtn').click(),50);}});
 function pinPopClose(){const b=$('#pinPop'); b.classList.remove('show'); b._c=null; if(REC.onePin){try{map.removeLayer(REC.onePin);}catch(e){} REC.onePin=null;}}
@@ -2696,6 +2730,7 @@ async function runDiag(){
      try{const c=emp[0], r=await ROMS.page(c.b,1,0); o.push(`  └ ${c.key} 지금 새로 물어봄: 결과코드 ${ROMS.findNum(r.raw,/^resultCode$/i)}, 전체 ${r.total??'-'}건, 받음 ${r.items.length}줄`);}
      catch(e){o.push('  └ 새로 물어봄 실패: '+e.message);}
    }}
+  {const w=sel?wtemp(sel.lat,sel.lng,tH()):null; o.push('수온 섞기(U-49): '+(w?`${w.v.toFixed(2)}℃ = 예보 ${w.f.toFixed(2)}`+(w.src==='섞음'?` + K ${w.K.toFixed(2)} × (${w.st} ${w.km.toFixed(1)}km 실측 ${w.obs} − 그 자리 예보 ${w.fs.toFixed(2)}) · 시간차 ${w.dt.toFixed(1)}h`:' (30km 안 관측소 값 없음 → 예보만)'):'찍은 자리 없음 또는 예보 없음')+` · 기록 ${Object.keys(JSON.parse(pref('wtDiff','{}'))).length}곳`);}
   o.push(`날씨 더하기: 수온 칸 ${RD.pts.some(p=>p.w)?'있음':'없음'} · 단기예보 ${WX.data?WX.data.times.length+'시각':'-'} · 지난 비 ${RAIN.st?RAIN.st[1]+' '+(RAIN.obs!=null?RAIN.obs.toFixed(1)+'mm':'-'):'-'} (결과 ${RAIN.last||'-'}) · 관측소 ${DTO.st?DTO.st.length:0}곳 (결과 ${DTO.last||'-'})`);
   o.push(`추천 종류: ${[...recKinds()].map(k=>KIND_NAME[k]).join('·')} · 섬 다리 판별 ${REC.kindSrc==='pre'?'미리 넣은 지도 자료('+(REC.preDate||'-')+')':REC.kindSrc==='osm'?'지도 자료(OSM)':REC.kindSrc==='guess'?'추정(지도 자료 못 받음'+(REC.ovpErr?': '+REC.ovpErr:'')+')':'-'} · 직접 바꾼 섬 ${Object.keys(islOv()).length}곳`);
   if(REC.ovpRaw)o.push('  └ 지도 서버 마지막 응답: '+REC.ovpRaw);
@@ -2810,7 +2845,7 @@ function infoFold(on){if(on&&PV.mode==='sheet')INFO_DRAG.animate(true); else if(
 const PV={mode:'none'};
 // U-28: P6에서 연 시트의 '돌아갈 곳'. 시트가 아닌 모습으로 바뀌면 버림(그 자리 추천 핀 하나도 지움)
 function pvBackDrop(){const b=PV.back; PV.back=null; if(b&&b.one){try{map.removeLayer(b.one);}catch(e){}}}
-function pointView(m){if(m!=='sheet')pvBackDrop(); PV.mode=m; const fc=$('#fCard'), inf=$('#info'), mb=$('.mapbox');
+function pointView(m){if(m!=='sheet')pvBackDrop(); PV.mode=m; {const n=$('#fcNavs'); if(n)n.style.display='none';} const fc=$('#fCard'), inf=$('#info'), mb=$('.mapbox');
   fc.classList.toggle('show',m==='card'); inf.classList.toggle('show',m==='sheet'); inf.classList.remove('fold'); inf.style.height='';
   mb.classList.toggle('sheeton',m==='sheet');
   if(m==='none'){if(selMarker)map.removeLayer(selMarker); selMarker=null; sel=null; $('#namebox').style.display='none';}
@@ -2868,11 +2903,16 @@ function computeEvents(){
 $('#closeInfo').onclick=()=>pointView('none');
 $('#fcClose').onclick=e=>{e.stopPropagation(); pointView('none');};
 $('#fcGraph').onclick=e=>{e.stopPropagation(); pointView('sheet');};
+// U-43: 길 안내 = 누르면 TMAP·카카오맵·네이버지도 고르기. 목적지 = 가장 가까운 해안 점(U-16 이름과 같은 점), 15km 안에 없으면 찍은 자리
+function fcDest(){const cp=sel?coastPt(sel.lat,sel.lng):null, ok=cp&&cp.km<15; return {la:ok?cp.la:sel.lat,lo:ok?cp.lo:sel.lng,nm:sel.name||'낚시 자리'};}
+$('#fcNav').onclick=e=>{e.stopPropagation(); const n=$('#fcNavs'); n.style.display=n.style.display==='none'?'':'none'; fcPlace();};
+$('#fcNavs').addEventListener('click',e=>{const b=e.target.closest('[data-nav]'); if(!b||!sel)return; e.stopPropagation(); const d=fcDest(); navOpen(b.dataset.nav,d.la,d.lo,d.nm);});
 // U-11 ②: 상태창 [⭐ 주변 추천] → 이 자리 반경 5km(걸친 시·군·구 계산 후 거리로 거름) → 반경 점선 원 + 핀, 알림 + 목록 ›
-$('#fcNearRec').onclick=async e=>{e.stopPropagation(); if(!sel)return; if(!CONF.realData){toast('공공데이터 키를 ⚙️ 설정에 넣어야 추천할 수 있어요',3000);return;}
-  const Q={type:'radius',la:sel.lat,lo:sel.lng,km:5,b:'pt',label:'찍은 자리 주변 5km'}; setPref('recBasis','pt'); setPref('recKm','5'); pointView('none');
+async function nearRecFrom(la,lo){ if(!CONF.realData){toast('공공데이터 키를 ⚙️ 설정에 넣어야 추천할 수 있어요',3000);return;}
+  const Q={type:'radius',la,lo,km:5,b:'pt',label:'찍은 자리 주변 5km'}; setPref('recBasis','pt'); setPref('recKm','5'); pointView('none');
   const R=await recRun(Q); if(!R)return; if(R.err){toast(R.err,3500);return;}
-  toastAct(`주변 추천 ${R.pick.length}곳 · 핀을 눌러 보세요`,'목록 ›',()=>{openPlan();});};
+  toastAct(`주변 추천 ${R.pick.length}곳 · 핀을 눌러 보세요`,'목록 ›',()=>{openPlan();});}
+$('#fcNearRec').onclick=e=>{e.stopPropagation(); if(sel)nearRecFrom(sel.lat,sel.lng);};
 $('#infoDown').onclick=e=>{e.stopPropagation(); INFO_DRAG.animate(true);};
 $('#fcStar').onclick=e=>{e.stopPropagation(); if(!sel)return; if(findFav(sel.lat,sel.lng)){$('#starBtn').click();return;} pointView('sheet'); $('#starBtn').click();};
 ['fCard','pinPop'].forEach(id=>{const b=$('#'+id); ['click','pointerdown','dblclick','wheel'].forEach(ev=>b.addEventListener(ev,e=>e.stopPropagation()));});
@@ -2970,6 +3010,7 @@ function updateUI(){
   if(ROCK.on&&TIDE.cur&&!updateUI._rt){updateUI._rt=1;setTimeout(()=>{updateUI._rt=0;drawRocks();},800);}
   if(!sel)return;
   {const h=escH(sel.name)+(sel.co&&sel.name!==sel.co?`<small class="co">${sel.co}</small>`:''); $('#iname').innerHTML=h; $('#fcName').innerHTML=h;} // U-16: 이름 + 좌표는 작게
+  $('#fcTemp').innerHTML=wtText(sel.lat,sel.lng,tH()); wtEnsure(sel.lat,sel.lng,fcTempRefresh); // U-49
   // 저장·알림 버튼 상태는 유속 자료가 없는 곳에서도 갱신 (11-16: 자료 없는 곳에서 버튼이 안 바뀌던 문제)
   const fav=findFav(sel.lat,sel.lng); $('#starBtn').textContent=fav?'★ 저장됨':'☆ 저장'; $('#starBtn').classList.toggle('on',!!fav); $('#fcStar').textContent=fav?'★':'☆'; $('#fcStar').classList.toggle('on',!!fav);
   const al=alertHere(sel.lat,sel.lng); $('#alertBtn').textContent=al?'🔔 켜짐':'🔔'; $('#alertBtn').classList.toggle('on',!!al);
@@ -2985,11 +3026,11 @@ function updateUI(){
   const v0=flowAt(sel.lat,sel.lng,tH()), nf=v0?null:nearFlow(sel.lat,sel.lng,tH()), v=v0||(nf&&nf.v);
   $('#iNear').textContent=nf?(nf.k==='sea'?'(바로 앞바다)':'(바깥 바다 예보)'):''; $('#iNear').style.display=nf?'':'none';
   if(!v){['#iSpeed','#iDir','#iState','#iSlack'].forEach(q=>$(q).textContent='-');
-    $('#iState').textContent=CONF.realData?'자료 없음':'-'; $('#iSum').textContent=CONF.realData?'이 자리 유속 자료가 없어요':''; $('#fcTide').innerHTML=tideShort(); drawTide(); fcPlace(); return;}
+    setSlackIn(null); $('#iState').textContent=CONF.realData?'자료 없음':'-'; $('#iSum').textContent=CONF.realData?'이 자리 유속 자료가 없어요':''; $('#fcTide').innerHTML=tideShort(); drawTide(); fcPlace(); return;}
   // U-38 (build-52): ⚓ 계산이 덜 끝난 값(덜 된 결과·다른 단계 대략 값)은 숫자 대신 '계산 중', 끝나면 숫자 + ✓ 0.6초. ROMS·조류예보 값은 바로 표시
   const sk=selKey();
   if(v.pend){const sp0=$('#iSpeed'); sp0.innerHTML='<span class="calc">🐟 계산 중…</span>'; sp0._k=sk; $('#iDir').textContent='—'; $('#iState').innerHTML='<span class="tag s">계산 중</span>';
-    const ns0=EV.slack.find(x=>x>tMin); $('#iSlack').textContent=ns0!=null?(Math.floor(ns0/1440)!==Math.floor(tMin/1440)?dayTag(ns0)+' ':'')+fmt(ns0):'-';
+    const ns0=EV.slack.find(x=>x>tMin); $('#iSlack').textContent=ns0!=null?(Math.floor(ns0/1440)!==Math.floor(tMin/1440)?dayTag(ns0)+' ':'')+fmt(ns0):'-'; setSlackIn(ns0);
     $('#iTide').innerHTML=tideSummary(); $('#iSum').innerHTML=MWAVE+numHtml(`유속 계산 중 · 다음 정조 ${$('#iSlack').textContent}`);
     $('#fcTide').innerHTML=tideShort(); updateUI._pend=sk; drawTide(); fcPlace(); return;}
   const justDone=updateUI._pend===sk; updateUI._pend=null;
@@ -3000,11 +3041,11 @@ function updateUI(){
   if(justDone){const el=$('#iSpeed'); el.insertAdjacentHTML('beforeend','<span class="okck" aria-label="계산 끝"> ✓</span>'); clearTimeout(updateUI._ck); updateUI._ck=setTimeout(()=>{const k=el.querySelector('.okck'); if(k)k.remove();},600);}
   $('#iDir').textContent=dirName(deg)+'쪽';
   $('#iState').innerHTML=`<span class="tag ${cls}">${st}</span>`;
-  const ns=EV.slack.find(x=>x>tMin); $('#iSlack').textContent=ns!=null?(Math.floor(ns/1440)!==Math.floor(tMin/1440)?dayTag(ns)+' ':'')+fmt(ns):'-';
+  const ns=EV.slack.find(x=>x>tMin); $('#iSlack').textContent=ns!=null?(Math.floor(ns/1440)!==Math.floor(tMin/1440)?dayTag(ns)+' ':'')+fmt(ns):'-'; setSlackIn(ns);
   $('#iTide').innerHTML=tideSummary();
   $('#iSum').innerHTML=numHtml(`${$('#iSpeed').textContent.replace(' ✓','')} ${$('#iDir').textContent} · ${st} · 다음 정조 ${$('#iSlack').textContent}`)+(nf?` <small style="color:#ffd98a">${$('#iNear').textContent}</small>`:'');
   $('#fcTide').innerHTML=tideShort();
-  drawTide(); fcPlace();
+  drawTide(); fcFit(); fcPlace();
 }
 // 상태창 물높이 한 줄: "🌊 1.2m ↑ · 만조 15:20"
 function tideShort(){if(!TIDE.cur)return ''; const ser=TIDE.cur.ser, now=t0.getTime()+tMin*60000, h=tideAtMs(ser,now); if(h==null)return '';

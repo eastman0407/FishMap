@@ -35,7 +35,7 @@ exec(src+r'''
     bg=E("getComputedStyle(document.querySelector('#fCard')).backgroundColor")
     check('C4 반투명 85%', '0.85' in bg, bg)
     txt=E("document.querySelector('#fCard').innerText")
-    check('C5 유속·방향·상태·다음 정조·물높이·[📈 그래프]·☆·✕', all(k in txt for k in ['유속','방향','상태','다음 정조','🌊','📈 그래프','⭐ 주변 추천']) and E("!!document.querySelector('#fcStar')&&!!document.querySelector('#fcClose')"), txt.replace('\n',' | '))
+    check('C5 (U-43 새 틀) 다음 정조 큰 칸·유속·물높이·[📈 그래프][🚗 길 안내][⭐ 주변 추천]·☆·✕', all(k in txt for k in ['유속','다음 정조','🌊','📈 그래프','🚗 길 안내','⭐ 주변 추천']) and E("!!document.querySelector('#fcStar')&&!!document.querySelector('#fcClose')"), txt.replace('\n',' | '))
     # 지도 움직이면 따라감
     # (build-50) 상태창이 오른쪽 버튼 줄(.side)과 겹치면 아래로 비켜가므로, 위에 뜨는 모양에서 비교하려고 먼저 지도를 아래로 밀어 둠
     E("_map.panBy(0,-150)"); pg.wait_for_timeout(300); fc=rect('#fCard')

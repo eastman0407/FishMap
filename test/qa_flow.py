@@ -27,7 +27,7 @@ exec(src+r'''
     # ── T1 찍은 자리의 '언제 물이 멈추나'를 한 번에 ──
     TAPS[0]=0; tapmap(200,470)
     c=text('#fCard')
-    check('T1 바다를 한 번 누르면 유속·방향·다음 정조 시각이 바로 보임 (누름 1번)', TAPS[0]==1 and shown('#fCard') and re.search(r'다음 정조\s*\n?\s*\d\d:\d\d',c) and 'kn' in c, [TAPS[0], c.replace('\n',' | ')[:120]])
+    check('T1 바다를 한 번 누르면 유속·방향·다음 정조 시각이 바로 보임 (누름 1번)', TAPS[0]==1 and shown('#fCard') and re.search(r'다음 정조\s*\n?\s*(?:\S+\s+)?\d\d:\d\d',c) and 'kn' in c, [TAPS[0], c.replace('\n',' | ')[:120]])
     # ── T2 그래프로 하루 흐름 보고, 시각을 옮기면 값이 따라옴, 내리면 같은 자리 상태창 ──
     s0=text('#iSum') if shown('#info') else ''
     TAPS[0]=0; ok=press('그래프')
@@ -57,9 +57,9 @@ exec(src+r'''
     pin=E("__QA.REC.layer.getLayers().filter(l=>l.options&&l.options.icon).length")
     E("__QA.REC.layer.getLayers().find(l=>l.options&&l.options.icon).fire('click')"); TAPS[0]+=1; pg.wait_for_timeout(500)
     c=E("[document.querySelector('#pinPop')._c.c.la, document.querySelector('#pinPop')._c.c.lo]")
-    press('TMAP','#pinPop'); nav=E("window.__navLast?[window.__navLast.url,window.__navLast.pkg]:null")
+    press('길 안내','#pinPop'); press('TMAP','#pinPop'); nav=E("window.__navLast?[window.__navLast.url,window.__navLast.pkg]:null")
     okc=nav and f"rGoX={c[1]:.6f}" in nav[0] and f"rGoY={c[0]:.6f}" in nav[0]
-    check('T5 자리 → ⭐ 주변 추천 → 핀 → TMAP: 그 핀 좌표로 길 안내 (누름 4번) [11-21 실패: 알림 띠가 길 안내 버튼을 덮음 → U-39]', t is not None and pin>0 and okc and TAPS[0]==4, [t, pin, TAPS[0], nav and nav[0][:90]])
+    check('T5 자리 → ⭐ 주변 추천 → 핀 → TMAP: 그 핀 좌표로 길 안내 (누름 5번: U-43 길 안내 → 앱 고르기 한 단계 추가)', t is not None and pin>0 and okc and TAPS[0]==5, [t, pin, TAPS[0], nav and nav[0][:90]])
     E("__QA.pinPopClose()")
     # ── T6 뒤로가기(제스처)는 늘 맨 위 창부터 닫음 ──
     tapmap(200,470); press('그래프'); E("document.querySelector('#planBtn').click()")

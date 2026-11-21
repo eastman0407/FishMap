@@ -7,7 +7,7 @@ GROUPS={
  '지도·흐름선·항내 추정':['qa_realshape','qa_full','qa_sim','qa_stage1','qa_stage2','qa_stage4','qa_stage5','qa_h11','qa_nest','qa_levelbadge','qa_tidal'],
  '조석·물때':['qa_tidechip','qa_newapi'],
  '위 카드(M3)':['qa_b40','qa_b42','qa_b46','qa_more'],
- '상태창·그래프 시트(F28·M8)·움직임':['qa_b41','qa_b49','qa_b52'],
+ '상태창·그래프 시트(F28·M8)·움직임':['qa_b41','qa_b49','qa_b52','qa_b54'],
  '추천(P4·P6)':['qa_rec','qa_island','qa_b43','qa_b44','qa_ui'],
  '기록·계획·알림':['qa_log','qa_plan','qa_alert'],
  '날씨·수온':['qa_wx','qa_b48'],
