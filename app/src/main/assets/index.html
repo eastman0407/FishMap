@@ -203,7 +203,8 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
       <div class="ncrec" id="nowRec"></div>
       <div class="grip ncgrip" id="nowGrip" title="끌어서 접기·펴기"><span></span></div>
     </div>
-    <div class="legend"><span id="legendTitle">유속 (노트)</span><div class="bar" id="legendBar"></div><div class="ticks" id="legendTicks"></div></div>
+    <div class="legend"><span id="legendTitle">유속 (노트)</span><div class="bar" id="legendBar"></div><div class="ticks" id="legendTicks"></div>
+      <div id="sstLeg" style="display:none;margin-top:6px"><span id="sstLegT"></span><div class="bar" id="sstBar"></div><div class="ticks" id="sstTicks"></div></div></div>
     <button class="biteFab" id="biteFab" title="입질 기록 (지금 시각·물때·유속 자동 저장)">🎣<small>입질</small></button>
     <div class="toast" id="toast"></div>
 <div id="xferAsk" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:20px">
@@ -260,6 +261,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
       <div class="lcell"><button class="ibtn" id="windBtn" title="바람 영향"><span>🌬️</span></button><small>바람</small></div>
       <div class="lcell"><button class="ibtn" id="simBtn" title="항내 추정 (섬·항구 주변 흐름 계산)"><span>⚓</span></button><small>항내 추정</small></div>
       <div class="lcell"><button class="ibtn" id="rockBtn" title="갯바위·간출암"><span>🪨</span></button><small>바위</small></div>
+      <div class="lcell"><button class="ibtn" id="sstBtn" title="위성 수온 (NASA MUR, 1~4일 전)"><span>🌡️</span></button><small>위성 수온</small></div>
       <div class="lcell"><button class="ibtn" id="planBtn" title="출조 계획·기록·추천"><span>📅</span></button><small>출조 도우미</small></div>
       <div class="lcell"><button class="ibtn" id="setBtn" title="설정"><span>⚙️</span></button><small>설정</small></div>
     </div>
@@ -301,7 +303,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--accent);height:30px}
     <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">빨강(낚시 어려움) 시작 유속</span><input id="redKn" type="number" step="0.1" min="1.2" max="3" style="width:80px;flex:none"> <span style="font-size:13px;color:var(--muted)">노트</span></div>
     <div class="namebox" style="margin-top:12px;align-items:center"><span style="font-size:14px;flex:1">🔔 안전 알림 시각</span><select id="alertLead" style="height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"><option value="30">30분 전</option><option value="60">1시간 전</option><option value="120">2시간 전</option></select></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="tbChk" style="width:auto;height:auto"> 조석을 이 자리 좌표로 보정 (TideBED) <span style="font-size:12px;color:var(--muted)">(끄면 예전 관측소 방식)</span></label></div>
-    <div class="namebox" style="margin-top:6px;flex-direction:column;align-items:stretch"><button class="btn" id="tbTest">🧪 조석 시험 (TideBED 응답 보기)</button><pre id="tbOut" style="display:none;white-space:pre-wrap;word-break:break-all;font-size:11px;background:var(--panel2);border-radius:8px;padding:6px;margin:6px 0 0;max-height:220px;overflow:auto"></pre></div>
+    <div class="namebox" style="margin-top:6px;flex-direction:column;align-items:stretch"><button class="btn" id="tbTest">🧪 조석 시험 (TideBED 응답 보기)</button><button class="btn" id="sstTest" style="margin-top:6px">🛰️ 위성 수온 받기 시험</button><pre id="tbOut" style="display:none;white-space:pre-wrap;word-break:break-all;font-size:11px;background:var(--panel2);border-radius:8px;padding:6px;margin:6px 0 0;max-height:220px;overflow:auto"></pre></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="hapChk" style="width:auto;height:auto"> 📳 짧은 진동 <span style="font-size:12px;color:var(--muted)">(기록·저장·추천 완료, 시트 접기·펴기)</span></label></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="cfChk" style="width:auto;height:auto"> 조류예보 지점 표시 <span style="font-size:12px;color:var(--muted)">(보라색 화살표 · 10단계 이상)</span></label></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:14px;display:flex;align-items:center;gap:8px"><input type="checkbox" id="depthChk" style="width:auto;height:auto"> ⚓ 항내 추정에 수심 반영 <span style="font-size:12px;color:var(--muted)">(가장 확대한 단계)</span></label></div>
@@ -1494,6 +1496,66 @@ async function drawRocks(){
       .addTo(rockLayer);
   }
 }
+// ── REQ-78 L13·F27 위성 수온: NASA MUR(여러 위성을 합친 0.01°≈1km 매일 수온, 1~4일 늦음), NOAA ERDDAP에서 키 없이 받음 ──
+// 지금 화면(+20%)만 받아 유속 점(#flow, z450) 아래 지도 겹침층(z400)에 45% 반투명 색 + 0.5℃ 경계선(흰 선). 색 기준 = 화면 안 최저~최고
+var SST={on:false,ov:null,g:null,err:'',busy:false,key:'',warned:false};
+const SST_HOSTS=['https://coastwatch.pfeg.noaa.gov/erddap','https://upwell.pfeg.noaa.gov/erddap'];
+const SST_COL=['#2c4fa3','#3f86c9','#4fbcd1','#6fd6a8','#c9e36a','#f2c14e','#f08a3c','#d9442f'];
+function sstUrl(h,b,st){const f=v=>v.toFixed(3); return `${h}/griddap/jplMURSST41.json?`+encodeURIComponent(`analysed_sst[(last)][(${f(b.s)}):${st}:(${f(b.n)})][(${f(b.w)}):${st}:(${f(b.e)})]`);}
+function sstBox(){const B=map.getBounds(), s=B.getSouth(), n=B.getNorth(), w=B.getWest(), e=B.getEast(), dy=(n-s)*.2, dx=(e-w)*.2, r=v=>Math.round(v*20)/20;
+  const b={s:Math.max(-89,r(s-dy)),n:Math.min(89,r(n+dy)),w:r(w-dx),e:r(e+dx)}; b.st=Math.max(1,Math.ceil(Math.max(b.n-b.s,b.e-b.w)/0.01/110)); return b;}
+function sstParse(text){const js=JSON.parse(text), t=js&&js.table; if(!t||!t.rows||!t.rows.length)throw new Error('빈 응답');
+  const ci=n=>t.columnNames.indexOf(n), iT=ci('time'), iLa=ci('latitude'), iLo=ci('longitude'), iV=ci('analysed_sst'); if(iLa<0||iLo<0||iV<0)throw new Error('모양이 달라요');
+  const las=[...new Set(t.rows.map(r=>r[iLa]))].sort((a,b)=>a-b), los=[...new Set(t.rows.map(r=>r[iLo]))].sort((a,b)=>a-b);
+  const ny=las.length, nx=los.length, v=new Float32Array(nx*ny).fill(NaN), yi=new Map(las.map((x,i)=>[x,i])), xi=new Map(los.map((x,i)=>[x,i]));
+  let mn=1e9,mx=-1e9; for(const r of t.rows){let x=r[iV]; if(x==null||!isFinite(x))continue; if(x>100)x-=273.15; v[yi.get(r[iLa])*nx+xi.get(r[iLo])]=x; if(x<mn)mn=x; if(x>mx)mx=x;}
+  if(mn>mx)throw new Error('이 화면은 바다 수온 칸이 없어요');
+  const tm=iT>=0?String(t.rows[0][iT]):''; return {las,los,nx,ny,v,mn,mx,time:tm,date:tm?new Date(tm):null};}
+function sstRange(g){let a=g.mn,b=g.mx; if(b-a<0.6){const m=(a+b)/2;a=m-0.3;b=m+0.3;} return [a,b];}
+function sstColor(t,a,b){const f=Math.max(0,Math.min(0.9999,(t-a)/(b-a)))*(SST_COL.length-1), i=Math.floor(f), k=f-i, h=c=>[1,3,5].map(j=>parseInt(c.substr(j,2),16));
+  const A=h(SST_COL[i]), B=h(SST_COL[Math.min(i+1,SST_COL.length-1)]); return A.map((x,j)=>Math.round(x+(B[j]-x)*k));}
+function sstDraw(g){const [a,b]=sstRange(g), K=Math.max(2,Math.min(6,Math.floor(600/Math.max(g.nx,g.ny)))), W=g.nx*K, H=g.ny*K;
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d'), img=x.createImageData(W,H);
+  for(let j=0;j<g.ny;j++)for(let i=0;i<g.nx;i++){const t=g.v[j*g.nx+i]; if(!isFinite(t))continue; const c=sstColor(t,a,b), Y0=(g.ny-1-j)*K;
+    for(let yy=0;yy<K;yy++)for(let xx=0;xx<K;xx++){const o=((Y0+yy)*W+i*K+xx)*4; img.data[o]=c[0];img.data[o+1]=c[1];img.data[o+2]=c[2];img.data[o+3]=255;}}
+  x.putImageData(img,0,0); x.strokeStyle='rgba(255,255,255,.9)'; x.lineWidth=1; x.beginPath(); let nl=0; const band=t=>Math.floor(t*2); // 0.5℃마다 경계
+  for(let j=0;j<g.ny;j++)for(let i=0;i<g.nx;i++){const t=g.v[j*g.nx+i]; if(!isFinite(t))continue; const Y=(g.ny-1-j)*K;
+    if(i+1<g.nx){const u=g.v[j*g.nx+i+1]; if(isFinite(u)&&band(u)!==band(t)){x.moveTo((i+1)*K+.5,Y);x.lineTo((i+1)*K+.5,Y+K);nl++;}}
+    if(j+1<g.ny){const u=g.v[(j+1)*g.nx+i]; if(isFinite(u)&&band(u)!==band(t)){x.moveTo(i*K,Y+.5);x.lineTo(i*K+K,Y+.5);nl++;}}}
+  x.stroke(); g.lines=nl;
+  const dla=g.ny>1?(g.las[1]-g.las[0])/2:0.005, dlo=g.nx>1?(g.los[1]-g.los[0])/2:0.005, bb=[[g.las[0]-dla,g.los[0]-dlo],[g.las[g.ny-1]+dla,g.los[g.nx-1]+dlo]];
+  if(SST.ov)map.removeLayer(SST.ov); SST.ov=L.imageOverlay(cv.toDataURL(),bb,{opacity:.45,interactive:false}).addTo(map); SST.ovOpacity=.45; sstLegend();}
+const sstDay=g=>g&&g.date&&!isNaN(g.date)?`${g.date.getMonth()+1}/${g.date.getDate()}`:'?';
+function sstLegend(){const L0=$('#sstLeg'); if(!SST.on){L0.style.display='none';return;} L0.style.display='block';
+  if(!SST.g){$('#sstLegT').textContent=SST.err?'🌡️ 위성 수온: 못 받음':'🌡️ 위성 수온: 받는 중…'; $('#sstBar').innerHTML=''; $('#sstTicks').innerHTML=''; return;}
+  const [a,b]=sstRange(SST.g); $('#sstLegT').textContent=`🌡️ 위성 수온 ℃ · ${sstDay(SST.g)} 기준 · 흰 선 0.5℃`;
+  $('#sstBar').innerHTML=SST_COL.map(c=>`<span style="background:${c}"></span>`).join('');
+  $('#sstTicks').innerHTML=[a,(a+b)/2,b].map(v=>`<span>${v.toFixed(1)}</span>`).join('');}
+async function sstFetch(b){let last='';
+  for(const h of SST_HOSTS){try{const r=await nget(sstUrl(h,b,b.st),360); if(r.status===200&&r.text){const g=sstParse(r.text); g.host=h; return g;} last='응답 '+r.status;}catch(e){last=e.message;}}
+  throw new Error(last||'받지 못함');}
+async function sstLoad(force){if(!SST.on)return; const b=sstBox(), key=[b.s,b.n,b.w,b.e,b.st].join(',');
+  if(!force&&key===SST.key&&SST.g)return; if(SST.busy){SST.again=true;return;} SST.busy=true; sstLegend();
+  try{const g=await sstFetch(b); if(!SST.on)return; SST.g=g; SST.err=''; SST.key=key; sstDraw(g); if(sel)updateUI();}
+  catch(e){SST.err=e.message; if(SST.on&&!SST.warned){SST.warned=true; toast('🌡️ 위성 수온을 못 받았어요 — 잠시 뒤 다시 켜 보세요 ('+e.message+')',4000);} sstLegend();}
+  finally{SST.busy=false; if(SST.again){SST.again=false; sstLoad();}}}
+function sstAt(lat,lng){const g=SST.g; if(!g)return null; const iy=g.las.findIndex((v,i)=>i===g.ny-1||Math.abs(g.las[i+1]-lat)>Math.abs(v-lat)), ix=g.los.findIndex((v,i)=>i===g.nx-1||Math.abs(g.los[i+1]-lng)>Math.abs(v-lng));
+  if(iy<0||ix<0||lat<g.las[0]-0.02||lat>g.las[g.ny-1]+0.02||lng<g.los[0]-0.02||lng>g.los[g.nx-1]+0.02)return null;
+  for(let r=0;r<=3;r++){let best=null,bd=1e9; for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){const y=iy+dy,x=ix+dx; if(y<0||x<0||y>=g.ny||x>=g.nx)continue; const t=g.v[y*g.nx+x]; if(!isFinite(t))continue; const d=dx*dx+dy*dy; if(d<bd){bd=d;best=t;}}
+    if(best!=null)return {t:best,near:r>0,day:sstDay(g)};}
+  return null;}
+function sstSet(on){SST.on=on; setPref('sstOn',on?'1':'0'); $('#sstBtn').classList.toggle('on',on); SST.warned=false;
+  if(on){sstLoad(true); toast('🌡️ 위성 수온: NASA 위성 자료라 1~4일 전 값이에요 · 흰 선 = 0.5℃ 차이(물 경계)',3500); haptic('tick');}
+  else{if(SST.ov)map.removeLayer(SST.ov); SST.ov=null; SST.g=null; SST.key=''; SST.err='';} sstLegend(); if(sel)updateUI();}
+$('#sstBtn').onclick=()=>sstSet(!SST.on);
+map.on('moveend',()=>{if(!SST.on)return; clearTimeout(SST._t); SST._t=setTimeout(()=>sstLoad(),700);});
+setTimeout(()=>{if(pref('sstOn','0')==='1')sstSet(true);},1200);
+$('#sstTest').onclick=async()=>{const out=$('#tbOut'); out.style.display='block'; out.textContent='위성 수온 물어보는 중…'; const b=sstBox(), t0=performance.now(), lines=[];
+  for(const h of SST_HOSTS){const u=sstUrl(h,b,b.st); try{const r=await nget(u,0); let info='';
+      if(r.status===200){try{const g=sstParse(r.text); info=` · 칸 ${g.nx}×${g.ny} · ${g.mn.toFixed(1)}~${g.mx.toFixed(1)}℃ · ${sstDay(g)} 기준(${g.time})`;}catch(e){info=' · 풀기 실패: '+e.message+' · '+String(r.text).slice(0,120);}}
+      else info=' · '+String(r.text||'').slice(0,120);
+      lines.push(`${h.replace('https://','')} → ${r.status}${info} · ${Math.round(performance.now()-t0)}ms`);}catch(e){lines.push(`${h} → 오류 ${e.message}`);}}
+  out.textContent='🛰️ 위성 수온 (NASA MUR jplMURSST41)\n범위 '+[b.s,b.n,b.w,b.e].join(', ')+' · 건너뛰기 '+b.st+'\n'+lines.join('\n');};
 $('#rockBtn').onclick=async()=>{
   ROCK.on=!ROCK.on; setPref('rockOn',ROCK.on?'1':'0'); $('#rockBtn').classList.toggle('on',ROCK.on);
   if(ROCK.on)toast(map.getZoom()<ROCK_ZOOM?'바위 표시 켬 — 지도를 더 확대하면 보여요':'주황=간출암(썰물 때만 드러남), 흰색=노출암',3500);
@@ -2649,7 +2711,8 @@ function updateUI(){
   { const w=WIND.on&&WIND.data?windAt(tH()):null;
     $('#iWind').innerHTML=w?numHtml(`🌬️ ${windText(tH())} · 표층 물이 약 ${(Math.hypot(w.u,w.v)*DRIFT*1.9438).toFixed(2)}kn로 바람 따라 밀려요${CONF.realData?' (바깥 바다 예보엔 이미 반영)':''}`):''; }
   { const ws=windSide(tH(),sel.lat,sel.lng), dd=new Date(t0.getTime()+tH()*3600e3); dd.setHours(0,0,0,0);
-    const parts=[cfNearText(sel.lat,sel.lng,tH()),ws?ws.t:'',moonText(dd.getTime(),sel.lat,sel.lng),skyText(tH())].filter(Boolean);
+    const sa=SST.on?sstAt(sel.lat,sel.lng):null;
+    const parts=[cfNearText(sel.lat,sel.lng,tH()),ws?ws.t:'',sa?`🛰️ 위성 수온 ${sa.t.toFixed(1)}℃ (${sa.day} 기준${sa.near?' · 바로 앞바다':''})`:'',moonText(dd.getTime(),sel.lat,sel.lng),skyText(tH())].filter(Boolean);
     $('#iMore').innerHTML=parts.map(numHtml).join('<br>'); $('#iMore').style.display=parts.length?'block':'none'; }
   const v=flowAt(sel.lat,sel.lng,tH());
   if(!v){['#iSpeed','#iDir','#iState','#iSlack'].forEach(q=>$(q).textContent='-');
@@ -2805,7 +2868,7 @@ function renderFavList(){
 $('#favBtn').onclick=()=>{renderFavList();$('#favImportBox').style.display='none';$('#favPanel').classList.add('show');};
 // 백업: 즐겨찾기를 글(텍스트)로 만들어 카톡·메모 등으로 보내기 → 새 폰/재설치 후 붙여넣어 복원
 // ── 백업 내보내기·가져오기 (REQ-50): 안드로이드 앱 ↔ HTML 버전 사이 옮기기 ──
-const BAK_PREFIX='바다흐름지도-백업:', BAK_PREFS=['dataKey','romsUrl','vworldKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit','tideMode','cfOn','depthOn','tideSt2','cfSt1','recKinds','islOv','recSort','nowMini','nowView'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
+const BAK_PREFIX='바다흐름지도-백업:', BAK_PREFS=['dataKey','romsUrl','vworldKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit','tideMode','cfOn','depthOn','tideSt2','cfSt1','recKinds','islOv','recSort','nowMini','nowView','sstOn'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
 function bakMake(){const P={},S={};for(const k of BAK_PREFS){const v=pref(k,null);if(v!=null&&v!=='')P[k]=v;}for(const k of BAK_LS){try{const v=localStorage.getItem(k);if(v)S[k]=v;}catch(e){}}
   return BAK_PREFIX+JSON.stringify({v:1,at:new Date().toISOString(),from:NATIVE?'app':'web',prefs:P,ls:S});}
 function bakApply(txt){txt=String(txt||'').trim(); const i=txt.indexOf('{'); if(i<0)throw new Error('백업 내용이 아니에요');

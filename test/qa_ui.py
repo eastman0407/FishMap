@@ -29,7 +29,7 @@ exec(src+'''
     check('U1 오른쪽 버튼은 ◎·레이어 2개 (+ 위 ★)', side==['locBtn','layersBtn'] and E("!!document.querySelector('.top #favBtn')"), side)
     E("document.querySelector('#layersBtn').click()")
     ids=E("[...document.querySelectorAll('#layerPanel .ibtn')].map(b=>b.id)")
-    check('U2 레이어 시트에 도구 7개', E("document.querySelector('#layerPanel').classList.contains('show')") and ids==['layerBtn','flowBtn','windBtn','simBtn','rockBtn','planBtn','setBtn'], ids)
+    check('U2 레이어 시트에 도구 8개 (build-48 🌡️ 위성 수온 추가)', E("document.querySelector('#layerPanel').classList.contains('show')") and ids==['layerBtn','flowBtn','windBtn','simBtn','rockBtn','sstBtn','planBtn','setBtn'], ids)
     pg.screenshot(path='/tmp/ui_layer.png')
     on0=E("document.querySelector('#flowBtn').classList.contains('on')"); E("document.querySelector('#flowBtn').click()"); on1=E("document.querySelector('#flowBtn').classList.contains('on')")
     E("document.querySelector('#flowBtn').click()")
