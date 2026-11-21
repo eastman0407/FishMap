@@ -20,7 +20,7 @@
     go(12,34.93,128.07,0); pg.wait_for_timeout(1500)
     E("document.querySelector('#planBtn').click()"); pg.wait_for_timeout(1200)
     tabs=E("[...document.querySelectorAll('.ptabs button')].map(b=>b.textContent+(b.classList.contains('on')?'*':''))")
-    check('R1 출조 도우미 탭 3개: ⭐ 추천 · 📅 계획 · 📓 기록 (추천 먼저)', tabs==['⭐ 추천*','📅 계획','📓 기록'], tabs)
+    check('R1 출조 도우미 탭 3개: ⭐ 추천 · 📅 날짜별(U-50, 예전 계획) · 📓 기록 (추천 먼저)', tabs==['⭐ 추천*','📅 날짜별','📓 기록'], tabs)
     bs=E("[[...document.querySelectorAll('#recBasis button')].map(b=>b.textContent),[...document.querySelectorAll('#recKm button')].map(b=>b.textContent+(b.classList.contains('on')?'*':''))]")
     check('R2 기준 3가지(자리 주변·내 위치·지역, build-50 U-42) + 반경 3·5·10km(기본 5)', len(bs[0])==3 and '자리 주변' in bs[0][0] and '내 위치' in bs[0][1] and '지역' in bs[0][2] and bs[1]==['3km','5km*','10km'], bs)
     E("document.querySelector('#recBasis [data-b=area]').click()"); pg.wait_for_timeout(300)

@@ -301,6 +301,23 @@ html[data-theme=night] #flow{opacity:.8} html[data-theme=night] .legend{backgrou
 .pat .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.pat .chip{background:rgba(255,255,255,.08);border-radius:10px;padding:6px 9px;font-size:13.5px}.pat .chip b{color:var(--hiY,#ffd166)}
 .pat .note{font-size:12.5px;color:var(--muted);margin-top:6px}.pat .prog{height:10px;border-radius:5px;background:var(--line);margin-top:8px}.pat .prog i{display:block;height:10px;border-radius:5px;background:var(--accent)}
 .pat .tog{display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:6px;border-top:1px solid var(--line);font-size:14px;min-height:44px;cursor:pointer}.pat .tog input{width:auto;height:auto}
+.vday{background:#4a3612;color:#ffd166;border-radius:99px;padding:3px 9px;font-size:12.5px;font-weight:700;white-space:nowrap;flex:none}.vday[hidden]{display:none}
+
+/* U-50 📅 날짜별: 3주 달력(일~토 한 줄, 이번 주+2주) + 고른 날 카드 */
+.plg{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--muted);margin-top:8px}.plg i{display:inline-block;width:14px;height:5px;border-radius:3px;margin-right:4px;vertical-align:middle}
+.pwk{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:8px;font-size:12px;color:var(--muted);text-align:center}
+.pcal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:3px}
+.pc{position:relative;height:58px;min-width:0;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);display:flex;flex-direction:column;align-items:center;padding:5px 0 0;font:inherit;cursor:pointer}
+.pc .dn{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}.pc .ml{font-size:12px;color:var(--muted);line-height:1.3;white-space:nowrap}
+.pc .bar{position:absolute;left:6px;right:6px;bottom:5px;height:5px;border-radius:3px}.pc.s .bar{background:#ff8a5c}.pc.m .bar{background:#f6c445}.pc.w .bar{background:#3fa7c9}
+.pc em{position:absolute;right:2px;top:1px;font-style:normal;font-size:10px}.pc.we .dn{color:var(--t-we,#ff9e8f)}.pc.today{border:2px solid var(--accent)}.pc.on{border:2px solid #ffd166;background:var(--b1c3550,#1c3550)}
+.pc.nf{opacity:.72}.pc:disabled{opacity:.3;cursor:default}
+.pday{margin-top:10px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px}.pday h4{margin:0;font-size:17px}.pday h4 small{font-size:13px;color:var(--t-we,#ff9e8f);margin-left:4px}.pday .sub{font-size:13px;color:var(--muted);margin-top:2px}
+.pday .win{margin-top:8px;background:var(--b0f2638,#0f2638);border-radius:10px;padding:8px 10px}.pday .win b{font-size:19px;font-variant-numeric:tabular-nums}.pday .win small{display:block;color:var(--muted);font-size:12.5px}
+.pday .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.pday .chip{background:rgba(255,255,255,.08);border-radius:10px;padding:5px 9px;font-size:13px;white-space:nowrap}
+.pday .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.pday .acts button{height:48px;border-radius:12px;font-size:14px;font-weight:700;white-space:nowrap}
+.pday .acts .pri{background:var(--accent);color:var(--onAcc,#06221f);border:none}.pday .acts button:disabled{opacity:.5}
+html[data-theme=light]{--t-we:#b3261e;--b0f2638:#e7f0f7}
 </style>
 </head>
 <body>
@@ -326,7 +343,7 @@ html[data-theme=night] #flow{opacity:.8} html[data-theme=night] .legend{backgrou
     </div>
     <!-- 지금 카드 (11-19, REQ-57): 칩 여러 개를 카드 하나로. 머리를 누르면 출조 도우미 -->
     <div class="topchips nowcard" id="nowCard">
-      <div class="nchead" id="nowHead"><span class="seg" id="nowSeg"><button data-v="now" class="on">지금</button><button data-v="rec">⭐ 오늘 추천</button></span><span class="samplebadge">흐름: 샘플 데이터</span></div>
+      <div class="nchead" id="nowHead"><span class="seg" id="nowSeg"><button data-v="now" class="on" id="nowSegNow">지금</button><button data-v="rec">⭐ 오늘 추천</button></span><span class="vday" id="vdayTag" hidden></span><span class="samplebadge">흐름: 샘플 데이터</span></div>
       <!-- U-48 (build-55): 칩 한 줄 + 쪽 넘기기 (접기·펴기 없앰). 1쪽 물 · 2쪽 날씨, 큰 글씨로 넘치면 쪽이 자동으로 늘어남 -->
       <div class="ncpages" id="ncPages"><div class="ncslide" id="ncSlide">
         <div class="ncpg" id="ncPg1"><span class="tchip tide" id="tideChip" title="오늘 만조·간조 시각 보기"></span><span class="tchip phase" id="phaseChip"></span><span class="tchip drift" id="driftChip"></span></div>
@@ -501,11 +518,14 @@ html[data-theme=night] #flow{opacity:.8} html[data-theme=night] .legend{backgrou
 <div class="panel" id="planPanel">
   <div class="pbox">
     <h3>출조 도우미 <button class="x" id="planClose">×</button></h3>
-    <div class="ptabs"><button data-tab="rec" class="on">⭐ 추천</button><button data-tab="plan">📅 계획</button><button data-tab="log">📓 기록</button></div>
+    <div class="ptabs"><button data-tab="rec" class="on">⭐ 추천</button><button data-tab="plan">📅 날짜별</button><button data-tab="log">📓 기록</button></div>
     <div id="tabPlan" style="display:none">
       <div class="namebox" style="align-items:center"><span style="font-size:13px;color:var(--muted);flex:none">기준</span><select id="planBase" style="flex:1;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:0 8px"></select></div>
       <div class="empty" id="planSub" style="padding:6px 0 0;font-size:12px"></div>
-      <ul class="plan" id="planList"></ul>
+      <div class="plg"><span><i style="background:#ff8a5c"></i>사리 쪽</span><span><i style="background:#f6c445"></i>중간</span><span><i style="background:#3fa7c9"></i>조금 쪽</span><span>⭐ 해뜰·해질녘에 물 돔</span><span>흐린 칸 = 유속 예보 전</span></div>
+      <div class="pwk"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+      <div class="pcal" id="planCal" role="grid" aria-label="3주 달력"></div>
+      <div id="planDay"></div>
       <div class="empty" style="padding:10px 0 0;font-size:12px" data-plannote>승부 시간 = 만조·간조 앞뒤 1시간 30분 · ⭐ = 해뜰녘·해질녘과 겹침 · 조차 세기는 이 3주 안에서 비교 · 유속은 예보가 있는 약 7일, 바람은 약 3일만</div>
     </div>
     <div id="tabRec">
@@ -1274,7 +1294,11 @@ const nowMin=()=>Math.floor((Date.now()-t0.getTime())/60000);
 let tMin=nowMin(); const tH=()=>tMin/60;
 // 흐름 계산(⚓)은 10분 칸 그대로: 가장 가까운 칸 값 → 1분마다 따라가도 계산 양은 같음
 const sT=()=>Math.round(tMin/10)*10;
-const NOWF={on:true}; // 지금 따라가기: [지금]을 누르면 켜짐, 시간 막대·재생을 손대면 꺼짐
+const NOWF={on:true};
+// U-50(11-22): 보는 날 — 0이면 오늘·내일 이틀(예전 그대로), k(2~20)면 그날 0~24시 하루. 시각(tMin)은 언제나 오늘 0시부터의 분
+const VDAY={k:0};
+const TR=()=>VDAY.k?[VDAY.k*1440,VDAY.k*1440+1440]:[0,2880];
+const vNow=()=>VDAY.k?t0.getTime()+tMin*60000:Date.now(); // 화면 카드가 기준으로 삼는 '그때' // 지금 따라가기: [지금]을 누르면 켜짐, 시간 막대·재생을 손대면 꺼짐
 const fmt=m=>{const d=new Date(t0.getTime()+m*60000);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
 const WD=['일','월','화','수','목','금','토'];
 const dayTag=m=>['오늘','내일','모레'][Math.floor(m/1440)]||'';
@@ -1948,11 +1972,12 @@ async function tbSeries(code,d0,offs){
 }
 // 만조·간조(극치) → 그 사이 물높이는 코사인 곡선으로 이어 10분 간격 곡선을 만듦 (바위 잠김·물높이 표시용)
 async function tideSeries(code){
-  const c=TIDE.series.get(code); if(c&&Date.now()-c.at<6*3600e3)return c;
+  const K=VDAY.k, ck=code+(K>=2?'|'+K:''), DAYS=K>=2?[-1,0,1,2,K-1,K,K+1].filter((v,i,a)=>a.indexOf(v)===i):[-1,0,1,2]; // U-50: 보는 날 앞뒤도
+  const c=TIDE.series.get(ck); if(c&&Date.now()-c.at<6*3600e3)return c;
   if(code.startsWith('TB')){const d=new Date(t0.getTime());d.setHours(0,0,0,0);
-    const ser=await tbSeries(code,d.getTime(),[-1,0,1,2]); if(ser)TIDE.series.set(code,ser); return ser;}
+    const ser=await tbSeries(code,d.getTime(),DAYS); if(ser)TIDE.series.set(ck,ser); return ser;}
   const ex=[];
-  for(let day=-1;day<=2;day++){
+  for(const day of DAYS){
     const rd=ymd(new Date(t0.getTime()+day*86400e3));
     const url=`${TIDE_HL_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=10&obsCode=${code}&reqDate=${rd}`;
     const r=await nget(url,720);
@@ -1967,7 +1992,7 @@ async function tideSeries(code){
   for(let i=0;i<E.length-1;i++){const a=E[i],b=E[i+1];
     for(let ms=a.ms;ms<b.ms;ms+=600000){const f=(ms-a.ms)/(b.ms-a.ms);out.t.push(ms);out.h.push((a.h+b.h)/2+(a.h-b.h)/2*Math.cos(Math.PI*f));}}
   out.t.push(E[E.length-1].ms); out.h.push(E[E.length-1].h);
-  TIDE.series.set(code,out); return out;
+  TIDE.series.set(ck,out); return out;
 }
 function tideAtMs(ser,ms){const T=ser.t;if(!T||!T.length||ms<T[0]||ms>T[T.length-1])return null;
   let lo=0,hi=T.length-1;while(hi-lo>1){const m=(lo+hi)>>1;T[m]<=ms?lo=m:hi=m;}
@@ -1980,9 +2005,9 @@ async function tideEnsure(){
     for(let pass=0;pass<2;pass++){
       if(!(await tideStations()))return;
       const c=map.getCenter(),st=nearestStation(c.lat,c.lng); if(!st)return;
-      if(TIDE.cur&&TIDE.cur.st.c===st.c&&Date.now()-TIDE.cur.ser.at<=6*3600e3)return;
+      if(TIDE.cur&&TIDE.cur.st.c===st.c&&(TIDE.cur.k||0)===VDAY.k&&Date.now()-TIDE.cur.ser.at<=6*3600e3)return;
       const ser=await tideSeries(st.c);
-      if(ser){TIDE.cur={st:nearestStation(c.lat,c.lng)||st,ser};TIDE.err='';drawRocks();updateTideChips();drawTideStation();if(sel)updateUI();return;}
+      if(ser){TIDE.cur={st:nearestStation(c.lat,c.lng)||st,ser,k:VDAY.k};TIDE.err='';drawRocks();updateTideChips();drawTideStation();if(sel)updateUI();return;}
       if(!st.bed)return; // TideBED가 안 되면(30분간) 예전 관측소 방식으로 한 번 더
     }
   }catch(e){}finally{tideBusy=false;}
@@ -2003,8 +2028,8 @@ const hhmm=ms=>{const d=new Date(ms);return pad2(d.getHours())+':'+pad2(d.getMin
 // 조석 칩·물 상태·조석표는 '실제 지금' 기준 (11-15 요청). 아래 정보카드 물높이·그래프만 시간 막대 기준
 function tideDay(){const d=new Date();d.setHours(0,0,0,0);return d.getTime();}
 // 지금 물 상태: 직전·다음 만조/간조 사이를 셋으로 나눠 초·중·끝 들물/날물, 전후 20분은 만조·간조(정조)
-function tidePhase(){
-  if(!TIDE.cur)return null; const now=Date.now(), ex=tideExtremes(TIDE.cur.ser,now-14*3600e3,now+14*3600e3);
+function tidePhase(at){
+  if(!TIDE.cur)return null; const now=at||Date.now(), ex=tideExtremes(TIDE.cur.ser,now-14*3600e3,now+14*3600e3);
   let prev=null,next=null; for(const e of ex){if(e.ms<=now)prev=e;else if(!next)next=e;}
   if(!prev||!next)return null;
   if(now-prev.ms<=20*60000)return {name:prev.hi?'만조(정조)':'간조(정조)',prev,next};
@@ -2013,7 +2038,7 @@ function tidePhase(){
   return {name:k+(prev.hi?'날물':'들물'),prev,next};
 }
 function updateTideChips(){
-  const tc=$('#tideChip'), pc=$('#phaseChip'), now=Date.now();
+  const tc=$('#tideChip'), pc=$('#phaseChip'), now=vNow();
   const c=map.getCenter(), md=mulddae(now,isWestSea(c.lat,c.lng)), mw=mulWord(md.name);
   if(!CONF.realData||!TIDE.cur){const scanning=CONF.realData&&TIDE.scan;tc.style.display=CONF.realData&&(TIDE.err||scanning)?'inline-block':'none';
     tc.textContent=scanning?`🌊 조석 찾는 중 ${TIDE.prog||0}/${TIDE_CODES.length}`:TIDE.err?'🌊 조석: '+TIDE.err:'';
@@ -2021,7 +2046,7 @@ function updateTideChips(){
   const ex=tideExtremes(TIDE.cur.ser,now,now+30*3600e3), nx=ex[0];
   tc.style.display=nx?'inline-block':'none';
   if(nx)tc.textContent=`🌊 ${TIDE.cur.st.n} · ${nx.hi?'만조':'간조'} ${hhmm(nx.ms)}`+(new Date(nx.ms).getDate()!==new Date(now).getDate()?'(내일)':'');
-  const ph=tidePhase(); pc.style.display=ph?'inline-block':'none'; pc.textContent=ph?ph.name:''; /* U-5: 물때 이름(다섯물)은 빼고 시간 막대에만 */ NOWS.tide=nx?`${nx.hi?'만조':'간조'} ${hhmm(nx.ms)}`:''; NOWS.ph=ph?ph.name:''; nowMini();
+  const ph=tidePhase(now); pc.style.display=ph?'inline-block':'none'; pc.textContent=ph?ph.name:''; /* U-5: 물때 이름(다섯물)은 빼고 시간 막대에만 */ NOWS.tide=nx?`${nx.hi?'만조':'간조'} ${hhmm(nx.ms)}`:''; NOWS.ph=ph?ph.name:''; nowMini();
 }
 // ── 지금 카드 접기 (REQ-62): ▴ 누르면 한 줄(다음 물때·수온·⚠️)로, ▾ 누르면 다시 펴기. 상태 저장 ──
 var NOWS={tide:'',ph:''};
@@ -2250,33 +2275,37 @@ function winFlow(w,lat,lon){
 function winWind(w){const D=WIND.data;if(!D||!D.times.length||w.s>D.times[D.times.length-1]||w.t<D.times[0])return null;
   let mx=0;for(let ms=w.s;ms<=w.t;ms+=3600e3){const q=windAt((ms-t0.getTime())/3600000);if(q)mx=Math.max(mx,Math.hypot(q.u,q.v));}return mx;}
 function renderPlan(){
-  const R=PLAN.res,L=$('#planList'); if(!R){L.innerHTML='';return;}
-  const now=Date.now(), b=R.base; PLAN.face=seaDir(b.la,b.lo);
-  $('#planSub').textContent=`${R.st.bed?`기준항 ${R.st.n} 값을 이 자리에 맞게 보정`:`${R.st.n} 관측소 기준 (기준 지점에서 약 ${R.st.km.toFixed(0)}km)`} · ${isWestSea(b.la,b.lo)?'7물때식':'8물때식'} · 하루를 누르면 자세히`;
-  L.innerHTML=R.days.map((d,i)=>{const bw=bestWin(d), today=d.d===tideDay();
-    const fl=bw?winFlow(bw,b.la,b.lo):null;
-    const flt=fl==='after'?'유속 예보 전':fl==null?'':`유속 최대 ${fl.toFixed(1)}노트`;
-    const nth=(d.d+12*3600e3-t0.getTime())/3600000, dTp=tempAt(b.la,b.lo,nth), dTc=tempChange(b.la,b.lo,nth);
-    const bth=bw?((bw.s+bw.t)/2-t0.getTime())/3600000:null, ws=bth!=null?windSide(bth,b.la,b.lo,PLAN.face):null, sk=bth!=null?skyText(bth):'';
-    const l2=[d.sun?`해 ${hhmm(d.sun.rise)} / ${hhmm(d.sun.set)}`:'',moonText(d.d,b.la,b.lo,true),flt,ws&&ws.k!=='?'?ws.short:'',sk,dTp!=null?`수온 ${dTp.toFixed(1)}℃${dTc!=null&&Math.abs(dTc)>=1?' '+E_W+' 급변':''}`:''].filter(Boolean).join(' · ');
-    const det=[];
-    det.push(`<b>만조·간조</b><br>`+(d.ex.length?d.ex.map(x=>`${x.hi?'▲ 만조':'▼ 간조'} ${hhmm(x.ms)} <span class="sub">${x.h.toFixed(2)}m</span>`).join('<br>'):'자료 없음'));
-    det.push(`<b>승부 시간</b> <span class="sub">(만조·간조 앞뒤 1시간 30분)</span><br>`+d.wins.map(w=>{const f=winFlow(w,b.la,b.lo),wd=winWind(w);
-      return `${w.gold?'<span class="gold">⭐</span> ':''}${hhmm(w.s)}~${hhmm(w.t)} <span class="sub">(${w.x.hi?'만조':'간조'} ${hhmm(w.x.ms)} 앞뒤${w.gold?' · '+w.gold+' 겹침':''})</span><br>`
-        +`<span class="sub">　도착 권장 ${hhmm(w.s-2*3600e3)}~${hhmm(w.s-3600e3)} · 잠깐 쉬는 때 ${hhmm(w.x.ms-20*60000)}~${hhmm(w.x.ms+20*60000)}(물 멈춤)`
-        +(f==='after'?' · 유속 예보 전':f!=null?` · 유속 최대 ${f.toFixed(1)}노트${f>=RED.kn?' (낚시 어려움)':''}`:'')+(wd!=null?` · 바람 최대 ${wd.toFixed(0)}m/s`:'')+`</span>`;}).join('<br>'));
-    if(d.sun)det.push(`<b>해</b> 뜸 ${hhmm(d.sun.rise)} · 짐 ${hhmm(d.sun.set)}`);
-    det.push(`<b>물때</b> 음 ${d.md.ld}일 · ${mulWord(d.md.name)}`+(d.rg!=null?` · 조차 ${d.rg.toFixed(2)}m (${d.str})`:''));
-    return `<li class="${today?'today':''}" data-i="${i}"><div class="l1"><span>${dstr(d.d)} ${mulWord(d.md.name)}${d.rg!=null?` · 조차 ${d.rg.toFixed(1)}m`:''}</span>`
-      +`<span>${bw?`${bw.gold?'<span class="gold">⭐</span> ':''}승부 ${hhmm(bw.s)}~${hhmm(bw.t)}`:''}</span></div>`
-      +`<div class="l2">${d.str?d.str+' · ':''}${l2}</div><div class="det">${det.join('<br><br>')}</div></li>`;}).join('');
+  const R=PLAN.res, C=$('#planCal'); if(!R){C.innerHTML='';$('#planDay').innerHTML='';return;}
+  const today=tideDay(), b=R.base, fe=RD.times.length?RD.times[RD.times.length-1]:0; PLAN.face=seaDir(b.la,b.lo);
+  $('#planSub').textContent=`${R.st.bed?`기준항 ${R.st.n} 값을 이 자리에 맞게 보정`:`${R.st.n} 관측소 기준 (약 ${R.st.km.toFixed(0)}km)`} · ${isWestSea(b.la,b.lo)?'7물때식':'8물때식'} · 날짜를 누르면 자세히`;
+  if(PLAN.sel==null||!R.days[PLAN.sel]||R.days[PLAN.sel].d<today)PLAN.sel=Math.max(0,R.days.findIndex(d=>d.d===today));
+  C.innerHTML=R.days.map((d,i)=>{const k=Math.round((d.d-today)/DAY), dt=new Date(d.d), we=dt.getDay()===0||dt.getDay()===6, gold=planStar(d);
+    const cls=['pc',d.str.startsWith('사리')?'s':d.str.startsWith('조금')?'w':d.str?'m':'',k===0?'today':'',i===PLAN.sel?'on':'',we?'we':'',d.d+DAY/2>fe?'nf':''].filter(Boolean).join(' ');
+    return `<button class="${cls}" data-pi="${i}" ${k<0?'disabled':''} aria-label="${dstr(d.d)} ${d.md.name}${d.str?' '+d.str:''}${gold?' 해뜰녘·해질녘 겹침':''}" aria-pressed="${i===PLAN.sel}"><span class="dn">${dt.getDate()}</span><span class="ml">${k<0?'':d.md.name}</span>${k<0?'':'<i class="bar"></i>'}${gold&&k>=0?'<em>⭐</em>':''}</button>`;}).join('');
+  renderPlanDay();
+}
+// 고른 날 카드: 승부 시간(⭐ 먼저, 2개까지)·도착 권장·유속·바람·수온·해 + [🗺️ 이 날 지도로][⭐ 이 날 추천]
+// 달력 ⭐: 만조·간조(물 도는 때)가 해 뜰 때·질 때 ±30분 안인 날만 (승부 시간 겹침 ⭐는 거의 매일이라 달력에선 구분이 안 됨)
+const planStar=d=>!!d.sun&&d.ex.some(x=>Math.abs(x.ms-d.sun.rise)<=30*60000||Math.abs(x.ms-d.sun.set)<=30*60000);
+function renderPlanDay(){const R=PLAN.res, d=R&&R.days[PLAN.sel], box=$('#planDay'); if(!d){box.innerHTML='';return;}
+  const b=R.base, today=tideDay(), k=Math.round((d.d-today)/DAY), now=Date.now();
+  const W=d.wins.filter(w=>k>0||w.t>now).sort((x,y)=>(y.gold?1:0)-(x.gold?1:0)||x.s-y.s).slice(0,2), bw=bestWin(d);
+  const wins=W.map((w,j)=>`<div class="win">${w.gold?'⭐ ':''}승부 <b>${hhmm(w.s)}~${hhmm(w.t)}</b><small>${w.x.hi?'만조':'간조'} ${hhmm(w.x.ms)} 앞뒤${w.gold?' · '+w.gold+' 겹침':''}${j===0?` · 도착 권장 ${hhmm(w.s-2*3600e3)}~${hhmm(w.s-3600e3)}`:''}</small></div>`).join('')||'<div class="sub" style="margin-top:8px">오늘 남은 승부 시간이 없어요</div>';
+  const fl=bw?winFlow(bw,b.la,b.lo):null, wd=bw?winWind(bw):null, nth=(d.d+12*3600e3-t0.getTime())/3600000, T=tempAt(b.la,b.lo,nth);
+  const ch=[fl==='after'||fl==null?'🌊 유속 예보 전':`🌊 유속 최대 ${fl.toFixed(1)}노트`,wd!=null?`💨 바람 최대 ${wd.toFixed(0)}m/s`:'💨 바람 예보 전',T!=null?`${E_T} ${T.toFixed(1)}℃`:'',bw?skyText(((bw.s+bw.t)/2-t0.getTime())/3600000):'',d.sun?`☀️ ${hhmm(d.sun.rise)} / ${hhmm(d.sun.set)}`:'',moonText(d.d,b.la,b.lo,true)].filter(Boolean);
+  box.innerHTML=`<div class="pday"><h4>${dstr(d.d)} · ${d.md.name}${d.str?`<small>${d.str.split(' · ')[0]}</small>`:''}</h4>`
+    +`<div class="sub">${d.rg!=null?`조차 ${d.rg.toFixed(1)}m · `:''}음력 ${d.md.ld}일 · ${R.st.n} 기준</div>${wins}`
+    +`<div class="chips">${ch.map(x=>`<span class="chip">${numHtml(x)}</span>`).join('')}</div>`
+    +`<div class="acts"><button class="pri" id="pdMap">🗺️ 이 날 지도로</button><button class="btn" id="pdRec" ${k>6?'disabled':''}>${k>6?'⭐ 추천 (7일 안만)':'⭐ 이 날 추천'}</button></div></div>`;
+  $('#pdMap').onclick=()=>{const at=bw?Math.round((bw.s-t0.getTime())/600000)*10:k*1440+360; $('#planPanel').classList.remove('show'); vdaySet(k,at); haptic('tick');};
+  $('#pdRec').onclick=()=>{if(k>6)return; showTab('rec'); const s=$('#recDay'); if(s){s.value=String(k);} recRun(); haptic('tick');};
 }
 async function buildPlan(){
   if(PLAN.busy)return; const bases=planBases(), k=$('#planBase').value||'center', b=bases.find(x=>x.k===k)||bases[0];
-  if(!CONF.realData){$('#planSub').textContent='공공데이터 키를 ⚙️ 설정에 넣으면 실제 조석 예보로 계획을 만들어요';$('#planList').innerHTML='';return;}
+  if(!CONF.realData){$('#planSub').textContent='공공데이터 키를 ⚙️ 설정에 넣으면 실제 조석 예보로 계획을 만들어요';$('#planCal').innerHTML='';$('#planDay').innerHTML='';return;}
   PLAN.busy=true; PLAN.prog=0; $('#planSub').textContent='조석 관측소 확인 중…';
   try{
-    const d0=tideDay(), {st,ex}=await tideExAt(b.la,b.lo,d0,PLAN.days);
+    const td=tideDay(), d0=td-new Date(td).getDay()*DAY, {st,ex}=await tideExAt(b.la,b.lo,d0,PLAN.days); // U-50: 이번 주 일요일부터 3주(주가 바뀌면 저절로 넘어감)
     if(!st){$('#planSub').textContent='조석: '+(TIDE.err||'관측소를 못 찾았어요');return;}
     if(ex.length<4){$('#planSub').textContent='조석 예보를 받지 못했어요 (인터넷 확인)';return;}
     PLAN.res={base:b,st,days:planDays(ex,d0,PLAN.days,b.la,b.lo)}; renderPlan();
@@ -2835,7 +2864,7 @@ drawLogPins();
 $('#planBase').onchange=buildPlan;
 $('#planClose').onclick=()=>$('#planPanel').classList.remove('show');
 $('#planPanel').addEventListener('click',e=>{if(e.target.id==='planPanel'){$('#planPanel').classList.remove('show');return;}
-  if(e.target.closest('#planList .det'))return; const li=e.target.closest('#planList>li'); if(li)li.classList.toggle('open');});
+  const pc=e.target.closest('#planCal .pc'); if(pc&&!pc.disabled){PLAN.sel=+pc.dataset.pi; renderPlan(); haptic('tick');}});
 $('#tidePanel').onclick=e=>{if(e.target.id==='tidePanel')$('#tidePanel').classList.remove('show');};
 // 지금(슬라이더 시각) 조위(m, 약최저저조면 기준). 없으면 null
 function tideNow(){return TIDE.cur?tideAtMs(TIDE.cur.ser,t0.getTime()+tMin*60000):null;}
@@ -3050,10 +3079,10 @@ function computeEvents(){
   if(!sel)return;
   if(CONF.realData){
     // 실제 모드: 48시간 유속 곡선에서 가장 약할 때(정조 무렵)와 가장 셀 때를 찾음
-    const ser=[]; for(let x=0;x<=2880;x+=10){const v=realAt(sel.lat,sel.lng,x/60);ser.push(v?Math.hypot(v.vE,v.vN):null);}
-    EV={real:true,ser,slack:[],peaks:[],max:Math.max(0.1,...ser.filter(v=>v!=null))};
+    const [x0,x1]=TR(), ser=[]; for(let x=x0;x<=x1;x+=10){const v=realAt(sel.lat,sel.lng,x/60);ser.push(v?Math.hypot(v.vE,v.vN):null);}
+    EV={real:true,ser,m0:x0,slack:[],peaks:[],max:Math.max(0.1,...ser.filter(v=>v!=null))};
     for(let i=1;i<ser.length-1;i++){const a=ser[i-1],b=ser[i],c=ser[i+1];if(a==null||b==null||c==null)continue;
-      if(b<a&&b<=c)EV.slack.push(i*10); if(b>a&&b>=c)EV.peaks.push([i*10,b]);}
+      if(b<a&&b<=c)EV.slack.push(x0+i*10); if(b>a&&b>=c)EV.peaks.push([x0+i*10,b]);}
     return;
   }
   const m=model(sel.lat,sel.lng); EV={slack:[],peaks:[],m};
@@ -3084,9 +3113,9 @@ map.on('click',e=>{if(SHARE.move){const nm=SHARE.move; SHARE.move=null; select(e
 const cT=$('#tide'), xT=cT.getContext('2d');
 // U-7 (build-49): 그래프 = 위 칸 물높이(눈금·만조·간조 이름표) + 아래 유속 띠(색=세기, 정조 시각, 들물·날물 최대). 보고 있는 날 0~24시
 // 보고 있는 시각 = 흰 세로선 "▶ 15:20", 진짜 지금 = 회색 점선. 재생이 내일로 넘어가면 그래프도 다음 날 + 날짜
-function graphData(){const D=Math.min(1,Math.floor(tMin/1440)), m0=D*1440, sp=[], hs=[];
+function graphData(){const D=VDAY.k||Math.min(1,Math.floor(tMin/1440)), m0=D*1440, sp=[], hs=[];
   for(let k=0;k<=144;k++){const ab=m0+k*10; let v=null;
-    if(EV.real)v=EV.ser&&EV.ser[ab/10]; else{const b=sel&&baseAt(sel.lat,sel.lng,ab/60); v=b?Math.hypot(b.vE,b.vN):null;}
+    if(EV.real)v=EV.ser&&EV.ser[(ab-(EV.m0||0))/10]; else{const b=sel&&baseAt(sel.lat,sel.lng,ab/60); v=b?Math.hypot(b.vE,b.vN):null;}
     sp.push(v==null?null:v);
     hs.push(TIDE.cur?tideAtMs(TIDE.cur.ser,t0.getTime()+ab*60000):(!CONF.realData&&EV.m?tideAt(EV.m,ab/60)/100:null));}
   const ex=[]; for(let k=1;k<144;k++){const a=hs[k-1],b=hs[k],c=hs[k+1]; if(a==null||b==null||c==null)continue; if(b>a&&b>=c)ex.push({k,hi:true,h:b}); if(b<a&&b<=c)ex.push({k,hi:false,h:b});}
@@ -3157,10 +3186,10 @@ function rollText(el,t){const old=el.textContent.replace(' ✓',''); el.textCont
   el.classList.remove('rollin'); void el.offsetWidth; el.classList.add('rollin'); window.__rolled=(window.__rolled||0)+1;}
 const selKey=()=>sel?sel.lat.toFixed(5)+','+sel.lng.toFixed(5):'';
 // U-8: 시간 막대 꾸미기 — 채운 부분, 진짜 지금 눈금, 자정 날짜
-function slDeco(){const sl=$('#slider'), th=22, w=sl.clientWidth||200, pos=m=>`${(th/2+m/2880*(w-th)).toFixed(1)}px`;
-  sl.style.setProperty('--p',pos(tMin)); const nm=(Date.now()-t0.getTime())/60000; const n=$('#slNow'); n.style.display=nm>=0&&nm<=2880?'':'none'; n.style.left=pos(nm);
-  const d=new Date(t0.getTime()+1440*60000); $('#slDate').textContent=`${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})`; $('.slw .slmid').style.left=pos(1440);
-  $('#slDate').style.left=pos(1440);}
+function slDeco(){const sl=$('#slider'), th=22, w=sl.clientWidth||200, [A,B]=TR(), pos=m=>`${(th/2+(m-A)/(B-A)*(w-th)).toFixed(1)}px`;
+  sl.style.setProperty('--p',pos(tMin)); const nm=(Date.now()-t0.getTime())/60000; const n=$('#slNow'); n.style.display=nm>=A&&nm<=B?'':'none'; n.style.left=pos(nm);
+  const d=new Date(t0.getTime()+1440*60000); $('#slDate').textContent=VDAY.k?'12시':`${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})`; $('.slw .slmid').style.left=pos(A+720*(VDAY.k?1:2));
+  $('#slDate').style.left=pos(A+720*(VDAY.k?1:2));}
 function updateUI(){
   const d=new Date(t0.getTime()+tMin*60000);
   updateTideChips();
@@ -3230,14 +3259,14 @@ function tideSummary(){
 
 // ================= 시간 컨트롤 =================
 let playing=false, frame=0;
-const setT=m=>{tMin=Math.max(0,Math.min(2880,m));updateUI();computeViewScale();cfDrawSoon();updateWxChip();};
+const setT=m=>{const [a,b]=TR(); tMin=Math.max(a,Math.min(b,m));updateUI();computeViewScale();cfDrawSoon();updateWxChip();};
 let cfDrawT=null; const cfDrawSoon=()=>{if(cfDrawT)return;cfDrawT=setTimeout(()=>{cfDrawT=null;cfDraw();},250);};
 $('#slider').addEventListener('input',e=>{NOWF.on=false;setT(+e.target.value);});
-$('#nowBtn').onclick=()=>{NOWF.on=true;setT(nowMin());};
+$('#nowBtn').onclick=()=>{if(VDAY.k)vdaySet(0); NOWF.on=true;setT(nowMin());};
 // H-14: 지금 모드면 1분마다 시각을 따라감 (15초마다 확인)
-function nowFollow(){if(NOWF.on&&!playing){const m=nowMin(); if(m!==tMin&&m>=0&&m<=2880)setT(m);}}
+function nowFollow(){if(NOWF.on&&!playing&&!VDAY.k){const m=nowMin(); if(m!==tMin&&m>=0&&m<=2880)setT(m);}}
 setInterval(nowFollow,15000);
-$('#play').onclick=()=>{NOWF.on=false;playing=!playing;$('#play').textContent=playing?'❚❚':'▶';if(playing&&tMin>=2880)setT(0);};
+$('#play').onclick=()=>{NOWF.on=false;playing=!playing;$('#play').textContent=playing?'❚❚':'▶';if(playing&&tMin>=TR()[1])setT(TR()[0]);};
 
 // ================= 현위치 =================
 let meMarker=null, meCircle=null; const LOCQ={busy:false};
@@ -3525,6 +3554,17 @@ $('#favPanel').addEventListener('click',e=>{
 
 
 
+
+// ================= U-50 보는 날 바꾸기 (📅 날짜별 → 🗺️ 이 날 지도로) =================
+function vdaySet(k,at){k=Math.max(0,Math.min(20,k|0)); if(k===1)k=0; // 내일까지는 원래 이틀 막대 안
+  const was=VDAY.k; VDAY.k=k; const sl=$('#slider'), [a,b]=TR(); sl.min=a; sl.max=b;
+  const d=new Date(t0.getTime()+a*60000), tag=$('#vdayTag');
+  tag.hidden=!k; tag.textContent=k?`📅 ${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]}) 보는 중`:'';
+  $('#nowSegNow').textContent=k?'그날':'지금'; $('#nowBtn').textContent=k?'↩ 오늘로':'지금';
+  if(k){NOWF.on=false; playing=false; $('#play').textContent='▶';}
+  if(was!==k){tideEnsure(); if(sel)computeEvents(); SIM.wantT=-1;}
+  setT(at!=null?at:(k?a+360:nowMin())); try{ncFitSoon();}catch(e){} }
+
 // ================= U-30 물 차오름 경고 (11-22 승인: A안 · 30분 전 · 50m 안 간출암) =================
 // 위치 따라가기 중, 서 있는 곳 50m 안 간출암(썰물에만 드러나는 바위)이 30분 안에 잠기면 → 화면 전체 경고 + 긴 진동 3번
 // 확인하면 지도 위 빨간 띠로 남음(남은 분). 바위에서 50m 넘게 멀어지거나 잠긴 시각이 지나면 사라짐. 계산은 가까운 조위관측소 예보 기준 추정
@@ -3623,7 +3663,7 @@ $('#mulSeg').onclick=e=>{const b=e.target.closest('button'); if(!b)return; MULSY
 
 // ================= 시작 =================
 function loop(){frame++;
-  if(playing){tMin+=0.5;if(tMin>=2880){tMin=2880;playing=false;$('#play').textContent='▶';}if(frame%6===0)updateUI();}
+  if(playing){tMin+=0.5;if(tMin>=TR()[1]){tMin=TR()[1];playing=false;$('#play').textContent='▶';}if(frame%6===0)updateUI();}
   stepFlow(); requestAnimationFrame(loop);}
 window.addEventListener('resize',()=>map.invalidateSize());
 resizeFlow(); drawFavPins(); updateUI(); loop();

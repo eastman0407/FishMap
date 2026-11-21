@@ -86,8 +86,8 @@ exec(src+'''
     for _ in range(100):
         if E("!!__QA.PLAN.res&&!__QA.PLAN.busy"): break
         pg.wait_for_timeout(300)
-    pl=E("[...document.querySelectorAll('#planList li .l2')].slice(0,3).map(x=>x.textContent)")
-    check('M17 출조 계획 줄마다 달 밝기 (가까운 날은 하늘)', bool(pl) and all('🌙' in x for x in pl) and any('흐림' in x for x in pl), pl)
+    pl=E("(()=>{const c=[...document.querySelectorAll('#planCal .pc:not(:disabled)')].slice(0,3), o=[]; for(const b of c){b.click(); o.push(document.querySelector('#planDay .chips').textContent);} return o;})()")
+    check('M17 (U-50) 📅 날짜별 고른 날 카드마다 달 밝기 (가까운 날은 하늘)', bool(pl) and all('🌙' in x for x in pl) and any('흐림' in x for x in pl), pl)
     check('M18 스크립트 오류 없음', not errs, errs[:2])
     br.close()
 print(f"결과: {sum(res)}/{len(res)}")

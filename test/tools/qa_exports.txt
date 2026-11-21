@@ -158,3 +158,10 @@ FOLLOW_SET:()=>FOLLOW,
 ROCK,
 loadLog,
 saveLog
+,
+VDAY,
+vdaySet,
+TR,
+renderPlan,
+PLAN_SET:()=>PLAN,
+slDeco
