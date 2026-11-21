@@ -20,7 +20,7 @@ exec(src+r'''
     # 요소 이름(위반을 알아보는 열쇠): id → 조상 id + 태그/클래스
     KEYJS=r"""const key=e=>{if(e.id)return '#'+e.id; const c=(e.className&&typeof e.className==='string')?'.'+e.className.trim().split(/\s+/)[0]:''; let p=e.parentElement,pid=''; while(p&&!pid){if(p.id)pid='#'+p.id; else if(p.className&&typeof p.className==='string'&&/^(fcard|igrid|legend|lcell|stats|rchips|ticks|tl)$/.test(p.className.split(' ')[0]))pid='.'+p.className.split(' ')[0]; p=p.parentElement;} return (pid?pid+' ':'')+(c||e.tagName)+(e.dataset&&e.dataset.go?'[data-go]':'');};
       const vis=e=>{if(!e.checkVisibility||!e.checkVisibility({opacityProperty:true,visibilityProperty:true}))return false; const r=e.getBoundingClientRect(); return r.width>0&&r.height>0&&r.bottom>0&&r.top<innerHeight;};"""
-    D1=KEYJS+r"""const o=[];for(const e of document.querySelectorAll('button,select,input[type=checkbox],.rr,li[data-i],#tideChip,#phaseChip,#wxChip,[data-go]')){if(!vis(e))continue; if(e.closest('.leaflet-control,.lsheet .lcell small'))continue;
+    D1=KEYJS+r"""const o=[];for(const e of document.querySelectorAll('button,select,input[type=checkbox],.rr,li[data-i],#tideChip,#phaseChip,[data-go]')){if(!vis(e))continue; if(e.closest('.leaflet-control,.lsheet .lcell small'))continue;
       const r=e.getBoundingClientRect(), a=getComputedStyle(e,'::after'); let w=Math.max(r.width,parseFloat(a.width)||0), h=Math.max(r.height,parseFloat(a.height)||0);
       const lab=e.tagName==='INPUT'&&e.closest('label'); if(lab){const q=lab.getBoundingClientRect(); w=Math.max(w,q.width); h=Math.max(h,q.height);}
       if(w<43.5||h<43.5)o.push([key(e),Math.round(w),Math.round(h)]);} return o;"""
@@ -32,7 +32,7 @@ exec(src+r'''
         const L1=lum(fg),L2=lum(bg), cr=(Math.max(L1,L2)+0.05)/(Math.min(L1,L2)+0.05), fs=parseFloat(cs.fontSize), big=fs>=24||(fs>=18.66&&+cs.fontWeight>=700);
         if(e.closest('button:disabled,.past'))continue;
         if(cr<(big?3:4.5))o.push([key(e),+cr.toFixed(2),t.trim().slice(0,10)]);} return o;"""
-    D5=KEYJS+r"""const o=[];for(const e of document.querySelectorAll('body *')){if(!vis(e))continue; if(e.closest('#map'))continue; const r=e.getBoundingClientRect(); if(r.right>innerWidth+1||r.left<-1)o.push(['밖',key(e),Math.round(r.left),Math.round(r.right)]);
+    D5=KEYJS+r"""const o=[];for(const e of document.querySelectorAll('body *')){if(!vis(e))continue; if(e.closest('#map,#ncPages'))continue; const r=e.getBoundingClientRect(); if(r.right>innerWidth+1||r.left<-1)o.push(['밖',key(e),Math.round(r.left),Math.round(r.right)]);
       const cs=getComputedStyle(e); if(!e.children.length&&e.textContent.trim().length>2&&e.scrollWidth>e.clientWidth+2&&cs.overflow!=='hidden'&&cs.textOverflow!=='ellipsis'&&cs.display!=='inline')o.push(['넘침',key(e),e.textContent.trim().slice(0,12)]);} return o.slice(0,20);"""
     D6=r"""const R=q=>{const e=document.querySelector(q); if(!e||!e.checkVisibility({opacityProperty:true,visibilityProperty:true}))return null; const r=e.getBoundingClientRect(); return r.width?r:null;};
       const pairs=[['#nowCard','.side'],['.legend','#biteFab'],['.legend','.trow'],['#biteFab','.trow'],['#fCard','.side'],['#fCard','#nowCard'],['#fCard','.trow'],['#pinPop','.trow'],['#pinPop','#nowCard'],['#offBar','#toast']]; const o=[];
@@ -73,8 +73,7 @@ exec(src+r'''
     # 시간 막대 바탕색은 그라데이션 안에 있어 계산값으로 못 읽음 → CSS 값(#2a4560)을 앱 원본에서 읽음
     css=open('app/src/main/assets/index.html').read(); mt=re.search(r'#slider::-webkit-slider-runnable-track\{[^}]*var\(--p\),(#[0-9a-fA-F]{6})',css)
     track=[int(mt.group(1)[i:i+2],16) for i in (1,3,5)] if mt else [42,69,96]
-    grip=rgb(E("getComputedStyle(document.querySelector('#nowGrip span')).backgroundColor"))
-    d4={'slider-track':cr(track,panel),'grip':cr(grip,rgb(E("getComputedStyle(document.querySelector('#nowCard')).backgroundColor")))}
+    d4={'slider-track':cr(track,panel)}
     # D7 큰 글씨 130% 근사: 시트 이름이 3글자 넘게 보이는가
     pg.set_viewport_size({'width':411,'height':860}); E("document.documentElement.style.zoom='1.3'"); tap(200,470); E("document.querySelector('#fcGraph').click()"); pg.wait_for_timeout(500)
     nm=E("(()=>{const e=document.querySelector('#iname'),r=e.getBoundingClientRect();return [Math.round(r.width/1.3), e.textContent.length]})()"); E("document.documentElement.style.zoom=''"); E("__QA.pointView('none')")

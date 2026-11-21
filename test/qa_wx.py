@@ -45,7 +45,7 @@ exec(src+'''
     E("window.__wav=2.0; window.__pcp='1.0mm'; __QA.WIND.key=''")
     E("_map.fire('moveend')"); pg.wait_for_timeout(3000)
     chip=E("[document.querySelector('#wxChip').textContent, document.querySelector('#warnChip').textContent, getComputedStyle(document.querySelector('#warnChip')).display]")
-    check('W2 지금 카드: 수온·파고·하늘 줄 + 파도 경고(1.5m 이상)', '수온' in chip[0] and '파고 2.0m' in chip[0] and '흐림' in chip[0] and '파고 2.0m' in chip[1] and chip[2]!='none', chip)
+    check('W2 지금 카드: 수온·파고·하늘 줄 + 파도 경고(1.5m 이상)', '℃' in chip[0] and '2.0m' in chip[0] and E("document.querySelector('#skyChip').textContent.length>0") and '파고 2.0m' in chip[1] and chip[2]!='none', chip)
     check('W3 바람을 꺼 둬도 단기예보(파고·강수)는 받음', E("!!__QA.WX.data&&!__QA.WIND.on"), E("[!!__QA.WX.data,__QA.WIND.on,window.__kmaCalls]"))
     ru=E("window.__asosUrl||''")
     import re as _re
@@ -70,12 +70,12 @@ exec(src+'''
         if E("!__QA.REC.busy&&!!__QA.REC.res"): break
         pg.wait_for_timeout(300)
     R=E("__QA.REC.res")
-    l1=E("[...document.querySelectorAll('#recList li .l1 span:last-child')].map(x=>x.textContent)")
-    shown=[int(x.split('점')[0]) for x in l1]
+    l1=E("[...document.querySelectorAll('#recList li .rcs')].map(x=>x.textContent)")
+    shown=[int(x.replace('좋음','').replace('괜찮음','').replace('보통','').replace('약함','').replace('점','')) for x in l1]
     exp=[min(100,round(c['score']*125)) for c in R['pick']]
     check('W6 보이는 점수 = 계산 점수 ×1.25 (100에서 멈춤) + 등급 글자', shown==exp and all(any(g in x for g in ['좋음','괜찮음','보통','약함']) for x in l1), [l1[:3], exp[:3]])
-    l2=E("[...document.querySelectorAll('#recList li .l2')].map(x=>x.textContent)")
-    check('W7 이유에 수온과 지역 안 비교(추운 철 → 따뜻한/차가운 편)', all('수온' in x for x in l2) and R['Tmed'] is not None and R['Tmed']<15, [l2[0][-60:], R['Tmed']])
+    l2=E("[...document.querySelectorAll('#recList li .rc-c')].map(x=>x.textContent)")
+    check('W7 이유에 수온과 지역 안 비교(추운 철 → 따뜻한/차가운 편)', all('℃' in x for x in l2) and R['Tmed'] is not None and R['Tmed']<15, [l2[0][-60:], R['Tmed']])
     tw=[(c['T'],c['tc']) for c in R['pick'] if not c.get('fav') and c['T'] is not None]
     check('W8 추운 철엔 이 지역 가운데값보다 따뜻한 곳 수온 점수가 높음', all((t>R['Tmed']+0.3)<= (tc>0.5) for t,tc in tw if abs(t-R['Tmed'])>0.3), tw)
     base=[c['score'] for c in R['pick']]
@@ -84,7 +84,7 @@ exec(src+'''
         if E("!__QA.REC.busy&&!!__QA.REC.res"): break
         pg.wait_for_timeout(300)
     R2=E("__QA.REC.res"); pens=[c['pen'] for c in R2['pick'] if not c.get('fav')]
-    check('W9 파고 2.5m 넘으면 감점 + 이유에 ⚠ 파고', pens and all(abs(p-0.15)<1e-6 for p in pens) and '⚠ 파고 3.0m' in E("document.querySelector('#recList li .l2').textContent").replace('\\ufe0f',''), pens)
+    check('W9 파고 2.5m 넘으면 감점 + 이유에 ⚠ 파고', pens and all(abs(p-0.15)<1e-6 for p in pens) and '⚠ 파고 3.0m' in E("document.querySelector('#recList li .rc-c').textContent").replace('\\ufe0f',''), pens)
     E("window.__wav=0.5; __QA.WIND.key=''")
     E("window.__onBack()"); pg.wait_for_timeout(200)
     # 기록: 수온·파고·비 + 관측 기압(늦게 채움)

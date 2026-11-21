@@ -52,7 +52,7 @@ exec(src+'''
       return [e.id||e.className||e.textContent.trim().slice(0,6), Math.round(Math.max(r.width,aw)), Math.round(Math.max(r.height,ah)), !!hit&&(hit===e||e.contains(hit))];})"""
     def hit(sel): return E(f"({HIT})('{sel}')")
     a=[]
-    for q in ['#nowFold','#nowSeg button','#starBtn','#alertBtn','#biteBtn','#closeInfo','.search .go','#infoGrip','#nowGrip']: a+=hit(q)
+    for q in ['#nowSeg button','#starBtn','#alertBtn','#biteBtn','#closeInfo','.search .go','#infoGrip']: a+=hit(q)
     small=[x for x in a if x[1]<44 or x[2]<44]; blocked=[x for x in a if not x[3]]
     check('H1 메인·시트 버튼 누르는 범위 모두 44 이상', a and not small, small or len(a))
     check('H2 버튼 가운데를 누르면 자기 자신 (넓힌 범위가 이웃을 가리지 않음)', not blocked, blocked)
@@ -70,13 +70,13 @@ exec(src+'''
     h1=E("window.__hapN.slice()")
     E("window.AndroidBridge._p.haptic='0'; window.__hapN=[]; document.querySelector('#biteBtn').click()"); h2=E("window.__hapN.length"); E("window.AndroidBridge._p.haptic='1'")
     check('H6 입질 기록하면 확인 진동, 설정에서 끄면 안 울림', h1==['done'] and h2==0, [h1,h2])
-    # build-49: M8은 접기 대신 상태창으로 → 같은 규칙을 M3 지금 카드(NOW_DRAG)로 확인
-    E("window.AndroidBridge._p.nowMini='0'; __QA.nowView('now')"); pg.wait_for_timeout(300)
-    E("window.__hapN=[]; __QA.NOW_DRAG.animate(true)"); pg.wait_for_timeout(450); f1=E("window.__hapN.slice()")
-    E("__QA.NOW_DRAG.animate(true)"); pg.wait_for_timeout(450); f2=E("window.__hapN.length")
-    E("__QA.NOW_DRAG.animate(false)"); pg.wait_for_timeout(450); f3=E("window.__hapN.length")
-    sp=E("(()=>{const e=document.querySelector('#nowCard');e.classList.add('snap');const t=getComputedStyle(e).transitionTimingFunction+' '+getComputedStyle(e).transitionDuration;e.classList.remove('snap');return t;})()")
-    check('H7 시트 접기·펴기 바뀔 때만 톡 + 스프링(끝에서 살짝 넘침, 0.3초)', f1==['tick'] and f2==1 and f3==2 and '1.35' in sp and '0.3s' in sp, [f1,f2,f3,sp])
+    # U-48: M3는 접기 대신 쪽 넘기기 → 쪽이 넘어갈 때만 톡
+    E("__QA.nowView('now'); __QA.ncGo(0,true)"); pg.wait_for_timeout(300)
+    bx=E("(()=>{const b=document.querySelector('#ncPages').getBoundingClientRect(); return [b.left+b.width/2,b.top+b.height/2,b.width];})()")
+    E("window.__hapN=[]"); pg.mouse.move(bx[0],bx[1]); pg.mouse.down()
+    for k in range(1,5): pg.mouse.move(bx[0]-bx[2]*0.4*k/4,bx[1])
+    pg.mouse.up(); pg.wait_for_timeout(450); f1=E("window.__hapN.slice()")
+    check('H7 (U-48) 쪽이 넘어갈 때만 톡', f1==['tick'] and E("__QA.NCP.i")==1, [f1])
     # 되돌리기: 입질 기록 지우기
     n0=E("__QA.loadLog().length"); E("__QA.renderLog()")
     E("document.querySelector('#planBtn').click()"); pg.wait_for_timeout(200); E("document.querySelector('.ptabs [data-tab=log]')&&document.querySelector('.ptabs [data-tab=log]').click()"); pg.wait_for_timeout(300)

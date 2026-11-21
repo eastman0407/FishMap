@@ -74,7 +74,7 @@ exec(src+'''
     for _ in range(300):
         if E("!__QA.REC.busy&&!!__QA.REC.res"): break
         pg.wait_for_timeout(300)
-    l2=E("[...document.querySelectorAll('#recList li .l2')].map(x=>x.textContent.slice(0,14))")
+    l2=E("[...document.querySelectorAll('#recList li .rc-c')].map(x=>(x.textContent.match(/[\\d.]+km/)||[''])[0])")
     check('U11 추천에 내 위치에서 거리', l2 and all('km' in x for x in l2), l2[:3])
     E("const s=document.querySelector('#recSort'); s.value='near'; s.onchange()")
     km=E("document.querySelector('#recList')._P.map(c=>c.km)")

@@ -72,7 +72,7 @@ exec(src+'''
         pg.wait_for_timeout(300)
         if E("!__QA.REC.busy"): break
     d2=E("(()=>{const d=new Date(__QA.tideDay()+2*86400000);return (d.getMonth()+1)+'/'+d.getDate()})()")
-    l2=E("[...document.querySelectorAll('#recList .l2')].map(x=>x.textContent)")
+    l2=E("[document.querySelector('#recSub').textContent]")
     check('R12 날짜 고르기 (오늘부터 7일) → 고른 날 승부 시간으로 추천', len(opts)==7 and '오늘' in opts[0] and l2 and all(d2+'(' in x for x in l2), [opts[:2], l2[:1]])
     fv=E("__QA.REC.res.pick.filter(c=>c.fav).map(c=>c.fav)"); sc=E("__QA.REC.res.pick.map(c=>c.score)")
     li=E("[...document.querySelectorAll('#recList>li')].map(l=>[l.className,l.querySelector('.l1').textContent])")

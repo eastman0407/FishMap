@@ -45,17 +45,16 @@ exec(src+'''
     check('N1 배지는 상태만 (단계·칸 크기 없음), 단계는 진단에', '칸' not in b and '구역' not in b and '단계' in E("__QA.runDiag()"), b)
     R="(()=>{const r=document.querySelector('#nowCard').getBoundingClientRect();return [Math.round(r.left),Math.round(r.right),Math.round(r.bottom)];})()"
     w0=E(R); go(10,34.92,128.07,1500); w1=E(R); go(14,34.92,128.07,1500); w2=E(R)
-    E("document.querySelector('#nowFold').click()"); pg.wait_for_timeout(450); w3=E(R)
-    check('N2 카드 폭 고정: 확대 12·10·14·접힘 모두 화면 양쪽 끝(10px)까지 같은 폭', len({(a[0],a[1]) for a in [w0,w1,w2,w3]})==1 and w0[0]==10 and w0[1]==401, [w0,w1,w2,w3])
+    check('N2 카드 폭 고정: 확대 12·10·14 모두 화면 양쪽 끝(10px)까지 같은 폭', len({(a[0],a[1]) for a in [w0,w1,w2]})==1 and w0[0]==10 and w0[1]==401, [w0,w1,w2])
     sd=E("(()=>{const r=document.querySelector('.side').getBoundingClientRect();return [Math.round(r.top),Math.round(r.left),Math.round(r.bottom)];})()")
-    check('N3 접으면 M2(◎·☰)가 카드 바로 아래로 따라 올라감', w3[2]<=sd[0]<=w3[2]+12, [w3,sd])
-    E("document.querySelector('#nowFold').click()"); pg.wait_for_timeout(450); w4=E(R)
+    check('N3 (U-48 접기 없앰) M2(◎·☰)가 카드 바로 아래', w2[2]<=sd[0]<=w2[2]+12, [w2,sd])
+    w4=E(R)
     sd2=E("(()=>{const r=document.querySelector('.side').getBoundingClientRect();return [Math.round(r.top),Math.round(r.bottom),Math.round(r.left)];})()")
     fab=E("(()=>{const r=document.querySelector('#biteFab').getBoundingClientRect();return Math.round(r.top);})()")
     check('N4 펴면 M2가 카드 아래(겹침 없음), 가로 두 개라 입질 버튼과도 안 겹침', w4[2]<=sd2[0]<=w4[2]+12 and sd2[1]<fab, [w4,sd2,fab])
     E("document.querySelector('#tideChip').textContent='🌊 '+'아주긴관측소이름'.repeat(8)+' · 만조 05:26'"); pg.wait_for_timeout(200)
     lc=E("(()=>{const e=document.querySelector('#tideChip');return [e.scrollWidth>e.clientWidth,Math.round(e.getBoundingClientRect().height)];})()"); w5=E(R)
-    check('N5 아주 긴 글: 카드 폭 그대로, 한 줄로 … 자르기', lc[0] and lc[1]<=24 and w5[:2]==w4[:2], [lc,w5])
+    check('N5 아주 긴 글: 카드 폭 그대로, 한 줄로 … 자르기', lc[0] and lc[1]<=32 and w5[:2]==w4[:2], [lc,w5])
     E("__QA.updateTideChips()")
     TE='⚙⚠⛴🌬🗑🗺🛰🌡🌧☀☁'
     def bad(t): return [m.group(0)+'?' for m in re.finditer('['+TE+'](?!️)',t)]

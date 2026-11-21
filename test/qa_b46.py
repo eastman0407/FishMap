@@ -45,22 +45,8 @@ exec(src+'''
     def mid(q): r=E(f"(()=>{{const r=document.querySelector('{q}').getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2];}})()"); return r
     E("__QA.CONF.realData=true; __QA.REC.today={sg:{n:'사천시',s:'경남',c:'x'},pick:[{la:34.91,lo:128.05,score:.76,dong:'향촌동',isl:'l',best:{w:{s:Date.now()+3600e3*9,t:Date.now()+3600e3*11}}},{la:34.92,lo:128.0,score:.73,dong:'서포면',isl:'l',best:{w:{s:Date.now()+3600e3*3,t:Date.now()+3600e3*5}}},{la:34.9,lo:128.06,score:.70,dong:'향촌동',isl:'l',best:{w:{s:Date.now()+3600e3*9,t:Date.now()+3600e3*11}}}]}")
     pg.evaluate("__QA.recLoad()"); E("__QA.REC.todayKey=__QA.nowRecKey(__QA.nowRecQ()); __QA.nowView('rec')"); pg.wait_for_timeout(500)
-    R="(()=>{const c=document.querySelector('#nowCard'),r=c.getBoundingClientRect(),q=s=>{const e=c.querySelector(s);if(!e)return null;const b=e.getBoundingClientRect();return [Math.round(b.left),Math.round(b.top),Math.round(b.width),Math.round(b.bottom)]};return {card:[Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.bottom)],cls:c.className,rec:q('#nowRec'),grip:q('#nowGrip'),op:getComputedStyle(c.querySelector('#nowRec')).opacity,mini:c.querySelector('#nowMini').textContent}})()"
-    o=E(R); E("document.querySelector('#nowFold').click()"); mids=[]
-    for _ in range(4): pg.wait_for_timeout(45); mids.append(E(R))
-    pg.wait_for_timeout(350); f=E(R)
-    side=[m for m in mids if m['rec'][2] and (m['rec'][0]!=o['rec'][0] or m['rec'][1]!=o['rec'][1])]
-    check('S1 접는 도중 ①②③ 줄이 옆으로 옮겨 가지 않음 (제자리)', not side, side[:1] or o['rec'])
-    gripin=[m for m in mids if not (m['card'][1]<=m['grip'][1] and m['grip'][3]<=m['card'][3]+1 and m['grip'][0]>=m['card'][0])]
-    check('S2 접는 도중에도 손잡이는 카드 바닥 안에 보임', not gripin, gripin[:1])
-    check('S3 접는 도중 아래 줄은 서서히 사라짐 (투명도 줄어듦)', any('snapfold' in m['cls'] for m in mids) and any(0<float(m['op'])<1 for m in mids) and float(mids[-1]['op'])<0.2, [(m['cls'][-20:],m['op']) for m in mids])
-    check('S4 오늘 추천 보기를 접으면 요약 = 1등 자리·점수·시간', 'mini' in f['cls'] and '① ' in f['mini'] and '향촌동' in f['mini'] and '점' in f['mini'] and '~' in f['mini'], f['mini'])
-    E("document.querySelector('#nowFold').click()"); pg.wait_for_timeout(60); u=E(R); pg.wait_for_timeout(450); u2=E(R)
-    check('S5 펼 때 서서히 나타나고, 다 펴지면 원래 자리·크기', 'snapopen' in u['cls'] and u2['rec']==o['rec'] and abs(u2['card'][3]-o['card'][3])<=2 and 'snapopen' not in u2['cls'], [u['cls'],u2['rec'],o['rec']])
-    E("__QA.nowView('now')"); pg.wait_for_timeout(300); E("document.querySelector('#nowFold').click()"); pg.wait_for_timeout(500)
-    m=E("document.querySelector('#nowMini').textContent"); full=E("[document.querySelector('#tideChip').textContent,document.querySelector('#windChip').textContent]")
-    check('S6 지금 보기를 접으면 요약 = 물때·수온·바람 (상세 정보가 빠지지 않음)', ('🌊' in m or '물' in m) and ('℃' in m) and (('m/s' not in full[1] and not full[1]) or '풍' not in m or True) and (not full[1] or any(d in m for d in ['북','남','동','서'])), [m,full])
-    E("document.querySelector('#nowFold').click()"); pg.wait_for_timeout(500)
+    h0=E("document.querySelector('#nowCard').offsetHeight")
+    check('S1 (U-48) 오늘 추천 보기: 접기·손잡이 없음, ①②③ 줄이 보임', E("!document.querySelector('#nowFold')&&!document.querySelector('#nowGrip')&&document.querySelectorAll('#nowRec .rr').length===3")==True, h0)
     check('S7 스크립트 오류 없음', not errs, errs[:2])
     br.close()
 print(f"결과: {sum(res)}/{len(res)}")

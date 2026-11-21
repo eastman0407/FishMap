@@ -73,7 +73,7 @@ button:disabled{opacity:.45;cursor:default}
 .seg button.on{background:rgba(64,224,208,.18);color:var(--accent);font-weight:700}
 .ncrow{display:flex;justify-content:space-between;align-items:baseline;gap:10px}.ncrow>*{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ncrow .phase{flex:none}.ncrow.wrap{flex-wrap:wrap;row-gap:0}.ncrow.wrap .warn{margin-left:auto}
-.nowcard.recv .ncrow,.nowcard.recv #wxChip{display:none!important}.nowcard:not(.recv) #nowRec{display:none!important}
+.nowcard.recv .ncrow{display:none!important}.nowcard:not(.recv) #nowRec{display:none!important}
 .ncrec{font-size:13px}.ncrec .rr{display:flex;gap:8px;align-items:baseline;padding:2px 0;cursor:pointer}.ncrec .rr .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ncrec .rr .sc{flex:none;font-weight:700;color:#e6f6ff;font-variant-numeric:tabular-nums}.ncrec .rr .tm,.ncrec .rr .km{flex:none;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
 .ncrec .more{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12.5px;margin-top:2px}.ncrec .more b{color:var(--accent);font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:flex-end;min-width:44px;min-height:44px;margin:-14px 0}
@@ -112,6 +112,12 @@ button:disabled{opacity:.45;cursor:default}
 .plan .lg input{width:100%;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);padding:0 8px;font-size:13px;margin-top:5px}
 .plan .lg .row{display:flex;gap:6px;margin-top:6px}.plan .lg .row button{flex:1;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:12.5px}
 .plan li.fav .l1>span:first-child{color:#4fd1c5}
+.rs-h{font-size:15px;font-weight:700;color:var(--text)}.rs-l{margin-top:3px;color:var(--muted)}.rs-t{margin-top:6px;background:#1c3550;border-radius:10px;padding:5px 9px;color:#dbe9f7;line-height:1.4}#recSub:has(.rs-h){background:rgba(255,255,255,.05);border-radius:12px;padding:10px 12px!important;margin-top:8px}
+.plan li.rc{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:8px 0;background:rgba(255,255,255,.03)}.plan li.rc.first{border-color:#2f9e8f;box-shadow:0 0 0 1px #2f9e8f inset}
+.rc .rcn{flex:1;min-width:0;font-size:15.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rc .rk{display:inline-flex;width:24px;height:24px;border-radius:50%;background:#2a4a6a;align-items:center;justify-content:center;font-size:13px;font-style:normal;font-weight:700;margin-right:7px;vertical-align:1px}.rc.first .rk{background:var(--accent);color:#06221f}
+.rc .rcs{display:flex;align-items:center;gap:2px;white-space:nowrap}.rc .rcs b{font-size:22px;color:#ffd166;font-variant-numeric:tabular-nums}
+.rc .rc-w{display:flex;align-items:center;gap:8px;margin-top:6px}.rc .rc-w .tm{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}.rc .rc-w .st{flex:1;min-width:0;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rc .rc-c{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}.rc .chip{font-size:12px;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,.08);color:var(--text);white-space:nowrap}.rc .chip.ok{background:#1f4d3c;color:#bff0d3}
 .recpin{width:22px;height:22px;border-radius:50%;background:#ffd24a;color:#1a1200;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;border:2px solid #1a1200;box-shadow:0 0 4px #000}
 .logpin{font-size:16px;filter:drop-shadow(0 0 2px #000)}
 .tidelist{list-style:none;margin:8px 0 0;padding:0} .tidelist li{display:flex;justify-content:space-between;padding:9px 4px;border-bottom:1px solid var(--line);font-size:15px}
@@ -125,7 +131,11 @@ button:disabled{opacity:.45;cursor:default}
 /* REQ-65: 지점 시트 끌어서 접기 — 손잡이(M8-8)·요약 줄(M8-9) */
 .grip{height:18px;margin:-6px 0 2px;display:flex;justify-content:center;align-items:center;cursor:grab;touch-action:none}
 .grip span{width:42px;height:4px;border-radius:2px;background:#7694b0}
-.nowcard{touch-action:none;overflow:hidden;flex-wrap:nowrap!important;padding-bottom:18px!important}.nowcard .ncgrip{position:absolute;left:0;right:0;bottom:2px;margin:0;height:14px}
+.nowcard{touch-action:none;overflow:hidden;flex-wrap:nowrap!important;padding-bottom:7px!important}
+.ncpages,.ncpages *{user-select:none;-webkit-user-select:none;-webkit-user-drag:none}.ncpages{overflow:hidden;width:100%;margin-top:4px}.ncslide{display:flex;transition:transform .22s var(--ease,ease-out);will-change:transform}.ncpg{flex:0 0 100%;min-width:0;display:flex;align-items:center;gap:6px;overflow:hidden}
+.nowcard .ncpg>.tchip,.nowcard .ncpg>.windchip,.nowcard .ncgrp>.tchip{background:rgba(255,255,255,.08);border-radius:10px;padding:6px 10px;font-size:14px;flex:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3}.ncgrp{display:flex;gap:6px;flex:none}
+.nowcard .tchip.drift{color:#cfe6ff}.nowcard .tchip.sky{font-size:13px!important}.nowcard .tchip.sky .wic{font-size:18px;vertical-align:-2px}
+.ncdots{display:flex;gap:6px;margin-top:5px;height:4px}.ncdots i{flex:1;border-radius:2px;background:rgba(255,255,255,.14)}.ncdots i.on{background:#7fa6c9}.nowcard.recv #ncPages,.nowcard.recv #ncDots,.nowcard.recv #warnChip{display:none!important}.ncdots.one{visibility:hidden}.nowcard .ncgrip{position:absolute;left:0;right:0;bottom:2px;margin:0;height:14px}
 /* REQ-76: 접는 도중 아래 줄은 서서히 사라지고, 펼 때는 서서히 나타남. 접힌 요약도 서서히 */
 .nowcard.snapfold>*:not(.nchead):not(.ncgrip){animation:ncfadeout .15s ease-in forwards}
 .nowcard.snapopen>*:not(.nchead):not(.ncgrip){animation:ncfade .25s ease-out}
@@ -283,12 +293,16 @@ select,.namebox input:not([type=checkbox]){min-height:44px;height:44px}
     </div>
     <!-- 지금 카드 (11-19, REQ-57): 칩 여러 개를 카드 하나로. 머리를 누르면 출조 도우미 -->
     <div class="topchips nowcard" id="nowCard">
-      <div class="nchead" id="nowHead"><span class="seg" id="nowSeg"><button data-v="now" class="on">지금</button><button data-v="rec">⭐ 오늘 추천</button></span><span class="ncmini" id="nowMini"></span><span class="samplebadge">흐름: 샘플 데이터</span><button class="ncfold" id="nowFold" title="카드 접기/펴기">▴</button></div>
-      <div class="ncrow"><span class="tchip tide" id="tideChip" title="오늘 만조·간조 시각 보기"></span><span class="tchip phase" id="phaseChip"></span></div>
-      <span class="tchip wx" id="wxChip"></span>
-      <div class="ncrow wrap"><span class="windchip" id="windChip"></span><span class="tchip warn" id="warnChip"></span></div>
+      <div class="nchead" id="nowHead"><span class="seg" id="nowSeg"><button data-v="now" class="on">지금</button><button data-v="rec">⭐ 오늘 추천</button></span><span class="samplebadge">흐름: 샘플 데이터</span></div>
+      <!-- U-48 (build-55): 칩 한 줄 + 쪽 넘기기 (접기·펴기 없앰). 1쪽 물 · 2쪽 날씨, 큰 글씨로 넘치면 쪽이 자동으로 늘어남 -->
+      <div class="ncpages" id="ncPages"><div class="ncslide" id="ncSlide">
+        <div class="ncpg" id="ncPg1"><span class="tchip tide" id="tideChip" title="오늘 만조·간조 시각 보기"></span><span class="tchip phase" id="phaseChip"></span><span class="tchip drift" id="driftChip"></span></div>
+        <div class="ncpg" id="ncPg2"><span class="ncgrp" id="wxChip"><span class="tchip wx" id="wtChip"></span><span class="tchip wx" id="wvChip"></span></span><span class="windchip" id="windChip"></span><span class="tchip wx sky" id="skyChip"></span></div>
+      </div></div>
+      <div class="ncdots" id="ncDots" aria-hidden="true"></div>
+      <div id="ncStash" hidden></div>
+      <div class="ncrow wrap"><span class="tchip warn" id="warnChip"></span></div>
       <div class="ncrec" id="nowRec"></div>
-      <div class="grip ncgrip" id="nowGrip" title="끌어서 접기·펴기"><span></span></div>
     </div>
     <div class="legend"><span id="legendTitle">유속 (노트)</span><div class="bar" id="legendBar"></div><div class="ticks" id="legendTicks"></div>
       <div id="sstLeg" style="display:none;margin-top:6px"><span id="sstLegT"></span><div class="bar" id="sstBar"></div><div class="ticks" id="sstTicks"></div></div></div>
@@ -1072,14 +1086,43 @@ function wxWarn(th,lat,lon,short){const o=[], w=wxAt(th), r=rain48();
 const escH=t=>String(t).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 function numHtml(t){return escH(t).replace(/(\p{Extended_Pictographic}\uFE0F?)/gu,'<span class="emo">$1</span>').replace(/([−+]?\d+(?:[.:]\d+)*)/g,'<b class="num">$1</b>');}
 var WXS=null;
+// U-48: 날씨 그림 (기상청 단기예보 SKY·PTY). 비·눈 종류는 그림 + 짧은 글자, 하늘은 그림만
+function wxIcon(w,th){if(!w)return null; const hr=new Date(t0.getTime()+th*3600000).getHours(), night=hr<6||hr>=19, p=w.pty;
+  if(p===1||p===5)return {e:'☔',t:'비'}; if(p===4)return {e:'🌦️',t:'소나기'}; if(p===2||p===6)return {e:'🌨️',t:'비/눈'}; if(p===3||p===7)return {e:'❄️',t:'눈'};
+  if(w.sky===1)return {e:night?'🌙':'☀️',t:''}; if(w.sky===3)return {e:'⛅',t:''}; if(w.sky===4)return {e:'☁️',t:''}; return null;}
 function updateWxChip(){
-  const el=$('#wxChip'), wn=$('#warnChip'); if(!el)return; const c=map.getCenter(), th=tH();
-  const T=tempAt(c.lat,c.lng,th), dd=tempDelta(c.lat,c.lng,th), w=wxAt(th), N=x=>`<b class="num">${x}</b>`;
-  const parts=[]; if(T!=null)parts.push(`<span class="emo">${E_T}</span> 수온 ${N(T.toFixed(1)+'℃')}${dd?` <span class="dd">(${dd.w} ${N(sgn(dd.d))})</span>`:''}`);
-  if(w&&w.wav!=null)parts.push(`파고 ${N(w.wav.toFixed(1)+'m')}`); if(w&&w.sky)parts.push(SKYW[w.sky]||'');
-  el.innerHTML=parts.filter(Boolean).join(' · '); el.style.display=parts.length?'block':'none';
-  WXS={T,dd,wav:w&&w.wav,sky:w&&w.sky,warn:wxWarn(th,c.lat,c.lng).length}; nowMini();
+  const wt=$('#wtChip'), wv=$('#wvChip'), sk=$('#skyChip'), wn=$('#warnChip'); if(!wt)return; const c=map.getCenter(), th=tH();
+  const T=tempAt(c.lat,c.lng,th), Tn=T!=null?tempAt(c.lat,c.lng,th+24):null, dd=Tn!=null?Tn-T:null, w=wxAt(th), N=x=>`<b class="num">${x}</b>`;
+  wt.innerHTML=T!=null?`<span class="emo">${E_T}</span> ${N(T.toFixed(1)+'℃')}${dd!=null?` <span class="dd">내일 ${N(sgn(dd))}</span>`:''}`:''; wt.style.display=T!=null?'inline-block':'none';
+  const hasW=w&&w.wav!=null; wv.innerHTML=hasW?`〰 ${N(w.wav.toFixed(1)+'m')}`:''; wv.style.display=hasW?'inline-block':'none';
+  const ic=wxIcon(w,th); sk.innerHTML=ic?`<span class="wic emo">${ic.e}</span>${ic.t?' '+ic.t:''}`:''; sk.style.display=ic?'inline-block':'none'; sk.title=ic?(w.pty?ic.t:(SKYW[w.sky]||'')):''; sk.setAttribute('aria-label',ic?(ic.t||SKYW[w.sky]||''):'');
+  $('#wxChip').style.display=(T!=null||hasW)?'flex':'none';
+  WXS={T,dd:dd!=null?{d:dd,w:'내일'}:null,wav:w&&w.wav,sky:w&&w.sky,warn:wxWarn(th,c.lat,c.lng).length}; nowMini();
   const W=wxWarn(th,c.lat,c.lng,true); wn.innerHTML=W.map(x=>`<div class="wl">${x}</div>`).join(''); wn.style.display=W.length?'block':'none'; placeSide();}
+// U-48: 칩을 쪽으로 나눔 — 1쪽 물(물때·밀림) · 2쪽 날씨. 폭을 넘으면 그 쪽의 뒤 칩부터 다음 쪽으로 (큰 글씨 → 3쪽). 칩은 안 자름
+var NCP={i:0,n:2,raf:0};
+function ncFitSoon(){if(!NCP)return; cancelAnimationFrame(NCP.raf); NCP.raf=requestAnimationFrame(ncRepage);}
+function ncRepage(){const sl=$('#ncSlide'); if(!sl||!$('#nowCard').offsetParent)return;
+  const g1=['tideChip','phaseChip','driftChip'].map(q=>$('#'+q)), g2=[$('#wxChip'),$('#windChip'),$('#skyChip')];
+  const key=[sl.parentNode.clientWidth,getComputedStyle(document.documentElement).fontSize,[...g1,...g2].map(e=>getComputedStyle(e).display==='none'?'-':e.textContent).join('|')].join('#'); if(key===NCP.key)return; NCP.key=key; // 같으면 칩을 옮기지 않음 (끄는 도중 옮기면 손가락 이벤트가 끊김)
+  sl.querySelectorAll('.ncpg.x').forEach(p=>p.remove()); const p1=$('#ncPg1'), p2=$('#ncPg2'); sl.appendChild(p2); g1.forEach(e=>p1.appendChild(e)); g2.forEach(e=>p2.appendChild(e));
+  const vis=e=>getComputedStyle(e).display!=='none';
+  const pack=(page,chips)=>{let cur=page; for(const ch of chips){if(!vis(ch))continue; cur.appendChild(ch);
+      if(cur.scrollWidth>cur.clientWidth+1&&cur.children.length>1){const n=document.createElement('div'); n.className='ncpg x'; cur.after(n); n.appendChild(ch); cur=n;}} return cur;};
+  const last1=pack(p1,g1); last1.after(p2); pack(p2,g2);
+  if(![...p2.children].some(vis))$('#ncStash').appendChild(p2); /* 지우지 않고 숨김 칸으로 (칩 id 보존) */ NCP.n=sl.children.length; NCP.i=Math.min(NCP.i,NCP.n-1); ncGo(NCP.i,true);}
+function ncGo(i,instant){NCP.i=Math.max(0,Math.min(NCP.n-1,i)); const sl=$('#ncSlide'); if(!sl)return; if(instant){sl.style.transition='none';} sl.style.transform=`translateX(${-NCP.i*100}%)`; if(instant){void sl.offsetWidth; sl.style.transition='';}
+  const d=$('#ncDots'); d.innerHTML=Array.from({length:NCP.n},(_,k)=>`<i class="${k===NCP.i?'on':''}"></i>`).join(''); d.classList.toggle('one',NCP.n<2);}
+// 쪽 넘기기: 폭 30% 넘게 밀거나 빠르게 튕기면 다음 쪽, 아니면 제자리 (끌어당기며 따라가지 않고 놓을 때 딱 넘어감). 카드 위 밀기는 지도를 안 움직임
+(function(){const el=$('#ncPages'); let x0=0,y0=0,tm=0,on=false,swiped=false;
+  el.addEventListener('pointerdown',e=>{x0=e.clientX;y0=e.clientY;tm=performance.now();on=true;swiped=false;});
+  el.addEventListener('pointermove',e=>{if(on&&!swiped&&Math.abs(e.clientX-x0)>8&&Math.abs(e.clientX-x0)>Math.abs(e.clientY-y0)){swiped=true; try{el.setPointerCapture(e.pointerId);}catch(_){}}});
+  const end=e=>{if(!on)return; on=false; if(!swiped)return; const dx=e.clientX-x0, dt=Math.max(1,performance.now()-tm), w=el.clientWidth||300, fast=Math.abs(dx)/dt>0.5&&Math.abs(dx)>24;
+    if(Math.abs(dx)>w*0.3||fast){const n=dx<0?NCP.i+1:NCP.i-1; if(n>=0&&n<NCP.n){ncGo(n); haptic('tick');}} el._sw=performance.now();};
+  el.addEventListener('dragstart',e=>e.preventDefault());   el.addEventListener('pointerup',end); el.addEventListener('pointercancel',()=>{on=false;});
+  el.addEventListener('click',e=>{if(el._sw&&performance.now()-el._sw<300){e.stopPropagation();e.preventDefault();}},true);
+  window.addEventListener('resize',ncFitSoon);})();
+ncFitSoon();
 // 시각 th(시간)의 바람 {u: 동쪽, v: 북쪽, m/s} — 예보 범위 밖이면 가장 가까운 값
 function windAt(th){
   const D=WIND.data; if(!D)return null; const ms=t0.getTime()+th*3600000, T=D.times;
@@ -1093,12 +1136,12 @@ function windText(th){ const w=windAt(th); if(!w)return ''; const sp=Math.hypot(
   return `${dirName(from)}풍 ${sp.toFixed(1)}m/s`; }
 function drawWindChip(){
   const el=$('#windChip'); $('#windBtn').classList.toggle('on',WIND.on);
-  if(!WIND.on){el.style.display='none';return;}
+  if(!WIND.on){el.style.display='none'; $('#driftChip').style.display='none'; ncFitSoon(); return;}
   el.style.display='inline-flex';
   if(WIND.loading){el.textContent='바람 불러오는 중…';return;}
   if(!WIND.data){el.textContent=WIND.err?'바람: '+WIND.err:'바람: 자료 없음';return;}
   const w=windAt(tH()), to=bearing(w.u,w.v);
-  el.innerHTML=`<span class="wa" style="transform:rotate(${to}deg)">↑</span> ${numHtml(windText(tH())+' · 밀림 '+(Math.hypot(w.u,w.v)*DRIFT*1.9438).toFixed(2)+'kn')}`;
+  el.innerHTML=`<span class="wa" style="transform:rotate(${to}deg)">↑</span> ${numHtml(windText(tH()))}`; const dr=$('#driftChip'); dr.style.display='inline-block'; dr.innerHTML=numHtml('밀림 '+(Math.hypot(w.u,w.v)*DRIFT*1.9438).toFixed(2)+'kn'); ncFitSoon();
 }
 let windTimer=null;
 function windRequest(){ if(!WIND.on&&!CONF.realData)return; clearTimeout(rainTimer); rainTimer=setTimeout(()=>{const c=map.getCenter();rainEnsure(c.lat,c.lng);},900); clearTimeout(windTimer); windTimer=setTimeout(()=>{const c=map.getCenter();windLoad(c.lat,c.lng);},500); }
@@ -1885,13 +1928,7 @@ var NOWS={tide:'',ph:''};
 function placeSide(){const c=$('#nowCard'), sd=$('.side'); if(!c||!sd)return; sd.classList.add('under');
   const vis=getComputedStyle(c).display!=='none'&&c.offsetHeight>0; sd.style.top=(vis?c.offsetTop+c.offsetHeight+8:66)+'px';}
 try{new ResizeObserver(()=>placeSide()).observe(document.querySelector('#nowCard'));}catch(e){}
-function nowMini(){const card=$('#nowCard'), m=$('#nowMini'), f=$('#nowFold'); if(!card||!m)return; if(card.classList.contains('dragging')||card.classList.contains('snap'))return; // REQ-70: 끄는 중엔 그대로
-  const mini=pref('nowMini','0')==='1'; card.classList.toggle('mini',mini); f.textContent=mini?'▾':'▴';
-  const p=[]; if(pref('nowView','now')==='rec'){const R=REC.today, c=R&&R.pick&&R.pick[0], w=c&&c.best&&c.best.w;
-      if(c)p.push(`① ${recName(c,R.sg)} ${shownScore(c.score)}점`+(w?' '+hhmm(w.s)+'~':'')); else p.push(R&&R.err?'추천 없음':'⭐ 추천 계산 중…');}
-  else{if(NOWS.tide)p.push('🌊 '+NOWS.tide); if(NOWS.ph)p.push(NOWS.ph); if(WXS&&WXS.T!=null)p.push(E_T+' '+WXS.T.toFixed(1)+'℃');
-      const wd=WIND.on?windText(tH()):''; if(wd)p.push(wd.replace('풍 ',' ').replace('m/s','')); if(WXS&&WXS.warn)p.push(E_W);}
-  m.textContent=p.join(' · ')||'펴서 보기'; placeSide();}
+function nowMini(){placeSide(); ncFitSoon();} // U-48: 한 줄 접기 없앰 → 위치·쪽 나누기만 다시 맞춤
 function openTidePanel(){
   if(!TIDE.cur){toast(TIDE.err||'조석 예보를 아직 못 받았어요',3000);return;}
   const d0=tideDay(), now=Date.now(), ex=tideExtremes(TIDE.cur.ser,d0,d0+86400e3);
@@ -2212,7 +2249,7 @@ function tipShow(b){let t=$('#tip'); if(!t){t=document.createElement('div'); t.i
 // REQ-71: 보기 토글(M3-8) — 지금 ↔ ⭐ 오늘 추천(M3-9). 마지막 보기를 기억
 function nowView(v){if(v)setPref('nowView',v); v=pref('nowView','now'); const c=$('#nowCard'); c.classList.toggle('recv',v==='rec');
   document.querySelectorAll('#nowSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===v)); if(v==='rec')nowRecRender(true); nowMini();}
-$('#nowSeg').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return; e.stopPropagation(); if(pref('nowMini','0')==='1')NOW_DRAG.animate(false); nowView(b.dataset.v);});
+$('#nowSeg').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return; e.stopPropagation(); nowView(b.dataset.v);});
 const recStep=m=>/유속/.test(m)?'1/4 유속 예보 받는 중':/조석/.test(m)?'2/4 조석 예보 받는 중':/섬/.test(m)?'3/4 섬 다리 확인 중':m?'4/4 점수 계산 중':'1/4 준비 중';
 const MWAVE='<svg class="mwv" viewBox="0 0 32 12" width="28" height="12" aria-hidden="true"><g class="mw"><path d="M0 6 q4-5 8 0 t8 0 t8 0 t8 0 t8 0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></g></svg>'; // U-23: M3 계산 중 작은 물결 + 단계
 // U-25 (build-50 2차): 승부 시간 딱지 — 지금!/N분 뒤/N시간 뒤/내일 05:10/오늘은 끝남 (이름 '승부 시간'은 그대로)
@@ -2243,7 +2280,6 @@ $('#nowRec').addEventListener('click',e=>{e.stopPropagation(); if(e.target.close
   if(!REC.layer||!REC.layer.getLayers||!REC.layer.getLayers().length){REC.onePin=L.marker([c.la,c.lo],{icon:L.divIcon({className:'',html:`<div class="recpin">${i+1}</div>`,iconSize:[22,22],iconAnchor:[11,11]})}).addTo(map);}
   setTimeout(fcPlace,1100);});
 setTimeout(()=>nowView(),0);
-$('#nowFold').onclick=e=>{e.stopPropagation(); NOW_DRAG.animate(!(pref('nowMini','0')==='1'));};
 // 관측 수온·기압은 받는 데 몇 초 걸려서 기록을 먼저 저장하고 나중에 채움 (REQ-58)
 async function biteObsFill(t,lat,lng){ if(!CONF.realData)return; const o=await dtObs(lat,lng); if(!o)return;
   const a=loadLog(), r=a.find(x=>x.t===t); if(!r)return; Object.assign(r,{obsSt:o.st,obsWt:o.wtem,pa:o.atmpr,dpa:o.dp3}); saveLog(a); if($('#planPanel').classList.contains('show'))renderLog();}
@@ -2553,11 +2589,16 @@ function recRender(ul,R){
   if(R.Q&&R.Q.type==='radius')recCircle(R.Q);
   for(const c of R.pick)c.km=me?distM(me.lat,me.lng,c.la,c.lo)/1000:null;
   const P=me&&pref('recSort','score')==='near'?[...R.pick].sort((a,b)=>a.km-b.km):R.pick; ul._P=P;
-  ul.innerHTML=P.map((c,i)=>{const w=c.best&&c.best.w;
-    const why=[c.best?`유속 ${c.best.sp.toFixed(1)}노트${c.best.f>=1?' (알맞음)':c.best.sp<0.3?' (약함)':' (셈)'}`:'',c.rocks?`바위 ${c.rocks}개${c.gan?`(간출암 ${c.gan})`:''}`:'',c.ch>=0.4?'물골 흐름':'',c.T!=null?`수온 ${c.T.toFixed(1)}℃${c.tnote?' ('+c.tnote+')':''}`:'',c.wav!=null&&c.wav>=1.5?`⚠️ 파고 ${c.wav.toFixed(1)}m`:'',`${c.kind}`].filter(Boolean).join(' · ');
-    const sc=shownScore(c.score), g=scoreGrade(sc);
-    return `<li data-i="${i}" class="${c.fav?'fav':''}"${c.isl&&c.isl!=='l'?` data-ring="${c.ring}"`:''}><div class="l1"><span>${i+1}. ${recName(c,sg)}</span><span>${sc}점 <small class="grade g${g.k}">${g.t}</small></span></div>`
-      +`<div class="l2">${c.km!=null?`🧭 ${c.km<10?c.km.toFixed(1):Math.round(c.km)}km · `:''}${c.isl&&!c.fav?`<span style="color:var(--muted)">${KIND_NAME[c.isl]}${c.isl!=='l'&&!/^(osm|pre)$/.test(R.kindSrc)?'(추정)':''}</span> · `:''}${w?`${dstr(w.ms)} ${w.hi==null?'':w.hi?'만조':'간조'} ${hhmm(w.ms)} 앞뒤 ${hhmm(w.s)}~${hhmm(w.t)}${c.best.st?` (${c.best.st})`:''}<br>`:''}${why}</div></li>`;}).join('');
+  ul.innerHTML=P.map((c,i)=>{const w=c.best&&c.best.w, sc=shownScore(c.score), g=scoreGrade(sc), mix=R.kinds&&R.kinds.size>1;
+    // U-45: 자리마다 카드 — 순위 동그라미·이름·점수 크게·등급 / ⏰ 승부 시간 크게 + 조석 지점 + 딱지 / 이유 칩
+    const ch=[c.best?[`🌊 ${c.best.sp.toFixed(1)}노트 ${c.best.f>=1?'알맞음':c.best.sp<0.3?'약함':'셈'}`,c.best.f>=1?'ok':'']:null,
+      c.rocks?[`🪨 바위 ${c.rocks}${c.gan?`(간출암 ${c.gan})`:''}`,'']:null, c.ch>=0.4?['〰 물골','']:null,
+      c.T!=null?[`${E_T} ${c.T.toFixed(1)}℃${c.tnote?' '+c.tnote:''}`,'']:null, c.wav!=null&&c.wav>=1.5?[`⚠️ 파고 ${c.wav.toFixed(1)}m`,'']:null,
+      c.km!=null?[`🧭 ${c.km<10?c.km.toFixed(1):Math.round(c.km)}km`,'']:null, c.isl&&!c.fav&&mix?[`${KIND_NAME[c.isl]}${c.isl!=='l'&&!/^(osm|pre)$/.test(R.kindSrc)?'(추정)':''}`,'']:null,
+      c.kind?[c.kind,/잔잔/.test(c.kind)?'ok':'']:null].filter(Boolean);
+    return `<li data-i="${i}" class="rc${i===0?' first':''}${c.fav?' fav':''}"${c.isl&&c.isl!=='l'?` data-ring="${c.ring}"`:''}><div class="l1 rc-h"><span class="rcn"><i class="rk">${i+1}</i>${escH(recName(c,sg))}</span><span class="rcs"><b>${sc}</b><small class="grade g${g.k}">${g.t}</small></span></div>`
+      +(w?`<div class="rc-w"><span class="tm">⏰ ${hhmm(w.s)}~${hhmm(w.t)}</span><span class="st">${w.hi==null?'':w.hi?'만조':'간조'} ${hhmm(w.ms)}${c.best.st?` · ${escH(c.best.st)}`:''}</span>${bdgHtml(winBadge(w))}</div>`:'')
+      +`<div class="rc-c">${ch.map(x=>`<span class="chip${x[1]?' '+x[1]:''}">${numHtml(x[0])}</span>`).join('')}</div></li>`;}).join('');
   // REQ-74: 즐겨찾기 추천은 숫자 핀을 그리지 않고 ⭐ 핀(L5)을 누르면 이 추천 팝업을 띄움 (겹침 방지)
   REC.favRec={};
   P.forEach((c,i)=>{if(c.fav){REC.favRec[favKey(c.la,c.lo)]={c,i,sg};return;}
@@ -2631,7 +2672,11 @@ async function recRun(Qin){
     return R;
   }catch(e){$('#recSub').textContent='추천 계산 중 오류: '+(e&&e.message||e);}finally{REC.busy=false; REC.ovOn=false; loadOv(); recBtn();}
 }
-function recSubText(R){$('#recSub').textContent=`${dstr(R.day0)} · ${R.Q.label}${R.parts&&R.parts.length>1?' ('+R.parts.join('·')+')':''} · ${[...R.kinds].map(k=>KIND_ICON[k]).join('')} 해안 ${R.cov}/${R.n}곳 종합 + 즐겨찾기 ${R.nfav}곳${/^(osm|pre)$/.test(R.kindSrc)?'':' · 섬 다리 여부는 추정'} · ${R.day0===tideDay()?'오늘':'그날'} ${strText[R.str]}`;}
+function recSubText(R){ // U-45(build-54): 맨 위 요약 칸 = 제목(날짜·지역·추천 n곳) + 'n곳 중·승부 기준' 한 줄 + 💡 순서 이유 칩
+  const his=R.pick.map(c=>c.best&&c.best.w&&c.best.w.hi).filter(x=>x!=null), hs=his.length&&his.every(x=>x===his[0])?(his[0]?'만조':'간조'):null;
+  const el=$('#recSub'), hd=`${dstr(R.day0)} ${R.Q.label}${R.parts&&R.parts.length>1?' ('+R.parts.join('·')+')':''} · 추천 ${R.pick.length}곳`;
+  const l2=`${[...R.kinds].map(k=>KIND_ICON[k]).join('')} 해안 ${R.cov}/${R.n}곳 종합${R.nfav?` + ⭐ 즐겨찾기 ${R.nfav}곳`:''}${hs?` · ⏰ 승부는 모두 ${hs} 앞뒤`:''}${/^(osm|pre)$/.test(R.kindSrc)?'':' · 섬 다리 여부는 추정'}`;
+  el.innerHTML=`<div class="rs-h">${numHtml(hd)}</div><div class="rs-l">${numHtml(l2)}</div><div class="rs-t"><span class="emo">💡</span> ${escH((R.day0===tideDay()?'오늘 ':'그날 ')+strText[R.str])}</div>`;}
 // REQ-75: 계산 중에는 '추천 받기'를 흐리게 + '계산 중…'
 function recBtn(){const b=$('#recGo'); if(!b)return; b.disabled=!!REC.busy; b.textContent=REC.busy?'계산 중…':'추천 받기';}
 // ================= ⭐ 오늘 추천 (M3, U-11 ③⑤): 빠른 기준 [◎ 내 주변][📍 찍은 곳 주변], 반경 5km, 오늘 상위 3곳. 현위치 꺼짐 → 지도 가운데 지역 =================
@@ -2657,8 +2702,8 @@ function recLong(e){const li=e.target.closest('li[data-ring]'); if(!li)return; e
   const stop=()=>{clearTimeout(tm);}; ul.addEventListener('touchend',stop); ul.addEventListener('touchmove',stop); ul.addEventListener('touchcancel',stop);});
 $('#recGo').onclick=()=>recRun();
 $('#recShow').onclick=()=>{$('#planPanel').classList.remove('show'); const R=REC.res; if(R&&R.Q&&R.Q.type==='radius')recCircle(R.Q);};
-$('#recClear').onclick=()=>{const R=REC.res, sub=$('#recSub').textContent; REC.layer.clearLayers();REC.favRec={};$('#recList').innerHTML='';$('#recSub').textContent='';
-  if(R&&R.pick)toastUndo('추천 핀을 지웠어요',()=>{REC.res=R; $('#recSub').textContent=sub; recRender($('#recList'),R);});};
+$('#recClear').onclick=()=>{const R=REC.res, sub=$('#recSub').innerHTML; REC.layer.clearLayers();REC.favRec={};$('#recList').innerHTML='';$('#recSub').textContent='';
+  if(R&&R.pick)toastUndo('추천 핀을 지웠어요',()=>{REC.res=R; $('#recSub').innerHTML=sub; recRender($('#recList'),R);});};
 $('#recList').addEventListener('click',recClick); kindBoxes();
 $('#recSort').value=pref('recSort','score');
 $('#recSort').onchange=()=>{setPref('recSort',$('#recSort').value); if($('#recSort').value==='near'&&!recMe())toast('◎ 현위치를 켜면 가까운 순으로 볼 수 있어요',3000);
@@ -2825,7 +2870,7 @@ function sheetDrag(o){ // o: el, mini(), full(), isFold(), apply(fold), down(+1:
     const travel=Math.max(1,S.fu-S.mn), grow=(S.h-(S.f0?S.mn:S.fu))/travel; // 펴진 데서 시작: 음수면 접는 쪽
     let fold=S.f0; if(S.f0){if(grow>0.25||v>0.5)fold=false;} else {if(grow<-0.25||v<-0.5)fold=true;}
     animate(fold,S.h,S.f0);};
-  el.addEventListener('pointerup',end); el.addEventListener('pointercancel',end);
+  el.addEventListener('dragstart',e=>e.preventDefault());   el.addEventListener('pointerup',end); el.addEventListener('pointercancel',end);
   el.addEventListener('click',e=>{if(el._noClick){el._noClick=false;e.stopPropagation();e.preventDefault();}},true);
   function animate(fold,from,prev){if(prev==null)prev=o.isFold(); const h0=from!=null?from:el.getBoundingClientRect().height; if(o.isFold())o.apply(false,true);
     el.classList.toggle('snapfold',!!fold); el.classList.toggle('snapopen',!fold&&prev);
@@ -2870,10 +2915,7 @@ function placeBottom(){const el=$('#info'), h=el.classList.contains('show')?el.g
 try{new ResizeObserver(()=>placeBottom()).observe(document.querySelector('#info'));}catch(e){}
 {const _u=updateUI; updateUI=function(){const r=_u.apply(this,arguments); try{const el=$('#info'); if(el.classList.contains('fold')&&!el.classList.contains('snap')&&!el.classList.contains('dragging'))el.style.height=infoMiniH()+'px';}catch(e){} return r;};}
 // M3 지금 카드: 위로 끌면 접힘(머리 줄 + 손잡이 M3-7), 아래로 끌면 펴짐. ▴·손잡이 톡 = 바꾸기
-function nowFullH(){const c=$('#nowCard'), m=c.classList.contains('mini'), keep=c.style.height; c.classList.remove('mini'); c.style.height='auto'; const h=c.getBoundingClientRect().height; c.style.height=keep; c.classList.toggle('mini',m); return Math.round(h);}
-function nowMiniH(){const c=$('#nowCard'), m=c.classList.contains('mini'), keep=c.style.height; c.classList.add('mini'); c.style.height='auto'; const h=c.getBoundingClientRect().height; c.style.height=keep; c.classList.toggle('mini',m); return Math.round(h);}
-function nowApply(fold,temp){const c=$('#nowCard'); if(temp){c.classList.remove('mini');return;} setPref('nowMini',fold?'1':'0'); c.style.height=''; nowMini();}
-const NOW_DRAG=sheetDrag({el:$('#nowCard'),grip:'nowGrip',down:1,isFold:()=>pref('nowMini','0')==='1'&&$('#nowCard').classList.contains('mini'),apply:nowApply,mini:nowMiniH,full:nowFullH,moved:()=>placeSide()});
+// U-48: 접기 없앰 (NOW_DRAG·nowApply·nowFullH 삭제)
 function select(lat,lng,name,opts){
   opts=opts||{}; pvBackDrop();
   const co=`${lat.toFixed(3)}, ${lng.toFixed(3)}`;

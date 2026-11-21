@@ -45,14 +45,14 @@ exec(src+'''
     c=rect('#nowCard'); t=rect('#tideChip'); ph=rect('#phaseChip')
     check('K1 지금 보기: 카드 높이 낮아짐(4줄, 120px 이하) · 조석과 물때가 한 줄', c[3]<=120 and abs(t[1]-ph[1])<=3 and ph[0]>t[0], [c,t,ph])
     # (build-50) 눌리는 범위 44를 넓히는 투명 ::after 때문에 좁은 칩은 scrollWidth가 몇 px 큼 → 여유 7px
-    fit=E("['#tideChip','#phaseChip','#wxChip','#windChip'].map(q=>{const e=document.querySelector(q);return [q,e.scrollWidth<=e.clientWidth+7,e.textContent.slice(0,40)];})")
+    fit=E("['#tideChip','#phaseChip','#wtChip','#windChip'].map(q=>{const e=document.querySelector(q);return [q,e.scrollWidth<=e.clientWidth+7,e.textContent.slice(0,40)];})")
     check('K2 모든 줄이 카드 폭 안에 들어감 (잘림 없음)', all(x[1] for x in fit), fit)
     b=rect('.samplebadge'); h=rect('#nowHead'); bt=E("document.querySelector('.samplebadge').textContent")
     check('K3 상태 배지가 머리 줄 안 오른쪽(점 + 짧은 글)', h[1]<=b[1] and b[4]<=h[4] and b[0]>h[0]+150 and len(bt)<=12, [h,b,bt])
     E("document.querySelector('#nowHead').click()"); pg.wait_for_timeout(300)
     check('K4 머리 줄 빈 곳을 눌러도 출조 도우미가 안 열림 (토글로 바뀜)', not E("document.querySelector('#planPanel').classList.contains('show')"))
     pg.mouse.click(*mid('#nowSeg button[data-v=rec]')); pg.wait_for_timeout(300)
-    v=E("[document.querySelector('#nowCard').classList.contains('recv'), getComputedStyle(document.querySelector('#tideChip').parentNode).display, getComputedStyle(document.querySelector('#nowRec')).display, window.AndroidBridge._p.nowView]")
+    v=E("[document.querySelector('#nowCard').classList.contains('recv'), getComputedStyle(document.querySelector('#ncPages')).display, getComputedStyle(document.querySelector('#nowRec')).display, window.AndroidBridge._p.nowView]")
     check('K5 ⭐ 오늘 추천 누르면 추천 보기로 바뀌고 기억', v[0] and v[1]=='none' and v[2]!='none' and v[3]=='rec', v)
     for _ in range(200):
         if E("document.querySelectorAll('#nowRec .rr').length>0"): break
@@ -70,9 +70,8 @@ exec(src+'''
     pp=E("[document.querySelector('#planPanel').classList.contains('show'), document.querySelector('.ptabs [data-tab=rec]').classList.contains('on')]")
     check('K9 자세히 › = 출조 도우미 ⭐ 추천 탭 (build-49 탭 합침)', pp==[True,True], pp)
     E("while(window.__onBack&&window.__onBack()){}")
-    pg.mouse.click(*mid('#nowFold')); pg.wait_for_timeout(450); m1=E("document.querySelector('#nowCard').classList.contains('mini')")
-    pg.mouse.click(*mid('#nowFold')); pg.wait_for_timeout(450); m2=E("[document.querySelector('#nowCard').classList.contains('mini'),document.querySelector('#nowCard').classList.contains('recv')]")
-    check('K10 추천 보기에서도 접기·펴기, 펴면 추천 보기 그대로', m1 and m2==[False,True], [m1,m2])
+    m2=E("[document.querySelector('#nowCard').classList.contains('mini'),document.querySelector('#nowCard').classList.contains('recv')]")
+    check('K10 (U-48) 추천 보기에는 접기가 없고 추천 보기 그대로', m2==[False,True], m2)
     E("__QA.nowView()"); r2=E("document.querySelector('#nowCard').classList.contains('recv')")
     pg.mouse.click(*mid('#nowSeg button[data-v=now]')); pg.wait_for_timeout(300)
     n2=E("[document.querySelector('#nowCard').classList.contains('recv'), window.AndroidBridge._p.nowView]")
