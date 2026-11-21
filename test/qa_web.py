@@ -78,6 +78,12 @@ with sync_playwright() as p:
         pg.wait_for_timeout(500)
     st=E("__QA.TIDE.cur&&__QA.TIDE.cur.st.n"); npts=E("__QA.RD.pts.length")
     check('W2 브라우저가 직접 조석·조류 예보를 받음', st=='삼천포' and npts>0, [st,npts,dict(HITS)])
+    # (U-37) 흔들림 고침: 조석 관측소 찾기(166곳)가 끝나 저장되기 전에 다시 열면 처음부터 다시 찾아 '새로 받음'으로 셈(170→336) → 찾기가 끝나고 받기·저장이 멈출 때까지 기다린 뒤 비교
+    prev=None
+    for _ in range(25):
+        cur=(dict(HITS).get('tide'), E("__QA.WEBCACHE.tx('readonly',s=>s.count())"), E("!!__QA.TIDE.scan"))
+        if cur==prev and not cur[2]: break  # 받기 수·저장 수가 그대로이고 조석 관측소 찾기(scan)도 끝남
+        prev=cur; pg.wait_for_timeout(1000)
     t1=dict(HITS); n_cache=E("__QA.WEBCACHE.tx('readonly',s=>s.count())")
     pg.reload(); pg.wait_for_timeout(1500); go(13,34.92,128.07,9000)
     for _ in range(40):
