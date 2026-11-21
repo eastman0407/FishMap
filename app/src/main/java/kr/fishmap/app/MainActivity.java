@@ -241,6 +241,17 @@ public class MainActivity extends Activity {
                 getWindow().setAttributes(lp);
             } catch (Exception ignored) { } });
         }
+        /** U-30 물 차오름 경고: 긴 진동 패턴("700,300,700" ms) — VIBRATE 권한(일반 권한, 설치 때 자동 허용) */
+        @JavascriptInterface public void vibrate(final String pattern) {
+            runOnUiThread(() -> { try {
+                String[] p = pattern.split(","); long[] w = new long[p.length + 1]; w[0] = 0;
+                for (int i = 0; i < p.length; i++) w[i + 1] = Long.parseLong(p[i].trim());
+                android.os.Vibrator v = Build.VERSION.SDK_INT >= 31
+                        ? ((android.os.VibratorManager) getSystemService(Context.VIBRATOR_MANAGER_SERVICE)).getDefaultVibrator()
+                        : (android.os.Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                if (v != null) v.vibrate(android.os.VibrationEffect.createWaveform(w, -1));
+            } catch (Exception ignored) { } });
+        }
         /** U-47 손전등: 플래시 있는 카메라 id (없으면 "") */
         @JavascriptInterface public String torchOk() { return torchId(); }
         /** U-47 손전등 켜기/끄기 (CameraManager.setTorchMode — 카메라 권한 필요 없음, API 23+) → "ok" / "no" / "err:…" */

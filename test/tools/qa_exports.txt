@@ -145,3 +145,16 @@ isWestSea
 ,
 riOf,
 recVillage
+,
+RISE,
+riseFind,
+riseCheck,
+riseShore,
+myPattern,
+patBias,
+renderPat,
+renderLog,
+FOLLOW_SET:()=>FOLLOW,
+ROCK,
+loadLog,
+saveLog

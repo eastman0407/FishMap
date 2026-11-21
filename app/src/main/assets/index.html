@@ -283,6 +283,24 @@ html[data-theme=night] #flow{opacity:.8} html[data-theme=night] .legend{backgrou
 .tseg{display:flex;gap:4px;margin-top:6px}.tseg button{flex:1;min-width:0;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:13px;white-space:nowrap;padding:0 2px;cursor:pointer}
 .tseg button.on{border:2px solid var(--accent);font-weight:700}
 .rc .rcn .vl{font-size:12px;font-weight:400;color:var(--muted);margin-left:4px}
+
+/* U-30 물 차오름 경고 (11-22 승인 A안): 처음 = 화면 전체 빨강 + 긴 진동 3번 → 확인 뒤 지도 위 빨간 띠 */
+.risew{position:fixed;inset:0;z-index:5000;background:rgba(120,10,6,.95);color:#fff;display:flex;flex-direction:column;padding:28px 20px calc(20px + env(safe-area-inset-bottom));overflow:auto}
+.risew[hidden],.riseb[hidden],.risep[hidden]{display:none}
+.risew .ic{font-size:44px;line-height:1}.risew h3{font-size:26px;margin:10px 0 6px}.risew .big{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums;margin:4px 0}.risew .big small{font-size:18px;font-weight:600}
+.risew .row{background:rgba(0,0,0,.28);border-radius:12px;padding:10px 12px;margin-top:10px;font-size:15px}.risew .row b{font-variant-numeric:tabular-nums}.risew .est{font-size:13px;opacity:.9;margin-top:10px}
+.risew .btns{margin-top:auto;padding-top:16px;display:flex;flex-direction:column;gap:10px}.risew .btns button{height:56px;border-radius:14px;font-size:17px;font-weight:700;width:100%;cursor:pointer}
+.risew .ok{background:#fff;color:#7a0e08;border:none}.risew .later{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.7)}
+.riseb{position:absolute;left:10px;right:10px;top:10px;z-index:1600;background:#7a0e08;border:2px solid #ff6b5e;border-radius:12px;padding:6px 8px 6px 12px;display:flex;align-items:center;gap:10px;color:#fff}
+.riseb .t{flex:1;min-width:0}.riseb b{font-size:18px;font-variant-numeric:tabular-nums}.riseb small{display:block;font-size:12.5px;opacity:.92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.riseb button{width:52px;height:44px;border-radius:10px;border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;font-size:13px;cursor:pointer}
+.risep{position:absolute;left:10px;top:10px;z-index:1600;min-width:44px;height:44px;border-radius:22px;border:2px solid #ff6b5e;background:#7a0e08;color:#fff;font-size:14px;padding:0 10px;cursor:pointer}
+/* U-31 내 입질 패턴 */
+.pat{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:8px}.pat h4{margin:0 0 2px;font-size:16px}
+.pat .bar{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:14px}.pat .bar span:first-child{width:64px;flex:none}.pat .bar i{display:block;height:14px;border-radius:7px;background:var(--accent);min-width:4px}.pat .bar em{font-style:normal;color:var(--muted);font-size:13px;white-space:nowrap}
+.pat .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.pat .chip{background:rgba(255,255,255,.08);border-radius:10px;padding:6px 9px;font-size:13.5px}.pat .chip b{color:var(--hiY,#ffd166)}
+.pat .note{font-size:12.5px;color:var(--muted);margin-top:6px}.pat .prog{height:10px;border-radius:5px;background:var(--line);margin-top:8px}.pat .prog i{display:block;height:10px;border-radius:5px;background:var(--accent)}
+.pat .tog{display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:6px;border-top:1px solid var(--line);font-size:14px;min-height:44px;cursor:pointer}.pat .tog input{width:auto;height:auto}
 </style>
 </head>
 <body>
@@ -322,6 +340,12 @@ html[data-theme=night] #flow{opacity:.8} html[data-theme=night] .legend{backgrou
     <div class="legend"><span id="legendTitle">유속 (노트)</span><div class="bar" id="legendBar"></div><div class="ticks" id="legendTicks"></div>
       <div id="sstLeg" style="display:none;margin-top:6px"><span id="sstLegT"></span><div class="bar" id="sstBar"></div><div class="ticks" id="sstTicks"></div></div></div>
     <button class="biteFab" id="biteFab" title="입질 기록 (지금 시각·물때·유속 자동 저장)">🎣<small>입질</small></button>
+    <div class="riseb" id="riseBand" hidden role="status" aria-live="polite"><span style="font-size:24px">⚠️</span><div class="t"><b id="riseBandT"></b><small id="riseBandS"></small></div><button id="riseFold" aria-label="띠 접기">접기</button></div>
+    <button class="risep" id="risePill" hidden aria-label="물 차오름 경고 다시 보기">⚠️ <b id="risePillT"></b></button>
+    <div class="risew" id="riseWarn" hidden role="alertdialog" aria-labelledby="riseH"><div class="ic">⚠️</div><h3 id="riseH">물이 차오르고 있어요</h3><div>서 있는 바위가 잠기기까지</div>
+      <div class="big"><span id="riseMin"></span><small>분</small></div><div class="row" id="riseTide"></div><div class="row" id="riseShore"></div>
+      <div class="est" id="riseEst"></div>
+      <div class="btns"><button class="ok" id="riseOk">확인했어요 · 지금 나갈게요</button><button class="later" id="riseLater">10분 뒤 다시 알려 주기</button></div></div>
     <button class="torchBtn" id="torchBtn" aria-label="손전등 켜고 끄기" aria-pressed="false" title="손전등" hidden>🔦</button>
     <div class="toast" id="toast"></div>
 <div id="xferAsk" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:20px">
@@ -504,6 +528,7 @@ html[data-theme=night] #flow{opacity:.8} html[data-theme=night] .legend{backgrou
         <label style="font-size:13px;display:flex;align-items:center;gap:6px;flex:1"><input type="checkbox" id="logPins" style="width:auto;height:auto"> 지도에 기록 위치 표시</label>
         <button class="btn" id="logCsv">📤 CSV 보내기</button>
       </div>
+      <div id="logPat"></div>
       <div class="empty" id="logSum" style="padding:6px 0 0;font-size:12.5px;text-align:left"></div>
       <ul class="plan" id="logList"></ul>
       <div class="empty" style="padding:10px 0 0;font-size:12px">지점 카드의 🎣 입질! 버튼을 누르면 그 순간의 시각·물때·들물/날물·조차·유속·바람이 저장돼요. 어종·메모는 여기서 적어요 · 폰 안에만 저장</div>
@@ -2375,7 +2400,7 @@ const phaseGroup=p=>/들물/.test(p)?'들물':/날물/.test(p)?'날물':/정조/
 function logLine(r){return [r.mul,r.phase,r.rg!=null?`조차 ${r.rg}m`:'',r.sp!=null?`유속 ${r.sp.toFixed(1)}노트 ${r.dir}`:'',r.wind!=null?`바람 ${r.wdir} ${r.wind}m/s`:'',
   r.wt!=null?`수온 ${r.wt}℃`:r.obsWt!=null?`수온 ${r.obsWt}℃`:'',r.pa!=null?`기압 ${Math.round(r.pa)}hPa${r.dpa!=null?` (3시간 ${r.dpa>=0?'+':''}${r.dpa})`:''}`:'',r.wav!=null?`파고 ${r.wav}m`:'',r.rain?`이틀 비 ${r.rain}mm`:''].filter(Boolean).join(' · ');}
 function renderLog(){
-  const a=loadLog(), L=$('#logList');
+  renderPat(); const a=loadLog(), L=$('#logList');
   const g={};for(const r of a){const k=phaseGroup(r.phase);if(k)g[k]=(g[k]||0)+1;}
   const mc={};for(const r of a)mc[r.mul]=(mc[r.mul]||0)+1; const topm=Object.entries(mc).sort((x,y)=>y[1]-x[1]).slice(0,3);
   $('#logSum').textContent=a.length?`입질 ${a.length}번`+(Object.keys(g).length?' · '+Object.entries(g).map(([k,n])=>`${k} ${n}`).join(' · '):'')+(topm.length?' · 많이 온 물때: '+topm.map(([k,n])=>`${k}(${n})`).join(' '):''):'아직 기록이 없어요';
@@ -2514,7 +2539,7 @@ const fitScore=sp=>sp<0.15?0:sp<0.3?(sp-0.15)/0.15:sp<=1.0?1:sp<RED.kn?1-(sp-1)/
 // 오늘 물 세기 (음력): 사리 쪽 / 조금 쪽 / 중간
 function tideStrength(ms){const m=((lunarDay(ms)-1)%15)+1;return (m<=4||m>=13)?'strong':(m>=7&&m<=10)?'weak':'mid';}
 function recScore(sg,winsOf,day0,favs,kindOf,kinds){
-  const P=sg.p, n=P.length/2, str=tideStrength(day0+12*3600e3), cand=[]; kinds=kinds||'lbf';
+  const P=sg.p, n=P.length/2, str=tideStrength(day0+12*3600e3), cand=[], PAT=patOn()?myPattern():null; kinds=kinds||'lbf';
   const pts=[]; for(let i=0;i<n;i++){const k=kindOf?kindOf(i):'l'; if(!kinds.includes(k))continue; pts.push({la:P[2*i],lo:P[2*i+1],dong:sg.d?sg.d[sg.di[i]]:'',kind:k,ring:sg.ri?sg.ri[i]:-1});}
   for(const f of favs||[])pts.push({la:f.lat,lo:f.lng,fav:f.name});
   for(const q of pts){const la=q.la,lo=q.lo; let best=null,mx=0,ok=false; const W=winsOf(la,lo);
@@ -2542,7 +2567,7 @@ function recScore(sg,winsOf,day0,favs,kindOf,kinds){
     if(c.dT!=null&&Math.abs(c.dT)>=1){tc=Math.max(0,tc-0.5);c.tnote='급변 '+(c.dT>0?'+':'')+c.dT.toFixed(1)+'℃';}
     let pen=0; if(c.wav!=null)pen+=c.wav>=2.5?0.15:c.wav>=1.5?0.06:0; if(r48!=null)pen+=r48>=30?0.08:r48>=10?0.03:0;
     c.tc=tc; c.pen=pen;
-    c.score=Math.max(0,0.35*(c.best?c.best.f:0)+0.2*Math.min(c.rocks,4)/4+0.15*c.ch+0.2*rule+0.1*tc-pen);}
+    c.pb=c.fav?0:patBias(c,PAT); c.score=Math.max(0,0.35*(c.best?c.best.f:0)+0.2*Math.min(c.rocks,4)/4+0.15*c.ch+0.2*rule+0.1*tc-pen+c.pb);}
   coast.sort((a,b)=>b.score-a.score); const top=[];
   for(const c of coast){if(top.length>=5)break; if(top.some(p=>distM(p.la,p.lo,c.la,c.lo)<1200))continue; top.push(c);}
   const favC=cand.filter(c=>c.fav);
@@ -2687,7 +2712,7 @@ function recRender(ul,R){
       c.rocks?[`🪨 바위 ${c.rocks}${c.gan?`(간출암 ${c.gan})`:''}`,'']:null, c.ch>=0.4?['〰 물골','']:null,
       c.T!=null?[`${E_T} ${c.T.toFixed(1)}℃${c.tnote?' '+c.tnote:''}`,'']:null, c.wav!=null&&c.wav>=1.5?[`⚠️ 파고 ${c.wav.toFixed(1)}m`,'']:null,
       c.km!=null?[`🧭 ${c.km<10?c.km.toFixed(1):Math.round(c.km)}km`,'']:null, c.isl&&!c.fav&&mix?[`${KIND_NAME[c.isl]}${c.isl!=='l'&&!/^(osm|pre)$/.test(R.kindSrc)?'(추정)':''}`,'']:null,
-      c.kind?[c.kind,/잔잔/.test(c.kind)?'ok':'']:null].filter(Boolean);
+      c.kind?[c.kind,/잔잔/.test(c.kind)?'ok':'']:null, c.pb>0?['🎣 내 패턴과 맞음','ok']:null].filter(Boolean);
     return `<li data-i="${i}" class="rc${i===0?' first':''}${c.fav?' fav':''}"${c.isl&&c.isl!=='l'?` data-ring="${c.ring}"`:''}><div class="l1 rc-h"><span class="rcn"><i class="rk">${i+1}</i>${escH(recName(Object.assign({},c,{ri:''}),sg))}${c.ri?`<span class="vl">· ${escH(c.ri)}</span>`:''}</span><span class="rcs"><b>${sc}</b><small class="grade g${g.k}">${g.t}</small></span></div>`
       +(w?`<div class="rc-w"><span class="tm">⏰ ${hhmm(w.s)}~${hhmm(w.t)}</span><span class="st">${w.hi==null?'':w.hi?'만조':'간조'} ${hhmm(w.ms)}${c.best.st?` · ${escH(c.best.st)}`:''}</span>${bdgHtml(winBadge(w))}</div>`:'')
       +`<div class="rc-c">${ch.map(x=>`<span class="chip${x[1]?' '+x[1]:''}">${numHtml(x[0])}</span>`).join('')}</div></li>`;}).join('');
@@ -3225,14 +3250,14 @@ function placeMe(la,lo,ac){
   meMarker=L.marker([la,lo],{icon:L.divIcon({className:'',html:'<div class="me"></div>',iconSize:[22,22],iconAnchor:[11,11]})}).addTo(map);
 }
 function followStop(msg){
-  if(!FOLLOW.on)return; FOLLOW.on=false;
+  if(!FOLLOW.on)return; FOLLOW.on=false; RISE.ev=null; riseHide();
   if(FOLLOW.watch!=null){navigator.geolocation.clearWatch(FOLLOW.watch);FOLLOW.watch=null;}
   $('#locBtn').classList.remove('follow'); if(msg)toast(msg,2000);
 }
 function followStart(){
   FOLLOW.on=true; $('#locBtn').classList.add('follow'); toast('따라가기 켬 — 걸어가면 지도가 따라와요',2500);
   FOLLOW.watch=navigator.geolocation.watchPosition(pos=>{
-    const {latitude:la,longitude:lo,accuracy:ac}=pos.coords; placeMe(la,lo,ac);
+    const {latitude:la,longitude:lo,accuracy:ac}=pos.coords; placeMe(la,lo,ac); try{riseCheck(la,lo);}catch(e){}
     // 화면 가운데 40% 밖으로 벗어날 때만 지도를 옮김 (매초 다시 계산하지 않게)
     const p=map.latLngToContainerPoint([la,lo]), sz=map.getSize();
     if(Math.abs(p.x-sz.x/2)>sz.x*0.2||Math.abs(p.y-sz.y/2)>sz.y*0.2){FOLLOW.panning=true;map.panTo([la,lo]);setTimeout(()=>FOLLOW.panning=false,600);}
@@ -3498,6 +3523,75 @@ $('#favPanel').addEventListener('click',e=>{
   const it=e.target.closest('.fav'); if(it){const f=a[+it.dataset.i];$('#favPanel').classList.remove('show');map.flyTo([f.lat,f.lng],12,{duration:1});select(f.lat,f.lng,f.name);}
 });
 
+
+
+// ================= U-30 물 차오름 경고 (11-22 승인: A안 · 30분 전 · 50m 안 간출암) =================
+// 위치 따라가기 중, 서 있는 곳 50m 안 간출암(썰물에만 드러나는 바위)이 30분 안에 잠기면 → 화면 전체 경고 + 긴 진동 3번
+// 확인하면 지도 위 빨간 띠로 남음(남은 분). 바위에서 50m 넘게 멀어지거나 잠긴 시각이 지나면 사라짐. 계산은 가까운 조위관측소 예보 기준 추정
+const RISE={R:50,LEAD:30*60000,ev:null,ack:'',snooze:0,mini:false,pos:null,lastChk:0};
+function riseFind(la,lo,now){if(!TIDE.cur||!ROCK.data)return null; const ser=TIDE.cur.ser; let best=null;
+  for(const r of ROCK.data){if(r[2]!==1||r[3]==null||r[3]>=0)continue; if(Math.abs(r[0]-la)>0.001||Math.abs(r[1]-lo)>0.0013)continue;
+    const dm=distM(la,lo,r[0],r[1]); if(dm>RISE.R)continue; if(rockExposed(r[3],tideAtMs(ser,now))!==true)continue;
+    let ms=null; for(let t=now+60000;t<=now+RISE.LEAD;t+=60000){const e=rockExposed(r[3],tideAtMs(ser,t)); if(e==null)break; if(e===false){ms=t;break;}}
+    if(ms&&(!best||ms<best.ms))best={ms,dm,d:r[3],key:r[0].toFixed(5)+','+r[1].toFixed(5)+'|'+Math.round(ms/(3*3600e3))};}
+  return best;}
+// 가장 가까운 뭍: 화면 바다 판별로 16방향 10m씩 500m까지
+function riseShore(la,lo){let best=null; const k=Math.cos(la*Math.PI/180);
+  for(let a=0;a<16;a++){const g=a*22.5*Math.PI/180;
+    for(let m=10;m<=500;m+=10){if(best&&m>=best.m)break; const p=map.latLngToContainerPoint([la+m*Math.cos(g)/111320,lo+m*Math.sin(g)/(111320*k)]);
+      if(p.x<0||p.y<0||p.x>=W||p.y>=H)break; if(!isWater(p.x,p.y)){best={m,dir:DIRS[a]};break;}}}
+  return best;}
+function riseBuzz(){try{if(NATIVE&&NATIVE.vibrate){NATIVE.vibrate('700,300,700,300,700');return;}}catch(e){} try{navigator.vibrate&&navigator.vibrate([700,300,700,300,700]);}catch(e){} window.__riseBuzz=(window.__riseBuzz||0)+1;}
+function riseHide(){$('#riseWarn').hidden=true; $('#riseBand').hidden=true; $('#risePill').hidden=true;}
+function riseShow(){const e=RISE.ev, now=Date.now(); if(!e){riseHide();return;}
+  const min=Math.max(1,Math.ceil((e.ms-now)/60000)), ser=TIDE.cur.ser, h=tideAtMs(ser,now), h2=tideAtMs(ser,now+600000), hi=tideExtremes(ser,now,now+12*3600e3).find(x=>x.hi);
+  const sh=e.shore?`뭍까지 약 ${e.shore.m}m ${e.shore.dir}쪽`:'', hiT=hi?`만조 ${hhmm(hi.ms)}`:'';
+  $('#riseMin').textContent='약 '+min;
+  $('#riseTide').innerHTML=`🌊 지금 물높이 <b>${h!=null?h.toFixed(1):'-'}m ${h2!=null&&h!=null&&h2>h?'↑':''}</b> 들어오는 중${hiT?' · '+hiT.replace('만조 ','만조 <b>')+'</b>':''}`;
+  $('#riseShore').innerHTML=sh?`🧭 가장 가까운 뭍까지 <b>약 ${e.shore.m}m · ${e.shore.dir}쪽</b>`:'🧭 들어온 길로 바로 나오세요'; 
+  $('#riseEst').textContent=`ℹ️ ${TIDE.cur.st.n} 조위 예보로 계산한 추정이에요. 실제 물이 더 빨리 찰 수 있어요.`;
+  $('#riseBandT').textContent=`잠기기 ${min}분 전`; $('#riseBandS').textContent=[sh,hiT].filter(Boolean).join(' · ');
+  $('#risePillT').textContent=min+'분';
+  const warn=RISE.ack!==e.key&&now>=RISE.snooze;
+  $('#riseWarn').hidden=!warn; $('#riseBand').hidden=warn||RISE.mini; $('#risePill').hidden=warn||!RISE.mini;}
+function riseCheck(la,lo,force){const now=Date.now(); if(!force&&now-RISE.lastChk<15000&&RISE.pos&&distM(la,lo,RISE.pos[0],RISE.pos[1])<10)return; RISE.lastChk=now; RISE.pos=[la,lo];
+  if(!FOLLOW.on){RISE.ev=null;riseHide();return;}
+  const e=riseFind(la,lo,now); const was=RISE.ev; if(!e){RISE.ev=null; riseHide(); return;}
+  e.shore=riseShore(la,lo); RISE.ev=e;
+  const warnNow=RISE.ack!==e.key&&now>=RISE.snooze, warnBefore=was&&!$('#riseWarn').hidden;
+  riseShow(); if(warnNow&&!warnBefore){riseBuzz(); window.__riseWarns=(window.__riseWarns||0)+1;}}
+$('#riseOk').onclick=()=>{if(RISE.ev)RISE.ack=RISE.ev.key; RISE.mini=false; riseShow(); haptic('done');};
+$('#riseLater').onclick=()=>{RISE.snooze=Date.now()+10*60000; RISE.mini=false; riseShow(); haptic('tick');};
+$('#riseFold').onclick=()=>{RISE.mini=true; riseShow();}; $('#risePill').onclick=()=>{RISE.mini=false; riseShow();};
+setInterval(()=>{if(FOLLOW.on&&RISE.pos)riseCheck(RISE.pos[0],RISE.pos[1],true); else if(RISE.ev){RISE.ev=null;riseHide();}},30000);
+
+// ================= U-31 내 입질 패턴 (11-22 승인: 기록 10번부터 · 점수 반영 처음 꺼짐 · 최대 +10점) =================
+const PAT_MIN=10;
+function myPattern(a){a=a||loadLog(); const n=a.length; if(n<PAT_MIN)return {n,ready:false};
+  const q=(v,p)=>v[Math.min(v.length-1,Math.max(0,Math.round(p*(v.length-1))))];
+  const g={'들물':0,'날물':0,'물 멈춤':0}; for(const r of a){const k=phaseGroup(r.phase); if(k)g[k]++;}
+  const sp=a.map(r=>r.sp).filter(v=>v!=null).sort((x,y)=>x-y), wt=a.map(r=>r.wt).filter(v=>v!=null).sort((x,y)=>x-y);
+  const hr=new Array(24).fill(0); a.forEach(r=>hr[new Date(r.t).getHours()]++); let bh=0,bv=-1; for(let h=0;h<24;h++){const v=hr[h]+hr[(h+1)%24]; if(v>bv){bv=v;bh=h;}}
+  const mc={}; a.forEach(r=>{if(r.mul)mc[r.mul]=(mc[r.mul]||0)+1;}); const mul=Object.entries(mc).sort((x,y)=>y[1]-x[1]).slice(0,2).map(x=>x[0]);
+  const fc={}; a.forEach(r=>{if(r.fish)fc[r.fish]=(fc[r.fish]||0)+1;}); const fish=Object.entries(fc).sort((x,y)=>y[1]-x[1]).slice(0,3);
+  return {n,ready:true,g,spR:sp.length>=5?[q(sp,.25),q(sp,.75)]:null,wtR:wt.length>=5?[q(wt,.25),q(wt,.75)]:null,hR:bv>=3?[bh,(bh+2)%24,bv]:null,mul,fish};}
+const patOn=()=>pref('patOn','')==='1';
+// 추천 점수 보정(켰을 때만): 유속이 내 범위면 +0.05(아니면 −0.03), 승부 시간이 내 시간대면 +0.03 → 보이는 점수 최대 +10점
+function patBias(c,P){if(!P||!P.ready||!c.best)return 0; let b=0; const sp=c.best.sp, w=c.best.w;
+  if(P.spR&&sp!=null)b+=sp>=P.spR[0]-0.05&&sp<=P.spR[1]+0.05?0.05:-0.03;
+  if(P.hR&&w){const h=new Date((w.s+w.t)/2).getHours(); if((h-P.hR[0]+24)%24<=2)b+=0.03;}
+  return b;}
+const hrTxt=h=>h<5?'밤 '+h+'시':h<9?'새벽 '+h+'시':h<12?'오전 '+h+'시':h<18?'낮 '+(h>12?h-12:h)+'시':'저녁 '+(h-12)+'시';
+function renderPat(){const box=$('#logPat'); if(!box)return; const P=myPattern();
+  if(!P.ready){box.innerHTML=P.n?`<div class="pat"><h4>내 입질 패턴</h4><div class="note" style="margin:0">기록 ${P.n}번 · ${PAT_MIN}번이 되면 패턴을 보여 드려요</div><div class="prog" role="progressbar" aria-valuenow="${P.n}" aria-valuemax="${PAT_MIN}"><i style="width:${Math.round(P.n/PAT_MIN*100)}%"></i></div><div class="note">입질이 오면 🎣 입질 버튼만 누르세요. 물때·유속·수온은 저절로 적혀요.</div></div>`:''; return;}
+  const mx=Math.max(1,...Object.values(P.g)), tot=Object.values(P.g).reduce((x,y)=>x+y,0)||1;
+  const bar=(k,ic)=>`<div class="bar"><span>${ic} ${k}</span><i style="width:${Math.round(P.g[k]/mx*150)}px"></i><em>${P.g[k]}번 (${Math.round(P.g[k]/tot*100)}%)</em></div>`;
+  const ch=[P.spR?`잘 잡힌 유속 <b>${P.spR[0].toFixed(1)}~${P.spR[1].toFixed(1)}노트</b>`:'',P.hR?`시간 <b>${hrTxt(P.hR[0])}~${(P.hR[1]||24)}시</b>`:'',P.wtR?`수온 <b>${P.wtR[0].toFixed(0)}~${P.wtR[1].toFixed(0)}℃</b>`:'',P.mul.length?`물때 <b>${P.mul.join('·')}</b>`:''].filter(Boolean);
+  box.innerHTML=`<div class="pat"><h4>내 입질 패턴</h4><div class="note" style="margin:0">입질 기록 ${P.n}번${P.fish.length?' · '+P.fish.map(([f,n])=>`${escH(f)} ${n}`).join(' · '):''}</div>`
+    +bar('들물','🌊')+bar('날물','↘')+bar('물 멈춤','⏸')+`<div class="chips">${ch.map(x=>`<span class="chip">${x}</span>`).join('')}</div>`
+    +(P.n<30?`<div class="note">${P.n}번은 아직 적어요 — 우연일 수 있어 '경향'으로만 봐 주세요.</div>`:'')
+    +`<label class="tog"><span style="flex:1">추천 점수에 내 패턴 조금 반영 <small style="color:var(--muted)">(최대 +10점)</small></span><input type="checkbox" id="patChk" ${patOn()?'checked':''}></label></div>`;
+  $('#patChk').onchange=e=>{setPref('patOn',e.target.checked?'1':''); haptic('tick'); toast(e.target.checked?'다음 추천부터 내 패턴을 조금 반영해요':'내 패턴 반영을 껐어요',2200);};}
 
 // ================= U-46 화면 모드 · U-47 손전등 · H-7 물때 방식 (11-22) =================
 const THEME={pref:pref('theme','system'),night:pref('nightOn','')==='1',torch:false};

@@ -9,7 +9,7 @@ GROUPS={
  '위 카드(M3)':['qa_b40','qa_b42','qa_b46','qa_more'],
  '상태창·그래프 시트(F28·M8)·움직임':['qa_b41','qa_b49','qa_b52','qa_b54','qa_b55'],
  '추천(P4·P6)':['qa_rec','qa_island','qa_b43','qa_b44','qa_ui'],
- '기록·계획·알림':['qa_log','qa_plan','qa_alert'],
+ '기록·계획·알림·안전':['qa_log','qa_plan','qa_alert','qa_b63'],
  '날씨·수온':['qa_wx','qa_b48'],
  '설정·백업·웹판·화면 모드':['qa_web','qa_b47','qa_b62'],
  '이름·공유 받기':['qa_b53'],
