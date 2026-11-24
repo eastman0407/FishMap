@@ -14,7 +14,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 .app{position:fixed;inset:0;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
 .mapbox{position:relative;flex:1;min-height:0}
 #map{position:absolute;inset:0;background:var(--b0d2638,#0d2638)}
-#flow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:450}
+.flow-clip{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:450}
+#flow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:450;transform-origin:0 0}
 /* 상단 검색 */
 .top{position:absolute;top:10px;left:10px;right:10px;z-index:1050;display:flex;gap:8px}
 .search{flex:1;position:relative}
@@ -275,7 +276,7 @@ html[data-theme=light]{--onAcc:#ffffff;--bBadgeW:#fbeedd;--tBadgeW:#7a4300;--bBa
 html[data-theme=light] .ibtn,html[data-theme=light] .biteFab{background:rgba(255,255,255,.95)}
 /* 밤낚시: 붉은 화면 — 지도·창·그림 글자까지 밝기만 남기고 붉게 거름. 흐름선과 범례 색 막대는 색 뜻(유속)을 지키려고 거르지 않고 조금 흐리게 */
 html[data-theme=night]{--nightF:grayscale(1) brightness(.55) sepia(1) saturate(12) hue-rotate(-40deg);background:var(--b000,#000)}
-html[data-theme=night] #map,html[data-theme=night] .mapbox>:not(#map):not(#flow):not(.legend),html[data-theme=night] .sheet,html[data-theme=night] .panel,html[data-theme=night] .legend>:not(.bar){filter:var(--nightF)}
+html[data-theme=night] #map,html[data-theme=night] .mapbox>:not(#map):not(.flow-clip):not(.legend),html[data-theme=night] .sheet,html[data-theme=night] .panel,html[data-theme=night] .legend>:not(.bar){filter:var(--nightF)}
 html[data-theme=night] #flow{opacity:.8} html[data-theme=night] .legend{background:var(--b140505,#140505)}
 #nightBtn.on{border:2px solid #ff5a4d;background:var(--b3a0d0a,#3a0d0a)}
 .torchBtn{position:absolute;right:14px;bottom:92px;z-index:1000;width:54px;height:54px;border-radius:50%;border:2px solid #ff5a4d;background:var(--b1a0707,#1a0707);color:var(--tff6b5e,#ff6b5e);font-size:24px;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
@@ -324,7 +325,7 @@ html[data-theme=light]{--t-we:#b3261e;--b0f2638:#e7f0f7}
 <div class="app">
   <div class="mapbox">
     <div id="map"></div>
-    <canvas id="flow"></canvas>
+    <div class="flow-clip"><canvas id="flow"></canvas></div>
 
     <div class="top">
       <form class="search" id="sform" autocomplete="off">
@@ -989,7 +990,7 @@ function requestReal(){
       const js=ROMS.normalize(items,nb);
       setRealData(js,L.latLngBounds([nb.s,nb.w],[nb.n,nb.e]));
       RD.empty=!RD.pts.length;
-      resetParticles(); updateWxChip();
+      updateWxChip();
     };
     try{
       NET.staleMin=0;
@@ -1235,7 +1236,12 @@ function baseAt(lat,lon,th){
 }
 function flowAt(lat,lon,th){
   if(SIM.view.length&&Math.abs(th-tH())<1e-6){
-    simFramePrep(); const pt=map.latLngToContainerPoint([lat,lon]); const m=simMix(pt.x,pt.y,true);
+    simFramePrep(); const pt=map.latLngToContainerPoint([lat,lon]);
+    if(sel&&lat===sel.lat&&lon===sel.lng&&simLevel()>=NEST_PARENT){
+      const fixed=simPointFlow(lat,lon,th);
+      if(fixed!==undefined)return fixed;
+    }
+    const m=simMix(pt.x,pt.y,true);
     if(m===null)return null; // 육지
     if(m){const b=baseAt(lat,lon,th);
       if(m.c>0){let vE=m.su,vN=m.sv,w=m.c; if(m.need>1e-3&&b){vE+=b.vE*m.need;vN+=b.vN*m.need;w+=m.need;}
@@ -1315,9 +1321,14 @@ function tileImg(url){
   return pr;
 }
 let maskTimer=null, MASKSTAT={};
-function buildMask(){ clearTimeout(maskTimer); maskTimer=setTimeout(buildMaskNow,150); }
-function buildMaskNow(){
-  const id=++maskId; maskState='loading'; mask=null;
+function buildMask(){
+  clearTimeout(maskTimer);
+  const id=++maskId;
+  maskState='loading';
+  maskTimer=setTimeout(()=>buildMaskNow(id),150);
+}
+function buildMaskNow(id){
+  mask=null;
   const size=map.getSize(), zf=map.getZoom(), z=Math.max(5,Math.min(17,Math.round(zf)));
   const f=map.getZoomScale(zf,z);
   const nw=map.project(map.containerPointToLatLng([0,0]),z), se=map.project(map.containerPointToLatLng([size.x,size.y]),z);
@@ -1336,7 +1347,7 @@ function buildMaskNow(){
     let d; try{d=cx.getImageData(0,0,cw,ch).data;}catch(e){maskState='fail';return;}
     const m=new Uint8Array(cw*ch); let water=0;
     for(let i=0;i<cw*ch;i++){if(isWaterRGB(d[i*4],d[i*4+1],d[i*4+2])){m[i]=1;water++;}}
-    mask=m; mW=cw; mH=ch; maskState='ready'; simEnsureSoon(); resetParticles(); updateBadge();
+    mask=m; mW=cw; mH=ch; maskState='ready'; simEnsureSoon(); updateBadge();
   });
 }
 function isWater(x,y){
@@ -1358,7 +1369,7 @@ const SIM_ZOOM=15, SC=12, DOM=171*SC, OVC=24, STRIDE=DOM-OVC*SC;   // 구역 171
 const SIMMODE={on:false, MIN:10};
 function simLevel(){const z=map.getZoom(); if(z>=SIM_ZOOM)return 16; if(!SIMMODE.on||z<SIMMODE.MIN)return 0; return z>=13?14:z>=11?12:11;}
 const NEST_LV=16, NEST_PARENT=14;
-const SIM={par:[],sz:16,on:false,ready:false,done:false,wantT:-1,pendingAt:0,lastSend:0,tiles:new Map(),view:[],fb:[],queue:[],job:null,u:null};
+const SIM={par:[],focus:[],sz:16,on:false,ready:false,done:false,wantT:-1,pendingAt:0,lastSend:0,tiles:new Map(),view:[],fb:[],queue:[],job:null,u:null};
 // ── 4) 계산 결과 폰에 저장 (앱 안 저장소 IndexedDB): 열쇠 = 구역|예보 시각|경계값 지문 → 다시 켜도 본 곳은 바로
 //     값은 16비트 정수로 줄여 저장(구역 1개 약 120KB), 8일 지나면 '지난 자료 청소' 때 삭제, 최대 300개
 const SIMDB={db:null,ok:true,open(){if(SIMDB.db||!SIMDB.ok||!window.indexedDB)return Promise.resolve(SIMDB.db);
@@ -1422,10 +1433,15 @@ try{simWorker=new Worker(URL.createObjectURL(new Blob([WORKER_SRC],{type:'text/j
 if(simWorker)simWorker.onmessage=e=>{const m=e.data, J=SIM.job; if(!J||m.id!==J.id)return;
   // H-11: 끝난 결과는 폰에 저장할 때와 똑같이 줄인 값(q16→f16)으로 화면에도 씀 → 다시 켜도 테두리 지문(h)이 같아 저장 결과를 찾음
   if(m.done){m.u=f16(q16(m.u)); m.v=f16(q16(m.v));}
-  const T=J.tile; T.cur={u:m.u,v:m.v,scale:J.scale,t:J.t,done:m.done,partial:!m.done,at:m.done?simAt(T):0}; T.steps=m.steps;
+  const T=J.tile;
+  if(m.done||!T.cur?.done||T.cur.t!==J.t){
+    T.cur={u:m.u,v:m.v,scale:J.scale,t:J.t,h:J.h,done:m.done,partial:!m.done,at:m.done?simAt(T):0};
+  }
+  T.steps=m.steps;
   if(m.done){simCache.set(T.key+'|'+J.t,{h:J.h,u:m.u,v:m.v,scale:J.scale});if(simCache.size>60)simCache.delete(simCache.keys().next().value);
     SIMDB.put(simKey(T,J.t,J.h),{u:q16(m.u),v:q16(m.v),scale:J.scale,at:Date.now()});
-    SIM.job=null; if(SIM.nestWait&&SIM.par.includes(T.key)&&SIM.par.every(k=>{const P=SIM.tiles.get(k);return !P||P.state!=='ready'||P.nodata||(P.cur&&P.cur.done&&P.cur.t===sT());})){SIM.pendingAt=0;simTimeChanged(true);} else simPump();}
+    SIM.job=null;
+    if(SIM.nestWait&&SIM.par.includes(T.key))simTimeChanged(true); else simPump();}
   simStatus(); if(sel)updateUI(); updateBadge();};
 const blockedRGB=(r,g,b)=>{ if(isWaterRGB(r,g,b))return false; const mx=Math.max(r,g,b),mn=Math.min(r,g,b),av=(r+g+b)/3;
   if(mn>=250)return false;                 // 흰 도로·다리 상판은 물을 막지 않음
@@ -1434,17 +1450,60 @@ const blockedRGB=(r,g,b)=>{ if(isWaterRGB(r,g,b))return false; const mx=Math.max
   if(r>=g&&mx-mn>60&&av>175)return false;   // 노랑·주황·분홍 도로 (초록·모래 제외)
   if(b>g&&b>r&&b-mn>25)return false;       // 파란 선(항로 표시 등)
   return true; };
-// 항내 추정 구역들이 덮는 위경도 범위 (구역 테두리 예보까지 받기 위해)
-function simExtent(){const lv=simLevel(); if(!lv)return null; const T=simViewTiles(lv).concat(lv===NEST_LV?simViewTiles(NEST_PARENT):[]); if(!T.length)return null;
-  let s=90,n=-90,w=180,e=-180; for(const t of T){const a=map.unproject([t.ox,t.oy],t.lv),b=map.unproject([t.ox+DOM,t.oy+DOM],t.lv);
-    s=Math.min(s,b.lat);n=Math.max(n,a.lat);w=Math.min(w,a.lng);e=Math.max(e,b.lng);} return {s,n,w,e};}
+function simTilesInBounds(lv,a,b){
+  const out=[];
+  for(let ix=Math.floor((a.x-DOM)/STRIDE)+1;ix<=Math.floor(b.x/STRIDE);ix++){
+    for(let iy=Math.floor((a.y-DOM)/STRIDE)+1;iy<=Math.floor(b.y/STRIDE);iy++){
+      const ox=ix*STRIDE, oy=iy*STRIDE;
+      if(ox+DOM<=a.x||ox>=b.x||oy+DOM<=a.y||oy>=b.y)continue;
+      out.push({key:lv+':'+ix+','+iy,lv,ix,iy,ox,oy});
+    }
+  }
+  return out;
+}
+function simFocusTiles(lv){
+  if(!sel||lv<NEST_PARENT)return [];
+  const screen=map.latLngToContainerPoint(sel), size=map.getSize();
+  if(screen.x<0||screen.y<0||screen.x>=size.x||screen.y>=size.y)return [];
+  const point=map.project(sel,NEST_LV);
+  return simTilesInBounds(NEST_LV,point,point);
+}
+// 정밀 구역마다 고정된 부모를 쓰면 화면 범위가 바뀌어도 계산 입력이 같습니다.
+function simParentTiles(T){
+  const k=map.getZoomScale(NEST_PARENT,NEST_LV);
+  return simTilesInBounds(NEST_PARENT,{x:T.ox*k,y:T.oy*k},
+    {x:(T.ox+DOM)*k,y:(T.oy+DOM)*k});
+}
+function simRegions(lv){
+  const focus=simFocusTiles(lv);
+  const view=new Map(simViewTiles(lv).concat(focus).map(t=>[t.key,t]));
+  const parents=new Map();
+  for(const T of view.values()){
+    if(T.lv!==NEST_LV)continue;
+    const P=simParentTiles(T);
+    T.parents=P.map(p=>p.key);
+    for(const p of P)parents.set(p.key,p);
+  }
+  return {view,focus,parents};
+}
+function simExtent(){
+  const lv=simLevel(); if(!lv)return null;
+  const {view,parents}=simRegions(lv);
+  let s=90,n=-90,w=180,e=-180;
+  for(const T of [...view.values(),...parents.values()]){
+    const a=map.unproject([T.ox,T.oy],T.lv), b=map.unproject([T.ox+DOM,T.oy+DOM],T.lv);
+    s=Math.min(s,b.lat); n=Math.max(n,a.lat); w=Math.min(w,a.lng); e=Math.max(e,b.lng);
+  }
+  return view.size?{s,n,w,e}:null;
+}
 function simTileInView(T){const s=map.getSize(),a=map.project(map.containerPointToLatLng([0,0]),T.lv),b=map.project(map.containerPointToLatLng([s.x,s.y]),T.lv);
   return !(T.ox+DOM<=a.x||T.ox>=b.x||T.oy+DOM<=a.y||T.oy>=b.y);}
 // 화면에 걸치는 고정 구역 목록 (단계 lv의 픽셀 좌표)
-function simViewTiles(lv){const s=map.getSize(),a=map.project(map.containerPointToLatLng([0,0]),lv),b=map.project(map.containerPointToLatLng([s.x,s.y]),lv),out=[];
-  for(let ix=Math.floor((a.x-DOM)/STRIDE)+1;ix<=Math.floor(b.x/STRIDE);ix++)for(let iy=Math.floor((a.y-DOM)/STRIDE)+1;iy<=Math.floor(b.y/STRIDE);iy++){
-    const ox=ix*STRIDE, oy=iy*STRIDE; if(ox+DOM<=a.x||ox>=b.x||oy+DOM<=a.y||oy>=b.y)continue; out.push({key:lv+':'+ix+','+iy,lv,ix,iy,ox,oy});}
-  return out.slice(0,9);}
+function simViewTiles(lv){
+  const size=map.getSize(), a=map.project(map.containerPointToLatLng([0,0]),lv);
+  const b=map.project(map.containerPointToLatLng([size.x,size.y]),lv);
+  return simTilesInBounds(lv,a,b).slice(0,9);
+}
 function simStatus(){const V=SIM.view.map(k=>SIM.tiles.get(k)).filter(t=>t&&t.solid&&!t.nodata);
   const tS=sT(); SIM.on=V.length>0; SIM.ready=V.some(t=>t.cur&&t.cur.t===tS&&t.cur.done); SIM.done=SIM.on&&V.every(t=>t.cur&&t.cur.t===tS&&t.cur.done);
   SIM.rough=false; if(SIM.on&&!SIM.done&&(SIM.fb||[]).some(k=>{const T=SIM.tiles.get(k);return T&&T.cur&&T.cur.t===tS&&T.cur.done;})){SIM.ready=true;SIM.rough=true;}
@@ -1452,30 +1511,47 @@ function simStatus(){const V=SIM.view.map(k=>SIM.tiles.get(k)).filter(t=>t&&t.so
 // 확대·이동이 멈추고 0.8초 그대로일 때만 계산 시작 (두 손가락 확대 중간 단계 헛계산 방지)
 let simEnsureTimer=null;
 function simEnsureSoon(){clearTimeout(simEnsureTimer);simEnsureTimer=setTimeout(()=>{if(!moving)simEnsure();},1000);} // H-15 ④: 1초 머물러야
+function simFocusChanged(){
+  if(moving)return;
+  const keys=simFocusTiles(simLevel()).map(T=>T.key);
+  if(keys.length===SIM.focus.length&&keys.every((k,i)=>k===SIM.focus[i]))return;
+  simEnsure();
+  if(keys.length)requestReal();
+}
 function simEnsure(){
   const lv=simLevel();
-  if(!simWorker||!lv){ SIM.par=[]; SIM.fb=[]; if(SIM.view.length){SIM.view=[];SIM.queue=[];SIM.job=null;SIM.lastTile=null;simJob++;if(simWorker)simWorker.postMessage({type:'stop'});simStatus();updateBadge();} return; }
-  SIM.sz=lv; const vt=simViewTiles(lv); SIM.view=vt.map(t=>t.key);
-  // 둥지 계산 (11-19, REQ-55): 정밀(16)은 화면을 감싸는 보통(14) 구역을 먼저 계산하고, 그 결과를 정밀 구역 테두리 값으로 씀
-  const pt=lv===NEST_LV?simViewTiles(NEST_PARENT):[]; SIM.par=pt.map(t=>t.key);
+  if(!simWorker||!lv){ SIM.par=[]; SIM.fb=[]; SIM.focus=[]; if(SIM.view.length){SIM.gen=(SIM.gen||0)+1;SIM.view=[];SIM.queue=[];SIM.job=null;SIM.lastTile=null;simJob++;if(simWorker)simWorker.postMessage({type:'stop'});simStatus();updateBadge();} return; }
+  const {view,focus,parents}=simRegions(lv);
+  SIM.sz=lv; SIM.view=[...view.keys()]; SIM.par=[...parents.keys()]; SIM.focus=focus.map(t=>t.key);
   // 다른 단계에서 이미 계산해 둔, 화면에 걸치는 구역 → 계산 중 '대략 표시'
   SIM.fb=[...new Set(SIM.par.concat([...SIM.tiles.values()].filter(T=>T.lv!==lv&&T.solid&&simTileInView(T)).map(T=>T.key)))];
-  for(const t of pt.concat(vt))if(!SIM.tiles.has(t.key)){const T=Object.assign({},t,{gx:DOM/SC,gy:DOM/SC,state:'new',cur:null});SIM.tiles.set(t.key,T);simBuildTile(T);}
+  const created=[];
+  for(const t of new Map([...parents,...view]).values()){
+    if(SIM.tiles.has(t.key))continue;
+    const T={...t,gx:DOM/SC,gy:DOM/SC,state:'new',cur:null};
+    SIM.tiles.set(t.key,T);created.push(T);
+  }
   // 오래 안 본 구역은 메모리에서 내림 (계산 결과는 simCache에 남아 다시 오면 바로 씀)
   if(SIM.tiles.size>16)for(const k of [...SIM.tiles.keys()])if(!SIM.view.includes(k)&&!SIM.fb.includes(k)&&SIM.tiles.size>16)SIM.tiles.delete(k);
   SIM.wantT=-1; simTimeChanged(true);
+  for(const T of created)simBuildTile(T);
 }
 async function simBuildTile(T){
   const {key,lv,ox,oy,gx,gy}=T; T.state='mask';
-  if(simDomCache.has(key)){const g=simDomCache.get(key); if(!g){T.state='skip';return;} Object.assign(T,g); await simDepthWait(T); T.state='ready'; simTimeChanged(true); return;}
+  if(simDomCache.has(key)){
+    const g=simDomCache.get(key);
+    if(g){Object.assign(T,g);await simDepthWait(T);T.state='ready';}
+    else T.state='skip';
+    simTimeChanged(true);return;
+  }
   // 구역 지도(OpenStreetMap, 계산 단계-1)를 받아 물/구조물 판별
   const z=lv-1, f=0.5, cv=document.createElement('canvas'); cv.width=DOM*f; cv.height=DOM*f; const cx=cv.getContext('2d');
   const jobs=[];
   for(let tx=Math.floor(ox*f/256);tx<=Math.floor((ox+DOM)*f/256);tx++)for(let ty=Math.floor(oy*f/256);ty<=Math.floor((oy+DOM)*f/256);ty++)
     jobs.push(tileImg(`https://tile.openstreetmap.org/${z}/${tx}/${ty}.png`).then(im=>{if(im)cx.drawImage(im,tx*256-ox*f,ty*256-oy*f);return !!im;}));
   const ok=await Promise.all(jobs);
-  if(!ok.some(Boolean)){SIM.tiles.delete(key);return;}
-  let d8; try{d8=cx.getImageData(0,0,cv.width,cv.height).data;}catch(e){SIM.tiles.delete(key);return;}
+  if(!ok.some(Boolean)){SIM.tiles.delete(key);simTimeChanged(true);return;}
+  let d8; try{d8=cx.getImageData(0,0,cv.width,cv.height).data;}catch(e){SIM.tiles.delete(key);simTimeChanged(true);return;}
   const cs=SC*f, N=gx*gy, solid=new Uint8Array(N), W8=cv.width;
   for(let y=0;y<gy;y++)for(let x=0;x<gx;x++){let bl=0,n=0;
     for(let yy=Math.floor(y*cs);yy<Math.floor((y+1)*cs);yy++)for(let xx=Math.floor(x*cs);xx<Math.floor((x+1)*cs);xx++){const o=(yy*W8+xx)*4;n++;if(blockedRGB(d8[o],d8[o+1],d8[o+2]))bl++;}
@@ -1488,9 +1564,9 @@ async function simBuildTile(T){
       if(Y>0&&solid[c-gx]&&!seen[c-gx]){seen[c-gx]=1;st.push(c-gx);} if(Y<gy-1&&solid[c+gx]&&!seen[c+gx]){seen[c+gx]=1;st.push(c+gx);}}
     if(!edge&&comp.length<6)for(const c of comp)solid[c]=0;}
   let water=0; for(let i=0;i<N;i++)if(!solid[i])water++;
-  if(water<N*0.05||water===N){simDomPut(key,null);T.state='skip';return;} // 물이 거의 없거나 장애물 없는 먼바다 → 예보 그대로
+  if(water<N*0.05||water===N){simDomPut(key,null);T.state='skip';simTimeChanged(true);return;} // 물이 거의 없거나 장애물 없는 먼바다 → 예보 그대로
   const bc=[]; for(let i=0;i<N;i++){if(solid[i])continue;const X=i%gx,Y=(i/gx)|0;if(X===0||Y===0||X===gx-1||Y===gy-1)bc.push(i);}
-  if(!bc.length){simDomPut(key,null);T.state='skip';return;}
+  if(!bc.length){simDomPut(key,null);T.state='skip';simTimeChanged(true);return;}
   // 경계 칸마다 안쪽 방향(nx,ny)과 안쪽 이웃 칸 (물이 나가는 변은 이웃 속도를 이어받게)
   const bcIdx=Int32Array.from(bc), bcN=new Int8Array(bc.length*2), bcNb=new Int32Array(bc.length);
   for(let q=0;q<bc.length;q++){const i=bc[q],X=i%gx,Y=(i/gx)|0,nx=(X===0)-(X===gx-1),ny=(Y===0)-(Y===gy-1);
@@ -1534,8 +1610,8 @@ async function simDepth(T){
   T.kz=kz; T.kzSum=sum; T.hmed=hmed;
 }
 // 부모(보통) 구역 계산 결과에서 이 위치 흐름(노트). 부모가 아직이거나 육지 칸이면 null
-function nestAt(lat,lon){
-  for(const k of SIM.par){const T=SIM.tiles.get(k); if(!T||!T.cur||T.cur.t!==sT()||!T.cur.done||!T.solid)continue;
+function nestAt(lat,lon,parents=SIM.par){
+  for(const k of parents){const T=SIM.tiles.get(k); if(!T||!T.cur||T.cur.t!==sT()||!T.cur.done||!T.solid)continue;
     const P=map.project([lat,lon],T.lv), fx=(P.x-T.ox)/SC-0.5, fy=(P.y-T.oy)/SC-0.5, X=Math.floor(fx), Y=Math.floor(fy);
     if(X<1||Y<1||X>=T.gx-2||Y>=T.gy-2)continue;
     let su=0,sv=0,sw=0; for(const [dx,dy] of [[0,0],[1,0],[0,1],[1,1]]){const i=(Y+dy)*T.gx+X+dx; if(T.solid[i])continue;
@@ -1557,7 +1633,7 @@ function anchorCells(T,a,cellM){const sp=Math.hypot(a.vE,a.vN), out=[], seen=new
 function simBC(T,th){
   const n=T.bcIdx.length, vE=new Float32Array(n), vN=new Float32Array(n), has=new Uint8Array(n); let mx=0.3,got=0;
   for(let q=0;q<n;q++){const i=T.bcIdx[q],X=i%T.gx,Y=(i/T.gx)|0;
-    const ll=map.unproject([T.ox+(X+0.5)*SC,T.oy+(Y+0.5)*SC],T.lv); const v=(T.lv===NEST_LV&&nestAt(ll.lat,ll.lng))||simBaseT(T,ll.lat,ll.lng,th);
+    const ll=map.unproject([T.ox+(X+0.5)*SC,T.oy+(Y+0.5)*SC],T.lv); const v=(T.parents&&nestAt(ll.lat,ll.lng,T.parents))||simBaseT(T,ll.lat,ll.lng,th);
     if(v){vE[q]=v.vE;vN[q]=v.vN;has[q]=1;got++;mx=Math.max(mx,Math.hypot(v.vE,v.vN));}}
   if(got<n*0.1)return null; // 바깥 예보가 거의 없으면 계산하지 않음 (지어낸 값 방지)
   const dr=WIND.on?(()=>{const w=windAt(th);return w?{vE:w.u*DRIFT*1.9438,vN:w.v*DRIFT*1.9438}:null;})():null;
@@ -1605,29 +1681,41 @@ function simTimeChanged(first){
   if(CONF.realData&&RD.loading){SIM.pendingAt=performance.now();SIM.wantT=-1;return;}
   SIM.wantT=tS; SIM.pendingAt=0; SIM.lastSend=performance.now();
   const th=tS/60; let missing=false; SIM.queue=[];
-  const parDone=k=>{const T=SIM.tiles.get(k);return !T||T.state==='skip'||T.nodata||(T.state==='ready'&&T.cur&&T.cur.t===tS&&T.cur.done);};
-  const keys=SIM.par.concat(SIM.view); SIM.nestWait=false;
+  const parDone=k=>{
+    const T=SIM.tiles.get(k);
+    return !T||T.state==='skip'||T.nodata||
+      (T.state==='ready'&&T.cur?.done&&T.cur.t===tS&&T.cur.h===T.wantedHash);
+  };
+  const keys=new Set(SIM.par.concat(SIM.view)); SIM.nestWait=false;
   for(const k of keys){const T=SIM.tiles.get(k); if(!T||T.state!=='ready')continue;
-    if(T.lv===NEST_LV&&SIM.par.length&&!SIM.par.every(parDone)){SIM.nestWait=true;missing=true;continue;} // 보통 구역 먼저
+    if(T.parents&&!T.parents.every(parDone)){SIM.nestWait=true;missing=true;continue;}
     const b=simBC(T,th); T.nodata=!b; if(!b){missing=true;T.cur=null;continue;}
     if(T.farVer!==RD.ver)simFar(T,th);
     const h=bcHash(b,T), c=simCache.get(k+'|'+tS);
-    if(c&&c.h===h){T.cur={u:c.u,v:c.v,scale:c.scale,t:tS,done:true,at:simAt(T)};continue;}
+    T.wantedHash=h;
+    if(T.cur?.done&&T.cur.t===tS&&T.cur.h===h)continue;
+    if(c&&c.h===h){T.cur={u:c.u,v:c.v,scale:c.scale,t:tS,h,done:true,at:simAt(T)};continue;}
     if(T.cur&&T.cur.t!==tS)T.cur=Object.assign({},T.cur,{done:false});
     SIM.queue.push({tile:T,b,h,t:tS});}
   if(missing)SIM.pendingAt=performance.now();
   // 지금 계산 중인 일이 더 이상 필요 없으면 멈추고 다음으로
   if(SIM.job&&!SIM.queue.some(q=>q.tile===SIM.job.tile&&q.h===SIM.job.h&&q.t===SIM.job.t)){SIM.job=null;if(!SIM.queue.length){simWorker.postMessage({type:'stop'});SIM.lastTile=null;}}
   else if(SIM.job)SIM.queue=SIM.queue.filter(q=>!(q.tile===SIM.job.tile&&q.t===SIM.job.t));
-  // 보통(부모) 구역 먼저, 그다음 화면 가운데 구역부터
-  const cc=map.getCenter(), dq=q=>{const c=map.project(cc,q.tile.lv);return (q.tile.lv===NEST_LV?1e9:0)+Math.hypot(q.tile.ox+DOM/2-c.x,q.tile.oy+DOM/2-c.y);};
-  SIM.queue.sort((a,b)=>dq(a)-dq(b));
+  // 선택 지점에 필요한 구역을 우선하고, 나머지는 화면 가운데부터 처리합니다.
+  const priority=new Set(SIM.focus);
+  for(const k of SIM.focus)for(const p of SIM.tiles.get(k)?.parents||[])priority.add(p);
+  const cc=map.getCenter();
+  for(const q of SIM.queue){
+    const T=q.tile, first=priority.has(T.key), c=map.project(first&&sel?sel:cc,T.lv);
+    q.distance=(first?0:1e9)+Math.hypot(T.ox+DOM/2-c.x,T.oy+DOM/2-c.y);
+  }
+  SIM.queue.sort((a,b)=>a.distance-b.distance);
   simStatus(); updateBadge(); if(sel)updateUI();
   // 폰 저장소에 같은 결과가 있으면 계산 없이 꺼내 씀 → 없는 것만 계산
   const gen=SIM.gen=(SIM.gen||0)+1, look=SIM.queue.slice();
   Promise.all(look.map(q=>SIMDB.get(simKey(q.tile,q.t,q.h)).then(r=>[q,r]))).then(rs=>{
     if(gen!==SIM.gen)return;
-    for(const [q,r] of rs)if(r&&r.u){const u=f16(r.u),v=f16(r.v);q.tile.cur={u,v,scale:r.scale,t:q.t,done:true,at:simAt(q.tile)};
+    for(const [q,r] of rs)if(r&&r.u){const u=f16(r.u),v=f16(r.v);q.tile.cur={u,v,scale:r.scale,t:q.t,h:q.h,done:true,at:simAt(q.tile)};
       simCache.set(q.tile.key+'|'+q.t,{h:q.h,u,v,scale:r.scale});SIM.queue=SIM.queue.filter(x=>x!==q);}
     if(SIM.nestWait&&rs.some(([q,r])=>r&&r.u&&SIM.par.includes(q.tile.key))){SIM.pendingAt=0;setTimeout(()=>simTimeChanged(true),0);}
     simPump(); simStatus(); updateBadge(); if(sel)updateUI();});
@@ -1668,10 +1756,25 @@ function simSample(keys,x,y,noFade){
   if(!any)return undefined;
   return {vE:su/sw, vN:sv/sw, w:Math.min(1,sw), low, a, lv};
 }
+// 상태창은 확대 단계가 아니라 지점에 고정된 정밀 구역에서 수치를 읽습니다.
+function simPointFlow(lat,lon,th){
+  const keys=simFocusTiles(simLevel()).map(T=>T.key);
+  const pending=keys.some(k=>{
+    const T=SIM.tiles.get(k);
+    if(!T)return !SIM.focus.includes(k);
+    return T.state!=='skip'&&!T.nodata&&(!T.cur?.done||T.cur.t!==sT());
+  });
+  if(pending)return {...(baseAt(lat,lon,th)||{vE:0,vN:0,nobase:true}),real:CONF.realData,est:true,pend:true};
+  const p=map.project([lat,lon],SIM.sz);
+  const v=simSample(keys,(p.x-simFrame.x0)/simFrame.k,(p.y-simFrame.y0)/simFrame.k,true);
+  if(v)return {...v,real:CONF.realData,est:true};
+  return v;
+}
 // 이 점이 지금 단계에서 아직 계산 중인 구역 안인가
 function simPendAt(x,y){const t=sT(), PX=simFrame.x0+x*simFrame.k, PY=simFrame.y0+y*simFrame.k;
   for(const k of SIM.view){const T=SIM.tiles.get(k); if(!T||T.state==='skip'||T.nodata)continue; if(T.cur&&T.cur.t===t&&T.cur.done)continue;
-    if(PX>=T.ox&&PX<T.ox+DOM&&PY>=T.oy&&PY<T.oy+DOM)return true;}
+    const f=map.getZoomScale(T.lv,SIM.sz);
+    if(PX*f>=T.ox&&PX*f<T.ox+DOM&&PY*f>=T.oy&&PY*f<T.oy+DOM)return true;}
   return false;}
 // 단계 높은 결과부터 차례로 섞음 (가장자리·새로 나온 결과는 다음 결과 또는 예보와 섞임)
 //  반환: undefined=끝난 결과 없음·계산 칸도 아님, null=육지, {su,sv,c(결과 비중),need(남은 비중),pend,low,lv}
@@ -1699,17 +1802,65 @@ function flowDraw(x,y,th){
 }
 // ================= 흐름선 애니메이션 =================
 const cF=$('#flow'), xF=cF.getContext('2d'); let W=0,H=0,DPR=1, showFlow=true, moving=false;
-function resizeFlow(){const s=map.getSize();W=s.x;H=s.y;DPR=Math.min(2,window.devicePixelRatio||1);cF.width=W*DPR;cF.height=H*DPR;xF.setTransform(DPR,0,0,DPR,0,0);}
+// Keep the completed trails anchored to the same map coordinates through a gesture.
+let flowView=null;
+const flowCopy=document.createElement('canvas');
+function flowCamera(center,zoom){
+  const z=zoom??map.getZoom(), size=map.getSize();
+  const p=center&&map.project(center,z);
+  const origin=p?{x:p.x-size.x/2,y:p.y-size.y/2}:map.project(map.containerPointToLatLng([0,0]),z);
+  return {z,x:origin.x,y:origin.y,w:size.x,h:size.y};
+}
+function flowOffset(view){
+  const k=map.getZoomScale(view.z,flowView.z);
+  return {k,x:flowView.x*k-view.x,y:flowView.y*k-view.y};
+}
+function transformFlow(view,animate=false){
+  if(!flowView)return;
+  const {k,x,y}=flowOffset(view);
+  cF.style.transition=animate?'transform 250ms cubic-bezier(0,0,0.25,1)':'';
+  cF.style.transform=`translate(${x}px,${y}px) scale(${k})`;
+}
+function resizeFlow(){
+  if(!flowView)flowView=flowCamera();
+  const view=flowCamera(), {k,x,y}=flowOffset(view);
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  const changed=k!==1||Math.abs(x)>0.01||Math.abs(y)>0.01||W!==view.w||H!==view.h||DPR!==dpr;
+  if(changed){
+    const copy=showFlow&&W>0&&H>0;
+    if(copy){
+      flowCopy.width=cF.width; flowCopy.height=cF.height;
+      flowCopy.getContext('2d').drawImage(cF,0,0);
+    }
+    W=view.w; H=view.h; DPR=dpr;
+    cF.width=W*DPR; cF.height=H*DPR;
+    xF.setTransform(DPR,0,0,DPR,0,0);
+    if(copy){
+      xF.drawImage(flowCopy,x,y,flowView.w*k,flowView.h*k);
+      flowCopy.width=0;
+    }
+    for(const p of parts){
+      p.x=p.x*k+x; p.y=p.y*k+y;
+      if(p.x<0||p.y<0||p.x>=W||p.y>=H||(k<1&&Math.random()>k*k))spawn(p);
+    }
+    const n=Math.round(Math.min(2200,W*H/180));
+    if(parts.length>n)parts.length=n;
+    while(parts.length<n){const p={};spawn(p);p.age=Math.random()*p.max;parts.push(p);}
+    flowView=view;
+  }
+  cF.style.transition='';
+  cF.style.transform='';
+}
 let parts=[];
 function okSpot(x,y){if(!isWater(x,y))return false;if(!CONF.realData)return true;const ll=map.containerPointToLatLng([x,y]);return realAt(ll.lat,ll.lng,tH())!=null;}
 function spawn(p){for(let k=0;k<12;k++){p.x=Math.random()*W;p.y=Math.random()*H;if(okSpot(p.x,p.y))break;}p.age=0;p.max=40+Math.random()*60;}
-function resetParticles(){const NP=Math.round(Math.min(2200,W*H/180));parts=[];for(let k=0;k<NP;k++){const p={};spawn(p);p.age=Math.random()*p.max;parts.push(p);}}
 const PXK=0.55;
 function stepFlow(){
-  xF.globalCompositeOperation='destination-in';xF.fillStyle='rgba(0,0,0,0.9)';xF.fillRect(0,0,W,H);xF.globalCompositeOperation='source-over';
   if(moving||maskState==='loading')return;
   if(SIM.view.length&&SIM.wantT!==sT())simTimeChanged();
+  if(cF.style.transform)resizeFlow();
   if(!showFlow)return;
+  xF.globalCompositeOperation='destination-in';xF.fillStyle='rgba(0,0,0,0.9)';xF.fillRect(0,0,W,H);xF.globalCompositeOperation='source-over';
   const useSim=SIM.view.length>0; if(useSim)simFramePrep();
   // 유속 색 비중을 5단계(0·¼·½·¾·1)로 나눠 그림: 색은 비중만큼, 나머지는 흰 선 (H-15)
   const th=tH(), CP=[0,1,2,3,4].map(()=>COLORS.map(()=>new Path2D())), DP=COLORS.map(()=>new Path2D()), WP=[0,1,2,3,4].map(()=>new Path2D()), FP=new Path2D(), K=useSim?PXK*3:PXK;
@@ -1734,9 +1885,14 @@ function stepFlow(){
   xF.globalAlpha=0.22; xF.stroke(FP); xF.globalAlpha=1; // 해안 앞(큰 예보 없음): 아주 옅은 흰 선
 }
 
-map.on('movestart zoomstart',()=>{moving=true;xF.clearRect(0,0,W,H);});
-map.on('moveend',()=>{moving=false;buildMask();requestReal();windRequest();drawRocks();drawTidal();tideEnsure();updateTideChips();computeViewScale();cfEnsure();});
-map.on('resize',()=>{resizeFlow();buildMask();});
+map.on('movestart zoomstart',()=>{moving=true;clearTimeout(maskTimer);++maskId;});
+map.on('move',()=>{if(moving)transformFlow(flowCamera());});
+map.on('zoomanim',e=>transformFlow(flowCamera(e.center,e.zoom),true));
+map.on('moveend',()=>{
+  moving=false;transformFlow(flowCamera());buildMask();requestReal();windRequest();drawRocks();
+  drawTidal();tideEnsure();updateTideChips();computeViewScale();cfEnsure();
+});
+map.on('resize',()=>{transformFlow(flowCamera());buildMask();});
 $('#flowBtn').onclick=e=>{showFlow=!showFlow;$('#flowBtn').classList.toggle('on',showFlow);if(!showFlow)xF.clearRect(0,0,W,H);};
 
 
@@ -3041,7 +3197,7 @@ function pvBackDrop(){const b=PV.back; PV.back=null; if(b&&b.one){try{map.remove
 function pointView(m){if(m!=='sheet')pvBackDrop(); PV.mode=m; {const n=$('#fcNavs'); if(n)n.style.display='none';} const fc=$('#fCard'), inf=$('#info'), mb=$('.mapbox');
   fc.classList.toggle('show',m==='card'); inf.classList.toggle('show',m==='sheet'); inf.classList.remove('fold'); inf.style.height='';
   mb.classList.toggle('sheeton',m==='sheet');
-  if(m==='none'){if(selMarker)map.removeLayer(selMarker); selMarker=null; sel=null; $('#namebox').style.display='none';}
+  if(m==='none'){if(selMarker)map.removeLayer(selMarker); selMarker=null; sel=null; $('#namebox').style.display='none'; simFocusChanged();}
   if(m==='sheet'&&sel){$('#namebox').style.display='none'; updateUI(); requestAnimationFrame(()=>{try{const pt=map.latLngToContainerPoint([sel.lat,sel.lng]), H=$('#map').clientHeight, ih=inf.getBoundingClientRect().height;
     if(pt.y>H-ih-30)map.panBy([0,Math.round(pt.y-(H-ih)/2)],{animate:true});}catch(e){}});}
   placeBottom(); fcPlace();}
@@ -3072,6 +3228,7 @@ function select(lat,lng,name,opts){
   if(selMarker)map.removeLayer(selMarker);
   if(!opts.noPin) selMarker=L.marker([lat,lng],{icon:L.divIcon({className:'',html:'<div class="pin"></div>',iconSize:[20,20],iconAnchor:[10,10]})}).addTo(map);
   if($('#pinPop').classList.contains('show'))pinPopClose();
+  simFocusChanged();
   computeEvents(); pointView(opts.sheet?'sheet':'card'); updateUI(); fcPlace();
 }
 let EV={slack:[],peaks:[]};
@@ -3290,7 +3447,7 @@ function followStart(){
     // 화면 가운데 40% 밖으로 벗어날 때만 지도를 옮김 (매초 다시 계산하지 않게)
     const p=map.latLngToContainerPoint([la,lo]), sz=map.getSize();
     if(Math.abs(p.x-sz.x/2)>sz.x*0.2||Math.abs(p.y-sz.y/2)>sz.y*0.2){FOLLOW.panning=true;map.panTo([la,lo]);setTimeout(()=>FOLLOW.panning=false,600);}
-    if(sel&&sel.name==='내 위치'){sel.lat=la;sel.lng=lo;
+    if(sel&&sel.name==='내 위치'){sel.lat=la;sel.lng=lo;simFocusChanged();
       const moved=FOLLOW.lastLL?Math.hypot((la-FOLLOW.lastLL[0])*111000,(lo-FOLLOW.lastLL[1])*91000):1e9;
       if(moved>30||Date.now()-FOLLOW.lastEv>30000){FOLLOW.lastEv=Date.now();FOLLOW.lastLL=[la,lo];computeEvents();}
       updateUI();}

@@ -57,6 +57,36 @@ exec(src+r'''
     check('H11 [지금]을 누르면 따라가기 켜짐 → 3분 뒤 시각도 따라감(1분 단위 표시)', E("__QA.NOWF.on") and t2[0]==t2[1] and t2[0]==nm+3, t2)
     E("document.querySelector('#play').click(); document.querySelector('#play').click()")
     check('H12 재생을 누르면 따라가기 꺼짐', not E("__QA.NOWF.on"))
+    # REQ-101: 확대와 축소가 배경 지도나 계산 결과를 잠시 기다리는 동안에도 흐름선을 유지한다.
+    E("const s=document.querySelector('#slider'); s.value=__QA.tMin(); s.dispatchEvent(new Event('input'))")
+    pg.wait_for_function("""() => {
+        const c=document.querySelector('#flow');
+        return c.getContext('2d').getImageData(0,0,c.width,c.height).data.some((v,i)=>i%4===3&&v>0);
+    }""")
+    trails=E("""(()=>{
+        const c=document.querySelector('#flow');
+        const ink=()=>c.getContext('2d').getImageData(0,0,c.width,c.height).data.some((v,i)=>i%4===3&&v>0);
+        _map.fire('movestart'); _map.fire('zoomanim',{center:_map.getCenter(),zoom:15});
+        const kept=[ink(),c.style.transform.includes('scale(4)')];
+        _map.fire('moveend'); return kept;
+    })()""")
+    check('H14 확대 제스처 중 이전 흐름선과 지도 배율 유지', trails==[True,True], trails)
+    E("__QA.select(34.882,128.096,'고정 유속 시험')")
+    point="""()=>{
+        const s=__QA.sel(), v=__QA.flowAt(s.lat,s.lng,__QA.tH());
+        return v&&v.est&&!v.pend?[v.vE,v.vN]:null;
+    }"""
+    pg.wait_for_function(point,timeout=90000)
+    v13=E('('+point+')()')
+    keys=E("__QA.SIM.focus.slice()")
+    data=[]
+    for zoom in (15,13):
+        go(zoom,34.882,128.096,0)
+        pg.wait_for_function(f"__QA.SIM.sz=={16 if zoom==15 else 14}",timeout=15000)
+        pg.wait_for_function(point,timeout=90000)
+        data.append([E('('+point+')()'),E("__QA.SIM.focus.slice()")])
+    check('H15 같은 지점·시각에서 13→15→13단계 유속·방향과 정밀 구역 고정',
+          bool(keys) and all(ks==keys and math.dist(v,v13)<1e-6 for v,ks in data), [v13,data])
     check('H13 스크립트 오류 없음', not errs, errs[:2])
     print(f"결과: {sum(res)}/{len(res)}")
     br.close()
