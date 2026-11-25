@@ -65,7 +65,7 @@ exec(src+'''
     check('N8 조류예보 지점 위치를 한 번 받아 저장 (204곳)', n==204 and E("AndroidBridge.getPref('cfSt1').length>1000"), n)
     pg.wait_for_timeout(1500); E("const o=L.divIcon;window.__ic=[];L.divIcon=x=>{window.__ic.push(x.html);return o(x)};__QA.cfDraw();L.divIcon=o")
     mk=E("window.__ic.filter(h=>h.includes('cfst'))")
-    check('N9 화면 안 지점을 보라색 화살표로 표시 (동남동 1.0노트)', any('1.0노트' in m for m in mk), mk[:3])
+    check('N9 화면 안 지점을 보라색 화살표로 표시 (동남동 0.51 m/s)', any('0.51 m/s' in m for m in mk), mk[:3])
     v=E("(()=>{const v=__QA.cfFill(34.905,128.095,__QA.tH());return v&&[v.vE,v.vN];})()")
     import math
     check('N10 ⚓ 보조값: 유향 동남동(112.5°)·1노트를 동·북 성분으로', v and abs(math.hypot(*v)-1)<0.02 and abs(math.degrees(math.atan2(v[0],v[1]))-112.5)<1, v)

@@ -109,7 +109,7 @@
     E("__QA.select(34.92,128.07,'굴림')"); r0=E("window.__rolled||0")
     E("const s=document.querySelector('#slider');s.value=+s.value+180;s.dispatchEvent(new Event('input'))"); pg.wait_for_timeout(50)
     rl=E("[window.__rolled||0, document.querySelector('#iSpeed').classList.contains('rollin'), document.querySelector('#iSpeed').textContent]")
-    check('M3 시각을 바꿔 유속 숫자가 바뀌면 굴러 올라감(글자는 새 값 그대로)', rl[0]==r0+1 and rl[1] and rl[2].endswith('kn') and rl[2].count('kn')==1, rl)
+    check('M3 시각을 바꿔 유속 숫자가 바뀌면 굴러 올라감(글자는 새 값 그대로)', rl[0]==r0+1 and rl[1] and rl[2].endswith('m/s') and rl[2].count('m/s')==1, rl)
     E("__QA.select(34.925,128.075,'새 자리')"); r1=E("window.__rolled||0"); check('M4 새 자리를 고를 땐 굴리지 않음', r1==rl[0], [r1,rl[0]])
     E("document.querySelector('#nowBtn').click()"); E("__QA.pointView('none')")
     # M5 로딩 물결 → ✓

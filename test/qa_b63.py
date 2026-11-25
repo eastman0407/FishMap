@@ -54,7 +54,7 @@ exec(src+r'''
     mk(14)
     p2=E("[document.querySelector('#logPat').textContent, [...document.querySelectorAll('#logPat .bar em')].map(e=>e.textContent), [...document.querySelectorAll('#logPat .chip')].map(e=>e.textContent)]")
     check('P2 기록 14번: 들물·날물·물 멈춤 막대(횟수·비율)', p2[1]==['9번 (64%)','3번 (21%)','2번 (14%)'], p2[1])
-    check('P3 잘 잡힌 유속·시간·수온·물때 칩 + 적은 기록 안내', any('유속' in c and '노트' in c for c in p2[2]) and any('시간' in c for c in p2[2]) and any('수온' in c for c in p2[2]) and any('7물' in c for c in p2[2]) and '경향' in p2[0], p2[2])
+    check('P3 잘 잡힌 유속·시간·수온·물때 칩 + 적은 기록 안내', any('유속' in c and 'm/s' in c for c in p2[2]) and any('시간' in c for c in p2[2]) and any('수온' in c for c in p2[2]) and any('7물' in c for c in p2[2]) and '경향' in p2[0], p2[2])
     check('P4 점수 반영 스위치는 처음엔 꺼짐', E("document.querySelector('#patChk').checked") is False and E("AndroidBridge.getPref('patOn')")=='')
     E("document.querySelector('#patChk').click()"); on=E("AndroidBridge.getPref('patOn')")
     pb=E("""(()=>{const P=__QA.myPattern(), d=new Date(); d.setHours(5,0,0,0); const w={s:d.getTime(),t:d.getTime()+3*3600e3};

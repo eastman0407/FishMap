@@ -93,7 +93,7 @@ exec(src+r'''
     if pt:
         E(f"__QA.select({pt[2]},{pt[3]},'육지 칸')"); pg.wait_for_timeout(400)
         s1=E("[document.querySelector('#iState').textContent,document.querySelector('#iSpeed').textContent,document.querySelector('#iNear').textContent]")
-        check('N1 육지 칸을 찍어도 "자료 없음" 대신 바로 앞바다 값 + "(바로 앞바다)"', s1[0]!='자료 없음' and 'kn' in s1[1] and s1[2]=='(바로 앞바다)', [t,s1])
+        check('N1 육지 칸을 찍어도 "자료 없음" 대신 바로 앞바다 값 + "(바로 앞바다)"', s1[0]!='자료 없음' and 'm/s' in s1[1] and s1[2]=='(바로 앞바다)', [t,s1])
     else: check('N1 육지 칸(벽) 찾기', False, t)
     nf=E("(()=>{const r=__QA.nearFlow(34.5,129.5,__QA.tH()); return r?r.k:null})()")
     check('N2 근처에 바다 값이 없고 예보도 없으면 null → "자료 없음" 그대로', nf is None, nf)

@@ -27,10 +27,10 @@ exec(src+r'''
     # ── T1 찍은 자리의 '언제 물이 멈추나'를 한 번에 ──
     TAPS[0]=0; tapmap(200,470)
     c=text('#fCard')
-    check('T1 바다를 한 번 누르면 유속·방향·다음 정조 시각이 바로 보임 (누름 1번)', TAPS[0]==1 and shown('#fCard') and re.search(r'다음 정조\s*\n?\s*(?:\S+\s+)?\d\d:\d\d',c) and 'kn' in c, [TAPS[0], c.replace('\n',' | ')[:120]])
+    check('T1 바다를 한 번 누르면 유속·방향·다음 정조 시각이 바로 보임 (누름 1번)', TAPS[0]==1 and shown('#fCard') and re.search(r'다음 정조\s*\n?\s*(?:\S+\s+)?\d\d:\d\d',c) and 'm/s' in c, [TAPS[0], c.replace('\n',' | ')[:120]])
     # ── T2 그래프로 하루 흐름 보고, 시각을 옮기면 값이 따라옴, 내리면 같은 자리 상태창 ──
     s0=text('#iSum') if shown('#info') else ''
-    TAPS[0]=0; ok=press('그래프')
+    TAPS[0]=0; ok=press('상세 보기')
     g1=E("[document.querySelector('#tide')._g&&document.querySelector('#tide')._g.hs.filter(v=>v!=null).length, document.querySelector('#iSum').innerText]")
     E("const s=document.querySelector('#slider');s.value=+s.value+240;s.dispatchEvent(new Event('input'))"); pg.wait_for_timeout(400)
     g2=E("document.querySelector('#iSum').innerText")
@@ -45,10 +45,10 @@ exec(src+r'''
     # ── T4 입질 기록 → 기록 탭에서 어종 적기 → 다시 열어도 남아 있음 ──
     E("__QA.saveLog([])"); E("__QA.placeMe(34.93,128.07,10)")
     TAPS[0]=0; press('입질','.mapbox'); n=E("__QA.loadLog().length")
-    press('📅','.side') or E("document.querySelector('#planBtn').click()"); press('기록','.ptabs'); press('이름 없는','#logList') or press('내 위치','#logList')
+    opened=press('기록 보기','#toast'); press('이름 없는','#logList') or press('내 위치','#logList')
     E("(()=>{const i=document.querySelector('#logList [data-f=fish]'); i.value='갑오징어'; i.dispatchEvent(new Event('change',{bubbles:true}));})()"); pg.wait_for_timeout(200)
     E("document.querySelector('#planClose').click()"); E("document.querySelector('#planBtn').click()"); press('기록','.ptabs')
-    check('T4 🎣 한 번에 기록 → 📓 기록 탭에서 어종 적기 → 다시 열어도 남음', n==1 and E("__QA.loadLog()[0].fish")=='갑오징어' and '갑오징어' in text('#logList'), [n, E("__QA.loadLog()[0].fish")])
+    check('T4 🎣 한 번에 기록 → 📓 기록 탭에서 어종 적기 → 다시 열어도 남음', opened and n==1 and E("__QA.loadLog()[0].fish")=='갑오징어' and '갑오징어' in text('#logList'), [n, E("__QA.loadLog()[0].fish")])
     E("document.querySelector('#planClose').click()")
     # ── T5 주변 추천 → 핀 → 길 안내 앱이 그 자리로 ──
     go(13,34.93,128.07,0); pg.wait_for_timeout(800)
@@ -62,7 +62,7 @@ exec(src+r'''
     check('T5 자리 → ⭐ 주변 추천 → 핀 → TMAP: 그 핀 좌표로 길 안내 (누름 5번: U-43 길 안내 → 앱 고르기 한 단계 추가)', t is not None and pin>0 and okc and TAPS[0]==5, [t, pin, TAPS[0], nav and nav[0][:90]])
     E("__QA.pinPopClose()")
     # ── T6 뒤로가기(제스처)는 늘 맨 위 창부터 닫음 ──
-    tapmap(200,470); press('그래프'); E("document.querySelector('#planBtn').click()")
+    tapmap(200,470); press('상세 보기'); E("document.querySelector('#planBtn').click()")
     seq=[]
     for _ in range(4):
         r=E("window.__onBack()"); pg.wait_for_timeout(350)
@@ -71,7 +71,7 @@ exec(src+r'''
     # ── T7 인터넷이 끊겨도 본 곳의 흐름·조석은 계속 보임 ──
     E("window.dispatchEvent(new Event('offline'))"); tapmap(200,470)
     c=text('#fCard')
-    check('T7 인터넷이 끊겨도 안내가 뜨고, 본 곳의 유속·조석은 그대로', shown('#offBar') and 'kn' in c and '🌊' in c, c.replace('\n',' | ')[:100])
+    check('T7 인터넷이 끊겨도 안내가 뜨고, 본 곳의 유속·조석은 그대로', shown('#offBar') and 'm/s' in c and '🌊' in c, c.replace('\n',' | ')[:100])
     E("window.dispatchEvent(new Event('online'))")
     check('Z 스크립트 오류 없음', not errs, errs[:3])
     br.close()

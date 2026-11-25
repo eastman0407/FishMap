@@ -82,10 +82,10 @@ body=r'''
     if '✓' in r2: ck=True
     calc=[x for x in seen if x[0]=='calc']; print('log',log[:8])
     check('C1 계산이 덜 끝났을 때 유속 "🐟 계산 중…"·방향 "—"·상태 [계산 중]', calc and all(x[1]=='—' and '계산 중' in x[2] for x in calc), list(seen)[:3])
-    check('C2 계산이 끝나면 숫자 (kn)', done_txt and 'kn' in done_txt[0] and '—' not in done_txt[1], done_txt)
+    check('C2 계산이 끝나면 숫자 (m/s)', done_txt and 'm/s' in done_txt[0] and '—' not in done_txt[1], done_txt)
     check('C3 끝나는 순간 ✓ 잠깐 보임', ck, r2)
     pg.wait_for_timeout(900); r3=E("document.querySelector('#iSpeed').textContent")
-    check('C4 ✓는 0.6초 뒤 사라짐', '✓' not in r3 and 'kn' in r3, r3)
+    check('C4 ✓는 0.6초 뒤 사라짐', '✓' not in r3 and 'm/s' in r3, r3)
     sm=E("document.querySelector('#iSum').textContent")
     check('C5 요약 줄에 ✓ 안 섞임', '✓' not in sm, sm)
     E("document.querySelector('#simBtn').click()"); E("__QA.SIMDB.ok=true"); pg.wait_for_timeout(500)

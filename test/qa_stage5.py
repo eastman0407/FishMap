@@ -9,6 +9,13 @@ exec(src+'''
             if E(js): return round(time.time()-t,1)
             pg.wait_for_timeout(200)
         return None
+    # 이전 단위로 바꿔도 색 경계는 같은 물리량을 가리킨다.
+    check('기본 표시 단위 m/s', E("document.querySelector('#legendTicks').textContent.endsWith('1.03+')"))
+    def choose_unit(unit):
+        pg.eval_on_selector('#currentDisplayUnit', "(select,unit)=>{select.value=unit;select.dispatchEvent(new Event('change'))}", unit)
+    choose_unit('km/h')
+    check('km/h로 전환해도 같은 2노트 경계', E("document.querySelector('#redKn').value==='3.7' && __QA.bucket(2)===6"))
+    choose_unit('kn')
     # ── 색 ──
     b=E("[__QA.bucket(0.29),__QA.bucket(0.59),__QA.bucket(0.99),__QA.bucket(1.39),__QA.bucket(1.69),__QA.bucket(1.99),__QA.bucket(2.0),__QA.bucket(3.5)]")
     check('K1 고정 7단계, 2.0노트부터 빨강(마지막 색)', b==[0,1,2,3,4,5,6,6], b)

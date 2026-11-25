@@ -57,7 +57,7 @@ body=r'''
     check('F1 F28: 다음 정조 큰 칸 24px + [N시간 뒤] 딱지', m['on'] and m['big']=='24px' and re.search(r'(분|시간) 뒤',m['badge'] or ''), [m['big'],m['badge']])
     check('F2 버튼 3개 ≥44px 높이, 글자 안 넘침', all(b[1]>=44 for b in m['btn']) and not m['ov'] and m['lbl']==['📈 그래프','🚗 길 안내','⭐ 주변 추천'], [m['btn'],m['ov'],m['lbl']])
     check('F3 F28 높이 ≤ 270px (시안 254)', m['h']<=270, [m['h'],m['w']])
-    check('F4 유속·방향·상태·🌡 한 줄', all(k in m['v'] for k in ['유속','kn','🌡']), m['v'])
+    check('F4 유속·방향·상태·🌡 한 줄', all(k in m['v'] for k in ['유속','m/s','🌡']), m['v'])
     E("document.querySelector('#fcNav').click()"); pg.wait_for_timeout(300)
     nv=E("[document.querySelector('#fcNavs').style.display, document.querySelectorAll('#fcNavs [data-nav]').length]")
     check('F5 [🚗 길 안내] → TMAP·카카오맵·네이버지도 고르기', nv==['',3], nv)

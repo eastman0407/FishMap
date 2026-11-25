@@ -73,7 +73,7 @@ exec(src+'''
     check('N7 지점 시트 바람·달 줄: 그림·숫자를 따로 (흐림 방지)', 'class="num"' in iw and 'class="emo"' in iw, iw[:160])
     E("""(()=>{const now=Date.now(); __QA.CF.on=true; __QA.CF.st=[{c:'TT01',n:'시험지점',la:34.9216,lo:128.07}]; __QA.CF.ser.set('TT01',{t:[now-7200e3,now+7200e3],vE:[-1,-1],vN:[1,1]});})()""")
     t1=E("__QA.cfNearText(34.92,128.07,__QA.tH())"); t2=E("__QA.cfNearText(34.928,128.07,__QA.tH())")
-    check('N8 근처(500m 안) 조류예보 지점 값·방향·거리, 멀면 안 보임', '시험지점 1.4노트' in t1 and '북서쪽' in t1 and '180m' in t1 and t2=='', [t1,t2])
+    check('N8 근처(500m 안) 조류예보 지점 값·방향·거리, 멀면 안 보임', '시험지점 0.73 m/s' in t1 and '북서쪽' in t1 and '180m' in t1 and t2=='', [t1,t2])
     E("__QA.updateUI()"); im=E("document.querySelector('#iMore').textContent")
     check('N9 지점 시트에 근처 지점 칸 표시 (build-49: 자리 정보 2×2의 "📍 조류 지점")', '조류 지점' in im and '시험지점' in im, im[:120])
     ac=E("""(()=>{const gx=40,gy=40,ch=new Uint8Array(gx*gy).fill(1); for(let y=0;y<gy;y++)for(let x=15;x<=20;x++)ch[y*gx+x]=0;
