@@ -16,6 +16,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 #map{position:absolute;inset:0;background:var(--b0d2638,#0d2638)}
 .flow-clip{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:450}
 #flow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:450;transform-origin:0 0}
+#flow canvas{position:absolute;inset:0;width:100%;height:100%}
 /* 상단 검색 */
 .top{position:absolute;top:10px;left:10px;right:10px;z-index:1050;display:flex;gap:8px}
 .search{flex:1;position:relative}
@@ -375,7 +376,7 @@ html[data-theme=light] .nowcard .ncpg>.tchip,html[data-theme=light] .nowcard .nc
 <div class="app">
   <div class="mapbox">
     <div id="map"></div>
-    <div class="flow-clip"><canvas id="flow"></canvas></div>
+    <div class="flow-clip"><div id="flow" aria-hidden="true"><canvas></canvas><canvas></canvas></div></div>
 
     <div class="top">
       <form class="search" id="sform" autocomplete="off">
@@ -1924,7 +1925,31 @@ function flowDraw(x,y,th){
   return v&&!v.pend?{...v,c:1}:null;
 }
 // ================= 흐름선 애니메이션 =================
-const cF=$('#flow'), xF=cF.getContext('2d'); let W=0,H=0,DPR=1, showFlow=true, moving=false;
+const cF=$('#flow'), flowCanvases=[...cF.querySelectorAll('canvas')];
+const flowContexts=flowCanvases.map(canvas=>canvas.getContext('2d'));
+let W=0,H=0,DPR=1, showFlow=true, moving=false;
+// 두 캔버스를 번갈아 그린다. 오래된 쪽 전체가 서서히 사라진 뒤 픽셀을 지운다.
+const FLOW_TRAIL_MS=250;
+let flowTrailAt=null, flowFront=0;
+function clearFlowTrails(){
+  flowContexts.forEach(ctx=>ctx.clearRect(0,0,W,H));
+  flowTrailAt=null;
+}
+function flowTrailContext(now){
+  const elapsed=now-flowTrailAt;
+  if(flowTrailAt===null||elapsed>=2*FLOW_TRAIL_MS){
+    if(flowTrailAt!==null)clearFlowTrails();
+    flowTrailAt=now;
+  }else if(elapsed>=FLOW_TRAIL_MS){
+    flowFront=1-flowFront;
+    flowTrailAt+=FLOW_TRAIL_MS;
+    flowContexts[flowFront].clearRect(0,0,W,H);
+  }
+  const recent=flowCanvases[flowFront], old=flowCanvases[1-flowFront];
+  recent.style.zIndex='1'; recent.style.opacity='1';
+  old.style.zIndex='0'; old.style.opacity=String(Math.max(0,1-(now-flowTrailAt)/FLOW_TRAIL_MS));
+  return flowContexts[flowFront];
+}
 // Keep the completed trails anchored to the same map coordinates through a gesture.
 let flowView=null;
 const flowCopy=document.createElement('canvas');
@@ -1953,17 +1978,19 @@ function resizeFlow(view=flowCamera()){
   if(changed){
     // 배율이 바뀌면 이전 픽셀을 확대하지 않는다. 같은 배율의 이동만 이어 그린다.
     const copy=showFlow&&k===1&&W>0&&H>0;
-    if(copy){
-      flowCopy.width=cF.width; flowCopy.height=cF.height;
-      flowCopy.getContext('2d').drawImage(cF,0,0);
-    }
     W=view.w; H=view.h; DPR=dpr;
-    cF.width=W*DPR; cF.height=H*DPR;
-    xF.setTransform(DPR,0,0,DPR,0,0);
-    if(copy){
-      xF.drawImage(flowCopy,x,y,flowView.w*k,flowView.h*k);
-      flowCopy.width=0;
-    }
+    flowCanvases.forEach((canvas,i)=>{
+      if(copy){
+        flowCopy.width=canvas.width; flowCopy.height=canvas.height;
+        flowCopy.getContext('2d').drawImage(canvas,0,0);
+      }
+      canvas.width=W*DPR; canvas.height=H*DPR;
+      const ctx=flowContexts[i];
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+      if(copy)ctx.drawImage(flowCopy,x,y,flowView.w,flowView.h);
+    });
+    if(copy)flowCopy.width=0;
+    else flowTrailAt=null;
     for(const p of parts){
       p.x=p.x*k+x; p.y=p.y*k+y;
       if(p.x<0||p.y<0||p.x>=W||p.y>=H||(k<1&&Math.random()>k*k))spawn(p);
@@ -1986,12 +2013,14 @@ let flowFrameAt=null;
 function stepFlow(now){
   const dt=flowFrameAt===null?1/60:Math.max(0,Math.min(0.05,(now-flowFrameAt)/1000));
   flowFrameAt=now;
-  if(!dt)return;
-  if(moving||maskState==='loading')return;
-  if(SIM.view.length&&SIM.wantT!==sT())simTimeChanged();
-  if(cF.style.transform)resizeFlow();
+  const ready=!moving&&maskState!=='loading';
+  if(ready){
+    if(SIM.view.length&&SIM.wantT!==sT())simTimeChanged();
+    if(cF.style.transform)resizeFlow();
+  }
   if(!showFlow)return;
-  xF.globalCompositeOperation='destination-in';xF.fillStyle=`rgba(0,0,0,${Math.exp(-dt/0.4)})`;xF.fillRect(0,0,W,H);xF.globalCompositeOperation='source-over';
+  const xF=flowTrailContext(now);
+  if(!ready||!dt)return;
   simFramePrep();
   const th=tH(), CP=COLORS.map(()=>new Path2D()), DP=COLORS.map(()=>new Path2D());
   for(const p of parts){
@@ -2024,7 +2053,7 @@ map.on('moveend',()=>{
   drawTidal();tideEnsure();updateTideChips();cfEnsure();
 });
 map.on('resize',()=>{transformFlow(flowCamera());buildMask();});
-$('#flowBtn').onclick=e=>{showFlow=!showFlow;$('#flowBtn').classList.toggle('on',showFlow);if(!showFlow)xF.clearRect(0,0,W,H);};
+$('#flowBtn').onclick=e=>{showFlow=!showFlow;$('#flowBtn').classList.toggle('on',showFlow);if(!showFlow)clearFlowTrails();};
 
 
 // ================= 간출암·노출암 (국립해양조사원 전자해도 자료, 앱에 내장) =================
