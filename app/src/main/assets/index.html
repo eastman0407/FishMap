@@ -3957,7 +3957,7 @@ function fishingSet(on){
     if(!FISHING.on)return;
     fishingDraw();
     if(!FISHING.data.spots.some(p=>inB(map.getBounds(),p.lat,p.lng))){
-      toast('이 화면에 등록된 포인트가 없어요. 시범 지역은 대천항과 녹동항이에요.',3500);
+      toast('이 화면에 등록된 낚시 포인트가 없어요. 지도를 넓혀 찾아보세요.',3500);
     }
   }).catch(()=>{if(FISHING.on){fishingSet(false);toast('낚시 포인트 자료를 못 읽었어요');}});
   else fishingDraw();

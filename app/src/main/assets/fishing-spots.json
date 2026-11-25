@@ -2,10 +2,19 @@
   "version": 1,
   "spots": [
     { "id": "boryeong-daecheon", "name": "보령 대천항 일대", "kind": "항구 주변", "lat": 36.3308, "lng": 126.5107 },
-    { "id": "goheung-nokdong", "name": "고흥 녹동항 일대", "kind": "항구 주변", "lat": 34.521, "lng": 127.128 }
+    { "id": "goheung-nokdong", "name": "고흥 녹동항 일대", "kind": "항구 주변", "lat": 34.521, "lng": 127.128 },
+    { "id": "geoje-gujora", "name": "거제 구조라항 일대", "kind": "방파제 주변", "lat": 34.80218, "lng": 128.69927 },
+    { "id": "yeosu-dolsan-gunnae", "name": "여수 돌산 군내리 방파제 일대", "kind": "방파제 주변", "lat": 34.61272, "lng": 127.72683 },
+    { "id": "dangjin-seonggumi", "name": "당진 성구미포구 일대", "kind": "항구 주변", "lat": 36.99715, "lng": 126.70013 }
   ],
   "catches": [
     { "spot": "boryeong-daecheon", "month": "2020-05", "species": "숭어", "evidence": "blog-archive-540" },
-    { "spot": "goheung-nokdong", "month": "2021-01", "species": "숭어", "evidence": "blog-archive-791" }
+    { "spot": "goheung-nokdong", "month": "2021-01", "species": "숭어", "evidence": "blog-archive-791" },
+    { "spot": "geoje-gujora", "month": "2021-03", "species": "숭어", "evidence": "blog-archive-30" },
+    { "spot": "geoje-gujora", "month": "2021-03", "species": "학공치", "evidence": "blog-archive-30" },
+    { "spot": "geoje-gujora", "month": "2021-03", "species": "망상어", "evidence": "blog-archive-30" },
+    { "spot": "yeosu-dolsan-gunnae", "month": "2023-02", "species": "숭어", "evidence": "blog-archive-193" },
+    { "spot": "yeosu-dolsan-gunnae", "month": "2023-03", "species": "숭어", "evidence": "blog-archive-193" },
+    { "spot": "dangjin-seonggumi", "month": "2019-08", "species": "가숭어", "evidence": "blog-archive-977" }
   ]
 }
