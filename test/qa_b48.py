@@ -54,7 +54,7 @@ exec(src+'''
     u=E("window.__sst.slice()"); q=E(f"decodeURIComponent({u[0]!r}.split('?')[1])") if u else ''
     check('T1 P1 레이어에 🌡️ 위성 수온 → 켜면 NASA MUR(jplMURSST41) 최신 날짜를 지금 화면 범위로 요청', btn and btn[0] and '위성 수온' in btn[1] and len(u)==1 and 'jplMURSST41' in u[0] and q.startswith('analysed_sst[(last)]'), [btn,q])
     ov=E("(()=>{const o=__QA.SST.ov; if(!o)return null; const pane=o._image&&o._image.parentNode; return [o.options.opacity, pane?getComputedStyle(pane).zIndex:null, getComputedStyle(document.querySelector('#flow')).zIndex, document.querySelector('#sstBtn').classList.contains('on')]})()")
-    check('T2 반투명(45%) 색 겹침이 유속 점(흐름 캔버스)보다 아래에 깔림', ov and abs(ov[0]-0.45)<1e-6 and int(ov[1] or 400)<int(ov[2]) and ov[3], ov)
+    check('T2 반투명(24%) 색 겹침이 유속 점(흐름 캔버스)보다 아래에 깔림', ov and abs(ov[0]-0.24)<1e-6 and int(ov[1] or 400)<int(ov[2]) and ov[3], ov)
     lg=E("[getComputedStyle(document.querySelector('#sstLeg')).display, document.querySelector('#sstLeg').textContent, __QA.SST.g.mn, __QA.SST.g.mx, __QA.SST.g.lines]")
     check('T3 범례에 "11/19 기준"·흰 선 0.5℃·최저~최고 숫자', lg[0]=='block' and '11/19 기준' in lg[1] and '0.5℃' in lg[1] and f"{lg[2]:.1f}" in lg[1] and f"{lg[3]:.1f}" in lg[1], lg[:2])
     check('T4 0.5℃마다 경계선을 그림', lg[4]>0, lg[4])

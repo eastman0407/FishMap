@@ -331,6 +331,29 @@ html[data-theme=light]{--t-we:#b3261e;--b0f2638:#e7f0f7}
 #layerPanel .lcell .ibtn::after{content:"꺼짐";font-size:12px;position:static;transform:none;width:auto;height:auto;color:var(--muted)}
 #layerPanel .lcell .ibtn.on::after{content:"켜짐";color:var(--accent)}
 #infoDown{width:auto;min-width:44px;font-size:13px}
+
+.side .ibtn,.side .ibtn *{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.side.under .ibtn{width:46px;padding:0}
+.side .ibtn .calendarIcon,.side .ibtn .layersIcon{display:block;position:relative;width:19px;height:17px}
+#planCal .pc em{font-size:12px}
+.calendarIcon{border:2px solid currentColor;border-radius:3px;background:linear-gradient(currentColor,currentColor) 0 4px/100% 2px no-repeat}
+.calendarIcon::before{content:"";position:absolute;top:-5px;left:3px;width:2px;height:5px;background:currentColor;box-shadow:7px 0 currentColor}
+.layersIcon::before,.layersIcon::after{content:"";position:absolute;left:0;width:17px;height:9px;border:2px solid currentColor;border-radius:2px;transform:skewX(-28deg)}
+.layersIcon::before{top:1px}.layersIcon::after{top:7px;border-top-color:transparent}
+#locBtn.follow span{transform:rotate(-35deg);text-decoration:underline}
+#ncPages[hidden],#ncDots[hidden]{display:none!important}
+.ncslide{align-items:flex-start}.ncpg{flex-wrap:wrap;gap:4px 8px}.ncpg[inert]{height:0;overflow:hidden}
+.ncgrp{min-width:0;max-width:100%;flex-wrap:wrap;gap:4px 8px}
+.nowcard .ncpg>.tchip,.nowcard .ncpg>.windchip,.nowcard .ncgrp>.tchip{padding:3px 6px;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.ncdots{height:8px}.ncdots i{width:8px;height:8px;border:1px solid var(--muted);background:transparent}
+.ncdots i.on{border-color:var(--accent);background:var(--accent)}
+.crosshair:before,.crosshair:after{outline:1px solid #18252a;box-shadow:none}
+html[data-theme=light] .mapbox .ibtn,html[data-theme=light] .mapbox .search input{border-color:#75828d}
+html[data-theme=light] .mapbox .ibtn.on,html[data-theme=light] .mapbox .ibtn.follow,html[data-theme=light] .mapbox .search input:focus{border-color:#0b7a70;background:#e1f4f0}
+html[data-theme=light] .legend,html[data-theme=light] .nowcard{border-color:#75828d}
+html[data-theme=light] .cfst{background:#28103c;color:#f1ddff}
+html[data-theme=light] .cfst.strong{color:#ffe1dd}
+html[data-theme=light] .nowcard .ncpg>.tchip,html[data-theme=light] .nowcard .ncpg>.windchip,html[data-theme=light] .nowcard .ncgrp>.tchip{background:#eaf0f4}
 </style>
 </head>
 <body>
@@ -351,20 +374,20 @@ html[data-theme=light]{--t-we:#b3261e;--b0f2638:#e7f0f7}
     <div class="centerName"><small>지도 중심</small> <b id="centerName">—</b></div>
     <div class="crosshair" aria-hidden="true"></div>
     <div class="side">
-      <button class="ibtn" id="nightBtn" title="밤낚시 화면" aria-label="밤낚시 화면 켜고 끄기" aria-pressed="false" data-name="밤낚시"><span aria-hidden="true">☾⚓</span><small>밤낚시</small></button>
-      <button class="ibtn" id="locBtn" title="내 위치" aria-label="내 위치" data-name="내 위치"><span aria-hidden="true">➤</span><small id="locState">내 위치</small></button>
-      <button class="ibtn" id="planBtn" title="출조 도우미" aria-label="출조 도우미 (추천·계획·기록)" data-name="출조 도우미"><span aria-hidden="true">▦</span><small>출조</small></button>
-      <button class="ibtn" id="layersBtn" title="지도 보기" aria-label="지도 보기 (지도 종류·흐름선·바람·바위·수온·설정)" data-name="보기"><span aria-hidden="true">▱</span><small>지도 보기</small></button>
+      <button class="ibtn" id="nightBtn" title="밤낚시 화면" aria-label="밤낚시 화면 켜고 끄기" aria-pressed="false" data-name="밤낚시"><span aria-hidden="true">☾</span></button>
+      <button class="ibtn" id="locBtn" title="내 위치" aria-label="내 위치" data-name="내 위치"><span aria-hidden="true">➤</span></button>
+      <button class="ibtn" id="planBtn" title="출조 도우미" aria-label="출조 도우미 (추천·계획·기록)" data-name="출조 도우미"><span class="calendarIcon" aria-hidden="true"></span></button>
+      <button class="ibtn" id="layersBtn" title="지도 보기" aria-label="지도 보기 (지도 종류·흐름선·바람·바위·수온·설정)" data-name="보기"><span class="layersIcon" aria-hidden="true"></span></button>
     </div>
     <!-- 지금 카드 (11-19, REQ-57): 칩 여러 개를 카드 하나로. 머리를 누르면 출조 도우미 -->
     <div class="topchips nowcard" id="nowCard">
       <div class="nchead" id="nowHead"><span class="seg" id="nowSeg"><button data-v="now" class="on" id="nowSegNow">지금</button><button data-v="rec">오늘 추천</button></span><span class="vday" id="vdayTag" hidden></span><span class="samplebadge">흐름: 샘플 데이터</span></div>
       <!-- U-48 (build-55): 칩 한 줄 + 쪽 넘기기 (접기·펴기 없앰). 1쪽 물 · 2쪽 날씨, 큰 글씨로 넘치면 쪽이 자동으로 늘어남 -->
-      <div class="ncpages" id="ncPages"><div class="ncslide" id="ncSlide">
+      <div class="ncpages" id="ncPages" hidden><div class="ncslide" id="ncSlide">
         <div class="ncpg" id="ncPg1"><span class="tchip tide" id="tideChip" title="오늘 만조·간조 시각 보기"></span><span class="tchip phase" id="phaseChip"></span><span class="tchip drift" id="driftChip"></span></div>
         <div class="ncpg" id="ncPg2"><span class="ncgrp" id="wxChip"><span class="tchip wx" id="wtChip"></span><span class="tchip wx" id="wvChip"></span></span><span class="windchip" id="windChip"></span><span class="tchip wx sky" id="skyChip"></span></div>
       </div></div>
-      <div class="ncdots" id="ncDots" aria-hidden="true"></div>
+      <div class="ncdots" id="ncDots" hidden aria-hidden="true"></div>
       <div id="ncStash" hidden></div>
       <div class="ncrow wrap"><span class="tchip warn" id="warnChip"></span></div>
       <div class="ncrec" id="nowRec"></div>
@@ -1194,20 +1217,24 @@ function updateWxChip(){
   $('#wxChip').style.display=(T!=null||hasW)?'flex':'none';
   WXS={T,dd:dd!=null?{d:dd,w:'내일'}:null,wav:w&&w.wav,sky:w&&w.sky,warn:wxWarn(th,c.lat,c.lng).length}; nowMini();
   const W=wxWarn(th,c.lat,c.lng,true); wn.innerHTML=W.map(x=>`<div class="wl">${x}</div>`).join(''); wn.style.display=W.length?'block':'none'; placeSide();}
-// U-48: 칩을 쪽으로 나눔 — 1쪽 물(물때·밀림) · 2쪽 날씨. 폭을 넘으면 그 쪽의 뒤 칩부터 다음 쪽으로 (큰 글씨 → 3쪽). 칩은 안 자름
-var NCP={i:0,n:2,raf:0};
-function ncFitSoon(){if(!NCP)return; cancelAnimationFrame(NCP.raf); NCP.raf=requestAnimationFrame(ncRepage);}
-function ncRepage(){const sl=$('#ncSlide'); if(!sl||!$('#nowCard').offsetParent)return;
-  const g1=['tideChip','phaseChip','driftChip'].map(q=>$('#'+q)), g2=[$('#wxChip'),$('#windChip'),$('#skyChip')];
-  const key=[sl.parentNode.clientWidth,getComputedStyle(document.documentElement).fontSize,[...g1,...g2].map(e=>getComputedStyle(e).display==='none'?'-':e.textContent).join('|')].join('#'); if(key===NCP.key)return; NCP.key=key; // 같으면 칩을 옮기지 않음 (끄는 도중 옮기면 손가락 이벤트가 끊김)
-  sl.querySelectorAll('.ncpg.x').forEach(p=>p.remove()); const p1=$('#ncPg1'), p2=$('#ncPg2'); sl.appendChild(p2); g1.forEach(e=>p1.appendChild(e)); g2.forEach(e=>p2.appendChild(e));
-  const vis=e=>getComputedStyle(e).display!=='none';
-  const pack=(page,chips)=>{let cur=page; for(const ch of chips){if(!vis(ch))continue; cur.appendChild(ch);
-      if(cur.scrollWidth>cur.clientWidth+1&&cur.children.length>1){const n=document.createElement('div'); n.className='ncpg x'; cur.after(n); n.appendChild(ch); cur=n;}} return cur;};
-  const last1=pack(p1,g1); last1.after(p2); pack(p2,g2);
-  if(![...p2.children].some(vis))$('#ncStash').appendChild(p2); /* 지우지 않고 숨김 칸으로 (칩 id 보존) */ NCP.n=sl.children.length; NCP.i=Math.min(NCP.i,NCP.n-1); ncGo(NCP.i,true);}
+// 물때와 날씨 페이지에 정보가 들어올 때만 표시한다.
+var NCP={i:0,n:0,raf:0};
+function ncFitSoon(){cancelAnimationFrame(NCP.raf); NCP.raf=requestAnimationFrame(ncRepage);}
+function ncRepage(){
+  const sl=$('#ncSlide'), pages=[$('#ncPg1'),$('#ncPg2')];
+  const active=sl.children[NCP.i];
+  const shown=pages.filter(page=>[...page.children].some(e=>e.style.display!=='none'&&e.textContent.trim()));
+  const key=shown.map(page=>page.id).join(',');
+  if(key===NCP.key)return;
+  NCP.key=key;
+  for(const page of pages)(shown.includes(page)?sl:$('#ncStash')).appendChild(page);
+  $('#ncPages').hidden=!shown.length;
+  NCP.n=shown.length;
+  ncGo(Math.max(0,shown.indexOf(active)),true);
+}
 function ncGo(i,instant){NCP.i=Math.max(0,Math.min(NCP.n-1,i)); const sl=$('#ncSlide'); if(!sl)return; if(instant){sl.style.transition='none';} sl.style.transform=`translateX(${-NCP.i*100}%)`; if(instant){void sl.offsetWidth; sl.style.transition='';}
-  const d=$('#ncDots'); d.innerHTML=Array.from({length:NCP.n},(_,k)=>`<i class="${k===NCP.i?'on':''}"></i>`).join(''); d.classList.toggle('one',NCP.n<2);}
+  [...sl.children].forEach((p,k)=>{p.inert=k!==NCP.i; p.setAttribute('aria-hidden',String(k!==NCP.i));});
+  const d=$('#ncDots'); d.hidden=NCP.n<2; d.innerHTML=Array.from({length:NCP.n},(_,k)=>`<i class="${k===NCP.i?'on':''}"></i>`).join(''); d.classList.toggle('one',NCP.n<2);}
 // 쪽 넘기기: 폭 30% 넘게 밀거나 빠르게 튕기면 다음 쪽, 아니면 제자리 (끌어당기며 따라가지 않고 놓을 때 딱 넘어감). 카드 위 밀기는 지도를 안 움직임
 (function(){const el=$('#ncPages'); let x0=0,y0=0,tm=0,on=false,swiped=false;
   el.addEventListener('pointerdown',e=>{x0=e.clientX;y0=e.clientY;tm=performance.now();on=true;swiped=false;});
@@ -1516,7 +1543,7 @@ function simViewTiles(lv){
   const size=map.getSize(), a=map.project(map.containerPointToLatLng([0,0]),lv);
   const b=map.project(map.containerPointToLatLng([size.x,size.y]),lv);
   const center=map.project(map.getCenter(),lv);
-  return simTilesInBounds(lv,a,b).sort((u,v)=>
+  return simTilesInBounds(lv,{x:a.x-SC,y:a.y-SC},{x:b.x+SC,y:b.y+SC}).sort((u,v)=>
     Math.hypot(u.ox+DOM/2-center.x,u.oy+DOM/2-center.y)-
     Math.hypot(v.ox+DOM/2-center.x,v.oy+DOM/2-center.y)).slice(0,36);
 }
@@ -1788,18 +1815,58 @@ function simFramePrep(){
   simFrame={k:map.getZoomScale(FIELD_LEVEL,z),x0:p.x,y0:p.y};
 }
 function simAt(){return performance.now();}
+function currentTileAt(ix,iy){
+  return SIM.tiles.get(FIELD_LEVEL+':'+ix+','+iy);
+}
+function currentTileReady(T,t){
+  return T?.cur?.done&&T.cur.t===t&&T.cur.h===T.wantedHash&&!T.loadingForcing
+    &&(!CONF.realData||T.resultRun===ROMS.run);
+}
+function currentTileUnavailable(T){
+  return T?.state==='failed'||(T?.nodata&&T.nodataRun===ROMS.run);
+}
+// 같은 지도 좌표에서는 언제나 같은 구역과 가중치를 사용한다.
 function currentAtWorld(x,y,lat,lon,th){
-  const margin=(DOM-STRIDE)/2;
-  const ix=Math.floor((x-margin)/STRIDE), iy=Math.floor((y-margin)/STRIDE);
-  const T=SIM.tiles.get(FIELD_LEVEL+':'+ix+','+iy);
-  if(T?.state==='skip')return baseAt(lat,lon,th);
-  if(T?.state==='failed'||(T?.nodata&&T.nodataRun===ROMS.run))return null;
-  if(!T?.cur?.done||T.cur.t!==sT()||T.cur.h!==T.wantedHash||T.loadingForcing||(CONF.realData&&T.resultRun!==ROMS.run))
-    return {pend:true,est:true,nobase:true,real:CONF.realData};
-  const X=Math.floor((x-T.ox)/SC), Y=Math.floor((y-T.oy)/SC), i=Y*T.gx+X;
-  if(T.solid[i])return null;
-  return {vE:T.cur.u[i]/T.cur.scale,vN:-T.cur.v[i]/T.cur.scale,
-    est:true,real:CONF.realData,low:!!T.far?.[Math.floor(Y/FS)*T.fx+Math.floor(X/FS)]};
+  const overlap=DOM-STRIDE, half=overlap/2, t=sT();
+  const owner=currentTileAt(Math.floor((x-half)/STRIDE),Math.floor((y-half)/STRIDE));
+  const pending={pend:true,est:true,nobase:true,real:CONF.realData};
+  if(currentTileUnavailable(owner))return null;
+  if(owner?.state!=='skip'&&!currentTileReady(owner,t))return pending;
+  if(owner.solid?.[Math.floor((y-owner.oy)/SC)*owner.gx+Math.floor((x-owner.ox)/SC)])return null;
+
+  const ix=Math.floor(x/STRIDE), iy=Math.floor(y/STRIDE);
+  const taper=q=>{const u=Math.min(1,Math.max(0,q/overlap)); return u*u*(3-2*u);};
+  const wx=taper(x-ix*STRIDE), wy=taper(y-iy*STRIDE);
+  let e=0,n=0,total=0,est=false,low=false;
+  for(let j=0;j<2;j++)for(let i=0;i<2;i++){
+    const weight=(i?wx:1-wx)*(j?wy:1-wy);
+    if(!weight)continue;
+    const tile=currentTileAt(ix+i-1,iy+j-1);
+    if(currentTileUnavailable(tile))continue;
+    if(tile?.state==='skip'){
+      const v=baseAt(lat,lon,th);
+      if(v){e+=v.vE*weight;n+=v.vN*weight;total+=weight;}
+      continue;
+    }
+    if(!currentTileReady(tile,t))return pending;
+    const cx=(x-tile.ox)/SC-0.5, cy=(y-tile.oy)/SC-0.5;
+    const X=Math.floor(cx), Y=Math.floor(cy), fx=cx-X, fy=cy-Y;
+    // 각 셀 중심에서 보간한다. 육지 칸과 끊긴 대각선 물길은 제외한다.
+    const ax=Math.floor(cx+0.5), ay=Math.floor(cy+0.5);
+    if(tile.solid[ay*tile.gx+ax])continue;
+    for(let dy=0;dy<2;dy++)for(let dx=0;dx<2;dx++){
+      const px=X+dx,py=Y+dy;
+      if(px<0||py<0||px>=tile.gx||py>=tile.gy)continue;
+      const k=py*tile.gx+px;
+      if(tile.solid[k]||(px!==ax&&py!==ay&&
+          (tile.solid[ay*tile.gx+px]||tile.solid[py*tile.gx+ax])))continue;
+      const w=weight*(dx?fx:1-fx)*(dy?fy:1-fy);
+      if(!w)continue;
+      e+=tile.cur.u[k]/tile.cur.scale*w;n-=tile.cur.v[k]/tile.cur.scale*w;total+=w;est=true;
+      if(tile.far?.[Math.floor(py/FS)*tile.fx+Math.floor(px/FS)])low=true;
+    }
+  }
+  return total?{vE:e/total,vN:n/total,est,low,real:CONF.realData}:null;
 }
 function flowDraw(x,y,th){
   const ll=map.containerPointToLatLng([x,y]);
@@ -1993,7 +2060,7 @@ function sstDraw(g){const [a,b]=sstRange(g), K=Math.max(2,Math.min(6,Math.floor(
     if(j+1<g.ny){const u=g.v[(j+1)*g.nx+i]; if(isFinite(u)&&band(u)!==band(t)){x.moveTo(i*K,Y+.5);x.lineTo(i*K+K,Y+.5);nl++;}}}
   x.stroke(); g.lines=nl;
   const dla=g.ny>1?(g.las[1]-g.las[0])/2:0.005, dlo=g.nx>1?(g.los[1]-g.los[0])/2:0.005, bb=[[g.las[0]-dla,g.los[0]-dlo],[g.las[g.ny-1]+dla,g.los[g.nx-1]+dlo]];
-  if(SST.ov)map.removeLayer(SST.ov); SST.ov=L.imageOverlay(cv.toDataURL(),bb,{opacity:.45,interactive:false}).addTo(map); SST.ovOpacity=.45; sstLegend();}
+  if(SST.ov)map.removeLayer(SST.ov); SST.ov=L.imageOverlay(cv.toDataURL(),bb,{opacity:.24,interactive:false}).addTo(map); SST.ovOpacity=.24; sstLegend();}
 const sstDay=g=>g&&g.date&&!isNaN(g.date)?`${g.date.getMonth()+1}/${g.date.getDate()}`:'?';
 function sstLegend(){const L0=$('#sstLeg'); if(!SST.on){L0.style.display='none';return;} L0.style.display='block';
   if(!SST.g){$('#sstLegT').textContent=SST.err?'🌡️ 위성 수온: 못 받음':'🌡️ 위성 수온: 받는 중…'; $('#sstBar').innerHTML=''; $('#sstTicks').innerHTML=''; return;}
@@ -2481,15 +2548,15 @@ async function buildPlan(){
     PLAN.res={base:b,st,days:planDays(ex,d0,PLAN.days,b.la,b.lo)}; renderPlan();
   }finally{PLAN.busy=false;}
 }
-function openPlan(){
+function openPlan(tab='rec'){
   const bases=planBases(), cur=$('#planBase').value;
   $('#planBase').innerHTML=bases.map(b=>`<option value="${b.k}">${b.n}</option>`).join('');
   $('#planBase').value=bases.find(b=>b.k===cur)?cur:(sel?'sel':'center');
-  $('#planPanel').classList.add('show'); showTab('rec'); buildPlan();
+  $('#planPanel').classList.add('show'); showTab(tab); buildPlan();
   // M3 오늘 추천 '자세히 ›'로 오면 같은 결과를 목록에
   if(REC.today&&REC.today.pick&&(!REC.res||REC.res.err)){REC.res=REC.today; recSubText(REC.today); recRender($('#recList'),REC.today);}
 }
-$('#planBtn').onclick=openPlan;
+$('#planBtn').onclick=()=>openPlan('plan');
 // ================= 조과 기록장 (REQ-44, 강의자료 2부 7장 '나만의 물때표') =================
 const LOGK='fishmap.log.v1';
 const loadLog=()=>{try{return JSON.parse(localStorage.getItem(LOGK)||'[]');}catch(e){return [];}};
@@ -2554,12 +2621,14 @@ $('#layerPanel').addEventListener('click',e=>{if(e.target.id==='layerPanel')$('#
 // 출조 도우미·설정은 레이어 시트를 닫고 열기
 ['planBtn','setBtn'].forEach(id=>$('#'+id).addEventListener('click',()=>$('#layerPanel').classList.remove('show')));
 // U-4: M2 아이콘만 — 길게 누르면 이름(말풍선), 길게 누른 뒤엔 눌림 안 됨
-document.querySelectorAll('.side .ibtn').forEach(b=>{let tm=null; b.addEventListener('pointerdown',()=>{b._lp=false; clearTimeout(tm); tm=setTimeout(()=>{b._lp=true; tipShow(b);},500);});
+document.querySelectorAll('.side .ibtn').forEach(b=>{let tm=null; b.addEventListener('pointerdown',()=>{b._lp=false; clearTimeout(tm); tm=setTimeout(()=>{b._lp=true; const selection=getSelection();
+    if(selection?.anchorNode&&b.contains(selection.anchorNode))selection.removeAllRanges();
+    tipShow(b);},500);});
   ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>clearTimeout(tm)));
   b.addEventListener('contextmenu',e=>e.preventDefault());
-  b.addEventListener('click',e=>{if(b._lp){b._lp=false; e.stopImmediatePropagation(); e.preventDefault();}},true);});
+  b.addEventListener('click',e=>{const held=b._lp; b._lp=false; if(held&&e.detail>0){e.stopImmediatePropagation(); e.preventDefault();}},true);});
 function tipShow(b){let t=$('#tip'); if(!t){t=document.createElement('div'); t.id='tip'; t.className='tip'; $('.mapbox').appendChild(t);}
-  t.textContent=b.dataset.name; const r=b.getBoundingClientRect(), m=$('.mapbox').getBoundingClientRect(); t.style.display='block';
+  t.textContent=b.id==='locBtn'&&b.classList.contains('follow')?'내 위치 따라가는 중':b.dataset.name; const r=b.getBoundingClientRect(), m=$('.mapbox').getBoundingClientRect(); t.style.display='block';
   t.style.top=(r.bottom-m.top+6)+'px'; t.style.left=Math.max(8,Math.min(m.width-t.offsetWidth-8,r.left-m.left+r.width/2-t.offsetWidth/2))+'px';
   clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none',1500); haptic('tick');}
 // REQ-71: 보기 토글(M3-8) — 지금 ↔ 오늘 추천(M3-9). 마지막 보기를 기억
@@ -3478,10 +3547,10 @@ function placeMe(la,lo,ac){
 function followStop(msg){
   if(!FOLLOW.on)return; FOLLOW.on=false; RISE.ev=null; riseHide();
   if(FOLLOW.watch!=null){navigator.geolocation.clearWatch(FOLLOW.watch);FOLLOW.watch=null;}
-  $('#locState').textContent='내 위치'; $('#locBtn').setAttribute('aria-label','내 위치'); $('#locBtn').classList.remove('follow'); if(msg)toast(msg,2000);
+  $('#locBtn').setAttribute('aria-label','내 위치'); $('#locBtn').classList.remove('follow'); if(msg)toast(msg,2000);
 }
 function followStart(){
-  FOLLOW.on=true; $('#locState').textContent='따라가는 중'; $('#locBtn').setAttribute('aria-label','따라가기 끄기'); $('#locBtn').classList.add('follow'); toast('따라가기 켬 — 걸어가면 지도가 따라와요',2500);
+  FOLLOW.on=true; $('#locBtn').setAttribute('aria-label','따라가기 끄기'); $('#locBtn').classList.add('follow'); toast('따라가기 켬 — 걸어가면 지도가 따라와요',2500);
   FOLLOW.watch=navigator.geolocation.watchPosition(pos=>{
     const {latitude:la,longitude:lo,accuracy:ac}=pos.coords; placeMe(la,lo,ac); try{riseCheck(la,lo);}catch(e){}
     // 화면 가운데 40% 밖으로 벗어날 때만 지도를 옮김 (매초 다시 계산하지 않게)
@@ -3848,7 +3917,7 @@ function torchUI(){const tb=$('#torchBtn'); tb.classList.toggle('on',THEME.torch
 function torchSet(on){let r='no'; try{r=NATIVE&&NATIVE.torch?String(NATIVE.torch(!!on)):'no';}catch(e){r='err';} THEME.torch=!!on&&r==='ok'; torchUI();
   if(on&&r!=='ok')toast('손전등을 켤 수 없어요'+(r.startsWith('err:')?' ('+r.slice(4,40)+')':''),2500); else haptic('tick');}
 window.__torchOff=()=>{THEME.torch=false; torchUI();}; // 앱이 뒤로 가면(자바 onPause) 꺼짐
-$('#nightBtn').onclick=e=>{if(e.currentTarget._lp)return; setNight(!THEME.night);};
+$('#nightBtn').onclick=()=>setNight(!THEME.night);
 $('#torchBtn').onclick=()=>torchSet(!THEME.torch);
 $('#themeSeg').onclick=e=>{const b=e.target.closest('button'); if(b)setTheme(b.dataset.t);};
 try{matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>{if(THEME.pref==='system')themeApply();});}catch(e){}

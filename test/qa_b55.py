@@ -16,12 +16,14 @@ body=r'''
     ov=E("[...document.querySelectorAll('.ncpg')].map(p=>p.scrollWidth<=p.clientWidth+1)")
     check("C4 2쪽: 수온 칩에 '내일 ±0.0' 글자 + 칩이 안 잘림", ('내일' in (wt or '') and re.search(r'[+−]\d\.\d',wt or '')) and all(ov), [wt,ov])
     E("__QA.ncGo(0,true)"); pg.wait_for_timeout(250)
-    box=R('#ncPages'); cx,cy=box[0]+box[2]/2, box[1]+box[3]/2
+    box=R('#ncPages')
     c0=E("[__QA.map.getCenter().lat,__QA.map.getCenter().lng]")
     def drag(dx,dur):
-        pg.mouse.move(cx,cy); pg.mouse.down(); n=6
+        x,y,w,h=R('#ncPages'); cx,cy=x+w/2,y+h/2
+        pg.mouse.move(cx,cy); pg.mouse.down(); n=6 if dur else 1
         for k in range(1,n+1):
-            pg.mouse.move(cx+dx*k/n,cy); pg.wait_for_timeout(int(dur/n))
+            pg.mouse.move(cx+dx*k/n,cy)
+            if dur: pg.wait_for_timeout(int(dur/n))
         pg.mouse.up(); pg.wait_for_timeout(350)
     drag(-30,700); i1=E("__QA.NCP.i")      # 짧고 느림 (폭 10% 안팎) → 제자리
     check('S1 조금만(30px) 천천히 밀면 제자리', i1==0, i1)
@@ -37,12 +39,12 @@ body=r'''
     ic=E("""(()=>{const out={}; for(const [k,w] of Object.entries({sun:{sky:1,pty:0},cloud:{sky:3,pty:0},grey:{sky:4,pty:0},rain:{sky:4,pty:1},shower:{sky:3,pty:4},sleet:{sky:4,pty:2},snow:{sky:4,pty:3}})){const r=__QA.wxIcon(w,12); out[k]=r.e+r.t;} out.night=__QA.wxIcon({sky:1,pty:0},23).e; return out;})()""")
     want={'sun':'☀️','cloud':'⛅','grey':'☁️','rain':'☔비','shower':'🌦️소나기','sleet':'🌨️비/눈','snow':'❄️눈'}
     check('W1 날씨 그림: 맑음 ☀️·구름많음 ⛅·흐림 ☁️ (그림만) / 비 ☔·소나기 🌦️·비/눈 🌨️·눈 ❄️ (그림+글자), 밤 🌙', all(ic[k]==v for k,v in want.items()) and ic['night']=='🌙', ic)
-    # 큰 글씨: 넘치면 쪽이 늘고 칩은 안 잘림
+    # 큰 글씨: 최대 두 쪽에서 줄바꿈
     E("document.documentElement.style.fontSize='130%'; __QA.ncRepage()"); pg.wait_for_timeout(300)
     r130=E("[__QA.NCP.n,[...document.querySelectorAll('.ncpg')].every(p=>p.scrollWidth<=p.clientWidth+1)]")
     E("document.documentElement.style.fontSize='200%'; __QA.ncRepage()"); pg.wait_for_timeout(300)
     r200=E("[__QA.NCP.n,[...document.querySelectorAll('.ncpg')].every(p=>p.scrollWidth<=p.clientWidth+1)]")
-    check('B1 큰 글씨(130%·200%)에서도 칩이 안 잘리고, 넘치면 쪽이 늘어남', r130[1] and r200[1] and r200[0]>=r130[0]>=2, [r130,r200])
+    check('B1 큰 글씨(130%·200%)에서도 칩이 안 잘리고, 두 쪽 유지', r130[1] and r200[1] and r200[0]==r130[0]==2, [r130,r200])
     E("document.documentElement.style.fontSize=''; __QA.ncRepage()")
     # 오늘 추천 보기 ↔ 지금
     E("__QA.nowView('rec')"); pg.wait_for_timeout(300)

@@ -30,7 +30,7 @@ exec(src+r'''
     pg.set_viewport_size({'width':360,'height':700}); pg.wait_for_timeout(200)
     one=E("(()=>{const t=new Set([...document.querySelectorAll('#themeSeg button')].map(b=>Math.round(b.getBoundingClientRect().top)));return t.size})()")
     pg.set_viewport_size({'width':411,'height':700})
-    check('T4 ⚙️ 화면 모드 4칸 한 줄(폭 360에서도), 높이 44, 지금 고른 칸 표시', [x[0] for x in seg]==['📱 시스템','☀️ 밝게','🌙 어둡게','🔴 밤낚시'] and all(x[2]>=44 for x in seg) and one==1 and seg[1][3], seg)
+    check('T4 ⚙️ 화면 모드 4칸 한 줄(폭 360에서도), 높이 44, 지금 고른 칸 표시', [x[0] for x in seg]==['📱 시스템','☀️ 밝게','🌙 어둡게','☾⚓ 밤낚시'] and all(x[2]>=44 for x in seg) and one==1 and seg[1][3], seg)
     E("document.querySelector('#themeSeg [data-t=system]').click()")
     E("window.__mq=matchMedia('(prefers-color-scheme: light)').matches")
     check('T5 시스템 = 폰 설정 따라감, 고른 값 저장', E("AndroidBridge.getPref('theme')")=='system' and th()==('light' if E("window.__mq") else 'dark'), th())
@@ -63,7 +63,8 @@ exec(src+r'''
     E("delete AndroidBridge.torchOk"); E("document.querySelector('#nightBtn').click()"); hid=E("document.querySelector('#torchBtn').hidden"); E("document.querySelector('#nightBtn').click()")
     check('T13 손전등이 없는 곳(웹판)은 🔦 버튼 숨김', hid is True)
     # 흐름 흰 선 색: 위성 = 흰색, 거리 지도 = 진한 회색 (코드 확인)
-    check('T14 계산 중 흰 선: 위성 지도엔 흰색, 밝은 거리 지도엔 진한 회색', E("__QA.flowDraw.toString().length>0") and "mode==='street'?'#2b3742':'#ffffff'" in open('app/src/main/assets/index.html',encoding='utf-8').read())
+    check('T14 완료 전에는 임시 색 흐름선을 표시하지 않음',
+          E("__QA.flowDraw.toString().includes('!v.pend')"))
     # H-7 물때 방식
     E("document.querySelector('#layersBtn').click(); document.querySelector('#setBtn').click()")
     m=[]
