@@ -3,7 +3,7 @@ from pathlib import Path
 
 source = Path('test/qa_realshape.py').read_text().split('    c0=calls()')[0]
 exec(source + r'''
-    go(12,36.3308,126.5107,600)
+    go(14,36.3308,126.5107,600)
     pg.locator('#layersBtn').click()
     pg.locator('#fishingLayerBtn').click()
     pg.wait_for_function("window.__QA.FISHING.layer.getLayers().length===1")
@@ -33,6 +33,17 @@ exec(source + r'''
     first=int(pg.locator('#fishingMonth').inner_text()[:-1])
     for _ in range((3-first)%12): pg.locator('#fishingNext').click()
     check('3월의 세 어종을 함께 표시',set(pg.locator('#fishingSpecies li').all_inner_texts())=={'숭어','학공치','망상어'})
+    pg.locator('#fishingClose').click()
+    go(14,37.49951,126.45244,600)
+    check('영종도 삼목항 지도 핀',E("__QA.FISHING.layer.getLayers().map(m=>m.options.title)")==['인천 영종도 삼목항 일대'])
+    E("__QA.FISHING.layer.getLayers()[0].fire('click')")
+    first=int(pg.locator('#fishingMonth').inner_text()[:-1])
+    for _ in range((8-first)%12): pg.locator('#fishingNext').click()
+    for month in [8,9,10]:
+        check(f'삼목항 {month}월 조과',pg.locator('#fishingMonth').inner_text()==f'{month}월' and
+              pg.locator('#fishingSpecies li').all_inner_texts()==['숭어'])
+        pg.locator('#fishingNext').click()
+    check('삼목항 11월은 빈 상태',pg.locator('#fishingMonth').inner_text()=='11월' and pg.locator('#fishingEmpty').is_visible())
     pg.locator('#fishingClose').click()
     pg.locator('#layersBtn').click()
     pg.locator('#fishingLayerBtn').click()
