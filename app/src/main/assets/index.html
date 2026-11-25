@@ -354,6 +354,17 @@ html[data-theme=light] .legend,html[data-theme=light] .nowcard{border-color:#758
 html[data-theme=light] .cfst{background:#28103c;color:#f1ddff}
 html[data-theme=light] .cfst.strong{color:#ffe1dd}
 html[data-theme=light] .nowcard .ncpg>.tchip,html[data-theme=light] .nowcard .ncpg>.windchip,html[data-theme=light] .nowcard .ncgrp>.tchip{background:#eaf0f4}
+
+.fishingPin{background:transparent;border:none}
+.fishingPin span{display:grid;width:28px;height:28px;margin:8px;place-items:center;background:#0c7168;color:#fff;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 5px #0a1520;font-size:14px;font-weight:700}
+#fishingPanel.choose .fishingMonths,#fishingPanel.choose .fishingSheet>strong,#fishingPanel.choose .fishingNote{display:none}
+.fishingSheet h3{align-items:center;margin-bottom:2px}
+.fishingSheet h3 .x{width:44px;height:44px}
+.fishingKind,.fishingNote{color:var(--muted);font-size:13px;margin:2px 0 10px}
+.fishingMonths{display:grid;grid-template-columns:48px 1fr 48px;align-items:center;text-align:center;margin:12px 0}
+.fishingMonths .btn{width:48px;height:44px;font-size:22px}
+.fishingSpecies{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px;padding:0;list-style:none}
+.fishingSpecies li{padding:5px 9px;border:1px solid var(--accent);border-radius:12px;color:var(--text)}
 </style>
 </head>
 <body>
@@ -474,12 +485,28 @@ html[data-theme=light] .nowcard .ncpg>.tchip,html[data-theme=light] .nowcard .nc
       <div class="lcell"><button class="ibtn" id="windBtn" title="바람 영향">바람</button></div>
       <div class="lcell"><button class="ibtn" id="simBtn" title="항내 추정 (섬·항구 주변 흐름 계산)">항내 추정</button></div>
       <div class="lcell"><button class="ibtn" id="rockBtn" title="갯바위·간출암">바위</button></div>
+      <div class="lcell"><button class="ibtn" id="fishingLayerBtn" aria-pressed="false">낚시 포인트</button></div>
       <div class="lcell"><button class="ibtn" id="sstBtn" title="위성 수온 (NASA MUR, 1~4일 전)">위성 수온</button></div>
     </div>
     <!-- U-20 (build-50): 설정은 켜고 끄는 버튼이 아니므로 줄을 긋고 맨 아래 넓은 줄로 -->
     <hr class="lsep"><button class="btn lrow" id="setBtn" title="설정"><span>⚙️ 설정 · 키 · 백업</span><span class="lgo">›</span></button>
     <div class="empty" style="padding:8px 0 0;font-size:12px"></div>
   </div>
+</div>
+<div class="panel" id="fishingPanel">
+  <section class="pbox fishingSheet" role="dialog" aria-modal="true" aria-labelledby="fishingName" tabindex="-1">
+    <h3><span id="fishingName"></span><button class="x" id="fishingClose" aria-label="닫기">×</button></h3>
+    <p class="fishingKind" id="fishingKind"></p>
+    <div class="fishingMonths">
+      <button class="btn" id="fishingPrev" aria-label="이전 달">‹</button>
+      <strong id="fishingMonth" aria-live="polite"></strong>
+      <button class="btn" id="fishingNext" aria-label="다음 달">›</button>
+    </div>
+    <strong>조과 기록</strong>
+    <ul class="fishingSpecies" id="fishingSpecies"></ul>
+    <p class="fishingNote" id="fishingEmpty" hidden>확인된 조과 기록 없음</p>
+    <p class="fishingNote">지난 조과 기록을 월별로 모았어요.</p>
+  </section>
 </div>
 <div class="panel" id="setPanel">
   <div class="pbox">
@@ -3845,7 +3872,108 @@ $('#keyTest').onclick=async()=>{saveSettings();const o=$('#testOut');o.textConte
   catch(e){o.textContent='❌ '+e.message;}};
 // 웹: 폰 뒤로가기 버튼 → 창 닫기 (앱의 __onBack과 같은 동작)
 if(!NATIVE){try{history.pushState({fm:1},'');window.addEventListener('popstate',()=>{if(window.__onBack&&window.__onBack())history.pushState({fm:1},'');});}catch(e){}}
+// 낚시 포인트와 월별 과거 조과
+const FISHING={on:pref('fishingSpotsOn','0')==='1',data:null,request:null,layer:L.layerGroup().addTo(map),point:null,month:1,returnFocus:null};
+function fishingData(){
+  if(!FISHING.request)FISHING.request=loadAsset('fishing-spots.json').then(data=>{
+    if(data.version!==1||!Array.isArray(data.spots)||!Array.isArray(data.catches))throw new Error('낚시 포인트 자료 형식');
+    const records=new Map();
+    for(const row of data.catches){
+      const key=row.spot+'|'+Number(row.month.slice(-2));
+      if(!records.has(key))records.set(key,new Set());
+      records.get(key).add(row.species);
+    }
+    FISHING.data={spots:data.spots,records};
+    return FISHING.data;
+  }).catch(error=>{FISHING.request=null;throw error;});
+  return FISHING.request;
+}
+function fishingRenderMonth(){
+  $('#fishingMonth').textContent=FISHING.month+'월';
+  const records=FISHING.data.records.get(FISHING.point.id+'|'+FISHING.month);
+  const list=[...(records||[])].sort((a,b)=>a.localeCompare(b,'ko'));
+  $('#fishingSpecies').replaceChildren(...list.map(name=>{
+    const li=document.createElement('li');li.textContent=name;return li;
+  }));
+  $('#fishingEmpty').hidden=!!list.length;
+}
+function fishingOpen(point,trigger){
+  closeFloats();
+  FISHING.point=point;
+  FISHING.month=new Date(t0.getTime()+tMin*60000).getMonth()+1;
+  FISHING.returnFocus=trigger?.getElement?.()||null;
+  $('#fishingName').textContent=point.name;
+  $('#fishingKind').textContent=point.kind;
+  fishingRenderMonth();
+  $('#fishingPanel').classList.add('show');
+  $('#fishingClose').focus();
+}
+function fishingClose(){
+  $('#fishingPanel').classList.remove('show','choose');
+  FISHING.returnFocus?.focus();
+  FISHING.returnFocus=null;FISHING.point=null;
+}
+function fishingDraw(){
+  FISHING.layer.clearLayers();
+  if(!FISHING.on||!FISHING.data)return;
+  const bounds=map.getBounds().pad(0.1), groups=new Map();
+  for(const point of FISHING.data.spots){
+    if(!inB(bounds,point.lat,point.lng))continue;
+    const xy=map.project([point.lat,point.lng]);
+    const key=Math.floor(xy.x/52)+','+Math.floor(xy.y/52);
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push(point);
+  }
+  for(const points of groups.values()){
+    const point=points[0], count=points.length;
+    const pin=L.marker([point.lat,point.lng],{title:count===1?point.name:count+'개 낚시 포인트',
+      icon:L.divIcon({className:'fishingPin',html:'<span aria-hidden="true">'+(count===1?'⚑':count)+'</span>',iconSize:[44,44],iconAnchor:[22,22]})});
+    pin.on('click',e=>{
+      L.DomEvent.stopPropagation(e);
+      if(count===1||map.getZoom()>=(map.getMaxZoom?.()||19)){
+        if(count===1)fishingOpen(point,pin);
+        else fishingChoose(points,pin);
+      }else map.setView([point.lat,point.lng],map.getZoom()+2);
+    }).addTo(FISHING.layer);
+  }
+}
+function fishingChoose(points,pin){
+  closeFloats();FISHING.point=null;FISHING.returnFocus=pin.getElement?.()||null;
+  $('#fishingName').textContent='낚시 포인트';$('#fishingKind').textContent='';
+  $('#fishingPanel').classList.add('show','choose');
+  $('#fishingSpecies').replaceChildren(...points.map(point=>{
+    const row=document.createElement('li'), b=document.createElement('button');
+    b.className='btn';b.textContent=point.name;
+    b.onclick=()=>{$('#fishingPanel').classList.remove('choose');fishingOpen(point,pin);};
+    row.append(b);return row;
+  }));
+  $('#fishingClose').focus();
+}
+function fishingSet(on){
+  FISHING.on=on;setPref('fishingSpotsOn',on?'1':'0');
+  const b=$('#fishingLayerBtn');
+  b.classList.toggle('on',on);b.setAttribute('aria-pressed',String(on));
+  if(on)fishingData().then(()=>{
+    if(!FISHING.on)return;
+    fishingDraw();
+    if(!FISHING.data.spots.some(p=>inB(map.getBounds(),p.lat,p.lng))){
+      toast('이 화면에 등록된 포인트가 없어요. 시범 지역은 대천항과 녹동항이에요.',3500);
+    }
+  }).catch(()=>{if(FISHING.on){fishingSet(false);toast('낚시 포인트 자료를 못 읽었어요');}});
+  else fishingDraw();
+}
+$('#fishingLayerBtn').onclick=()=>{fishingSet(!FISHING.on);if(FISHING.on)$('#layerPanel').classList.remove('show');};
+$('#fishingClose').onclick=fishingClose;
+$('#fishingPanel').onclick=e=>{if(e.target.id==='fishingPanel')fishingClose();};
+for(const [id,step] of [['fishingPrev',-1],['fishingNext',1]])$('#'+id).onclick=()=>{
+  if(!FISHING.point)return;
+  FISHING.month=(FISHING.month+step+11)%12+1;
+  fishingRenderMonth();
+};
+map.on('moveend',fishingDraw);
+if(FISHING.on)fishingSet(true);
 window.__onBack=()=>{
+  if($('#fishingPanel').classList.contains('show')){fishingClose();return true;}
   if($('#biteAsk').style.display==='flex'){$('#biteAsk').style.display='none';return true;}
   if($('#pinPop').classList.contains('show')){pinPopClose();return true;}
   for(const id of ['setPanel','favPanel','tidePanel','planPanel','layerPanel'])if($('#'+id).classList.contains('show')){$('#'+id).classList.remove('show');return true;}

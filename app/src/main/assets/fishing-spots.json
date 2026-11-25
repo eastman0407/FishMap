@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "spots": [
+    { "id": "boryeong-daecheon", "name": "보령 대천항 일대", "kind": "항구 주변", "lat": 36.3308, "lng": 126.5107 },
+    { "id": "goheung-nokdong", "name": "고흥 녹동항 일대", "kind": "항구 주변", "lat": 34.521, "lng": 127.128 }
+  ],
+  "catches": [
+    { "spot": "boryeong-daecheon", "month": "2020-05", "species": "숭어", "evidence": "blog-archive-540" },
+    { "spot": "goheung-nokdong", "month": "2021-01", "species": "숭어", "evidence": "blog-archive-791" }
+  ]
+}

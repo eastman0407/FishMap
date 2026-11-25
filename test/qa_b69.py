@@ -1,0 +1,36 @@
+"""Map-layer and monthly catch regressions using the packaged catalog."""
+from pathlib import Path
+
+source = Path('test/qa_realshape.py').read_text().split('    c0=calls()')[0]
+exec(source + r'''
+    go(12,36.3308,126.5107,600)
+    pg.locator('#layersBtn').click()
+    pg.locator('#fishingLayerBtn').click()
+    pg.wait_for_function("window.__QA.FISHING.layer.getLayers().length===1")
+    marker=E("__QA.FISHING.layer.getLayers()[0].options.title")
+    check('지도 보기에 등록 포인트를 표시',marker=='보령 대천항 일대',marker)
+    E("__QA.FISHING.layer.getLayers()[0].fire('click')")
+    check('포인트 상세와 유형 표시',pg.locator('#fishingPanel').is_visible() and
+          pg.locator('#fishingName').inner_text()==marker and pg.locator('#fishingKind').inner_text()=='항구 주변')
+    first=int(pg.locator('#fishingMonth').inner_text()[:-1])
+    for _ in range((5-first)%12): pg.locator('#fishingNext').click()
+    check('5월에는 확인한 어종만 표시',pg.locator('#fishingSpecies li').all_inner_texts()==['숭어'] and pg.locator('#fishingEmpty').is_hidden())
+    pg.locator('#fishingNext').click()
+    check('기록 없는 6월에는 빈 상태 표시',pg.locator('#fishingSpecies li').count()==0 and pg.locator('#fishingEmpty').is_visible())
+    check('뒤로가기로 닫힘',E("window.__onBack()") and pg.locator('#fishingPanel').is_hidden())
+    go(12,34.521,127.128,600)
+    check('다른 해역으로 이동하면 핀을 갱신',E("__QA.FISHING.layer.getLayers().map(m=>m.options.title)")==['고흥 녹동항 일대'])
+    E("__QA.FISHING.layer.getLayers()[0].fire('click')")
+    first=int(pg.locator('#fishingMonth').inner_text()[:-1])
+    for _ in range((first-1)%12): pg.locator('#fishingPrev').click()
+    check('이전 달 이동으로 1월 조과 열기',pg.locator('#fishingSpecies li').all_inner_texts()==['숭어'])
+    pg.locator('#fishingPrev').click()
+    check('1월에서 이전 달은 12월',pg.locator('#fishingMonth').inner_text()=='12월')
+    pg.locator('#fishingClose').click()
+    pg.locator('#layersBtn').click()
+    pg.locator('#fishingLayerBtn').click()
+    check('끄면 모든 포인트가 지도에서 사라짐',E("__QA.FISHING.layer.getLayers().length") == 0)
+    check('페이지 오류 없음',not errs,errs)
+    br.close()
+print(f'결과 {sum(map(bool,res))}/{len(res)}')
+''')
