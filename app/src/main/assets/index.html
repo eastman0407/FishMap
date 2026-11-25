@@ -379,7 +379,7 @@ html[data-theme=light] .nowcard .ncpg>.tchip,html[data-theme=light] .nowcard .nc
 
     <div class="top">
       <form class="search" id="sform" autocomplete="off">
-        <input id="q" type="search" placeholder="지역·항구 검색 (예: 삼천포항)" enterkeyhint="search">
+        <input id="q" type="search" placeholder="지역·항구·어종 검색" enterkeyhint="search">
         <button class="go" type="submit">⌕</button>
         <div class="results" id="results"></div>
       </form>
@@ -3691,7 +3691,7 @@ res.addEventListener('click',e=>{const d=e.target.closest('div[data-lat]');if(!d
   const la=+d.dataset.lat, lo=+d.dataset.lng; ++searchSeq; showResults(''); $('#q').blur();
   const spot=FISHING.data?.spots.find(p=>p.id===d.dataset.spot);
   if(spot){
-    map.flyTo([la,lo],16,{duration:0.6});
+    map.flyTo([la,lo],spot.precision==='area'?14:16,{duration:0.6});
     fishingSet(true,false);
     fishingOpen(spot);
     return;
@@ -3706,11 +3706,23 @@ $('#sform').addEventListener('submit',async e=>{
   const seq=++searchSeq;
   if(shareParse(q).share){showResults(''); $('#q').blur(); $('#q').value=''; shareIn(q); return;} // U-26: 지도 앱 공유 글을 붙여넣은 경우
   const norm=s=>s.replace(/\s/g,'');
+  const term=norm(q);
   const data=await fishingData().catch(()=>null);
   if(seq!==searchSeq)return;
-  const matches=(data?.spots||[]).filter(p=>[p.name,...(p.aliases||[])].some(n=>norm(n).includes(norm(q)))).slice(0,12);
-  const local=SPOTS.filter(s=>norm(s[0]).includes(norm(q)));
+  const spots=data?.spots||[];
+  const matches=spots.filter(p=>[p.name,...(p.aliases||[])].some(n=>norm(n).includes(term)));
+  const caught=new Set((data?.catches||[]).filter(row=>norm(row.species)===term).map(row=>row.spot));
+  const species=spots.filter(p=>!matches.includes(p)&&(caught.has(p.id)||p.targets?.some(name=>norm(name)===term)));
+  const local=SPOTS.filter(s=>norm(s[0]).includes(term));
   let html=matches.length?'<div class="hd">낚시 포인트</div>'+matches.map(p=>item(p.name,p.kind,p.lat,p.lng,p.id)).join(''):'';
+  if(species.length){
+    html+='<div class="hd">'+escH(q)+' 포인트</div>'+species.map(p=>{
+      const target=p.targets?.some(name=>norm(name)===term);
+      const label=target&&caught.has(p.id)?'대상 어종 · 과거 조과':target?'대상 어종':'과거 조과';
+      return item(p.name,p.kind+' · '+label,p.lat,p.lng,p.id);
+    }).join('');
+    if(!matches.length&&!local.length){showResults(html);return;}
+  }
   if(local.length)html+='<div class="hd">주요 항구</div>'+local.map(s=>item(s[0],'',s[1],s[2])).join('');
   showResults(html+'<div class="hd">검색 중…</div>');
   const wait=Math.max(0,1100-(Date.now()-lastQ)); await new Promise(r=>setTimeout(r,wait));
@@ -3916,7 +3928,7 @@ function fishingData(){
       if(!records.has(key))records.set(key,[]);
       records.get(key).push(row);
     }
-    FISHING.data={spots:data.spots,records};
+    FISHING.data={spots:data.spots,catches:data.catches,records};
     return FISHING.data;
   }).catch(error=>{FISHING.request=null;throw error;});
   return FISHING.request;
@@ -3942,7 +3954,7 @@ function fishingOpen(point,trigger){
   FISHING.month=new Date(t0.getTime()+tMin*60000).getMonth()+1;
   FISHING.returnFocus=trigger?.getElement?.()||$('#q');
   $('#fishingName').textContent=point.name;
-  $('#fishingKind').textContent=point.kind;
+  $('#fishingKind').textContent=point.kind+(point.precision==='area'?' · 주변 위치':'');
   $('#fishingDescription').textContent=point.description||'';
   $('#fishingDescription').hidden=!point.description;
   const targets=point.targets||[];
