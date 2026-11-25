@@ -15,7 +15,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 .mapbox{position:relative;flex:1;min-height:0}
 #map{position:absolute;inset:0;background:var(--b0d2638,#0d2638)}
 .flow-clip{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:450}
-#flow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:450;transform-origin:0 0}
+#flow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:450;transform-origin:0 0;opacity:.68}
 #flow canvas{position:absolute;inset:0;width:100%;height:100%}
 /* 상단 검색 */
 .top{position:absolute;top:10px;left:10px;right:10px;z-index:1050;display:flex;gap:8px}
@@ -279,7 +279,7 @@ html[data-theme=light] .ibtn,html[data-theme=light] .biteFab{background:rgba(255
 /* 밤낚시: 붉은 화면 — 지도·창·그림 글자까지 밝기만 남기고 붉게 거름. 흐름선과 범례 색 막대는 색 뜻(유속)을 지키려고 거르지 않고 조금 흐리게 */
 html[data-theme=night]{--nightF:grayscale(1) brightness(.55) sepia(1) saturate(12) hue-rotate(-40deg);background:var(--b000,#000)}
 html[data-theme=night] #map,html[data-theme=night] .mapbox>:not(#map):not(.flow-clip):not(.legend),html[data-theme=night] .sheet,html[data-theme=night] .panel,html[data-theme=night] .legend>:not(.bar){filter:var(--nightF)}
-html[data-theme=night] #flow{opacity:.8} html[data-theme=night] .legend{background:var(--b140505,#140505)}
+html[data-theme=night] #flow{opacity:.54} html[data-theme=night] .legend{background:var(--b140505,#140505)}
 #nightBtn.on{border:2px solid #ff5a4d;background:var(--b3a0d0a,#3a0d0a)}
 .torchBtn{position:absolute;right:14px;bottom:92px;z-index:1000;width:54px;height:54px;border-radius:50%;border:2px solid #ff5a4d;background:var(--b1a0707,#1a0707);color:var(--tff6b5e,#ff6b5e);font-size:24px;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
 .torchBtn.on{background:#ff5a4d;box-shadow:0 0 18px #ff5a4d}.torchBtn[hidden]{display:none}
@@ -1338,7 +1338,7 @@ const dirName=d=>DIRS[Math.round(d/22.5)%16];
 const stateOf=s=>Math.abs(s)<0.12?['정조','s']:(s>0?['창조','f']:['낙조','e']);
 // ── 유속 색: 낚시 기준 고정 단계 (11-14 사용자 결정, 빨강 시작 기본 2.0노트 = 낚시 어려움, ⚙️에서 변경) ──
 // 예전: 화면마다 색 범위가 자동으로 바뀌어 '빨강'의 뜻이 화면마다 달랐음 → 고정. 움직임은 유속에 비례
-const COLORS=['#3b6ea8','#3fa7c9','#4fd1c5','#9be15d','#f6c445','#f29a3d','#e53935'];
+const COLORS=['#255b9e','#0587b7','#13b7ad','#9be15d','#f6c445','#f29a3d','#e53935'];
 const COLOR_NAMES=['거의 정조','약함','적당','조금 셈','셈','매우 셈','낚시 어려움'];
 const RED={kn:2.0};
 // 예보·저장 기록·색 경계는 노트로 유지하고 화면과 CSV에서만 환산한다.
@@ -1995,7 +1995,7 @@ function resizeFlow(view=flowCamera()){
       p.x=p.x*k+x; p.y=p.y*k+y;
       if(p.x<0||p.y<0||p.x>=W||p.y>=H||(k<1&&Math.random()>k*k))spawn(p);
     }
-    const n=Math.round(Math.min(2200,W*H/180));
+    const n=Math.round(Math.min(1200,W*H/320));
     if(parts.length>n)parts.length=n;
     while(parts.length<n){const p={};spawn(p);p.age=Math.random()*p.max;parts.push(p);}
     flowView=view;
@@ -2035,9 +2035,13 @@ function stepFlow(now){
     path.moveTo(p.x,p.y);path.lineTo(nx,ny);
     p.x=nx; p.y=ny;
   }
-  xF.lineWidth=1.5; xF.lineCap='round';
-  xF.globalAlpha=1; CP.forEach((path,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(path);});
-  xF.globalAlpha=0.45; DP.forEach((path,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(path);});
+  xF.lineCap='round';
+  xF.globalAlpha=1;
+  CP.forEach((path,k)=>{xF.lineWidth=k<3?1:1.25;xF.strokeStyle=COLORS[k];xF.stroke(path);});
+  // 약한 근거의 흐름이 프레임마다 밝게 겹치지 않도록 시간에 비례해 그린다.
+  xF.globalAlpha=1-Math.exp(-dt*5);
+  xF.lineWidth=1;
+  DP.forEach((path,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(path);});
   xF.globalAlpha=1;
 }
 
