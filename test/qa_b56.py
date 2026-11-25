@@ -57,7 +57,7 @@ exec(src+r'''
     check('H11 [지금]을 누르면 따라가기 켜짐 → 3분 뒤 시각도 따라감(1분 단위 표시)', E("__QA.NOWF.on") and t2[0]==t2[1] and t2[0]==nm+3, t2)
     E("document.querySelector('#play').click(); document.querySelector('#play').click()")
     check('H12 재생을 누르면 따라가기 꺼짐', not E("__QA.NOWF.on"))
-    # REQ-101: 확대와 축소가 배경 지도나 계산 결과를 잠시 기다리는 동안에도 흐름선을 유지한다.
+    # 확대·축소 중에는 선을 흐리게 하고, 끝나면 이전 배율의 픽셀을 제거한다.
     E("const s=document.querySelector('#slider'); s.value=__QA.tMin(); s.dispatchEvent(new Event('input'))")
     pg.wait_for_function("""() => {
         const c=document.querySelector('#flow');
@@ -67,10 +67,17 @@ exec(src+r'''
         const c=document.querySelector('#flow');
         const ink=()=>c.getContext('2d').getImageData(0,0,c.width,c.height).data.some((v,i)=>i%4===3&&v>0);
         _map.fire('movestart'); _map.fire('zoomanim',{center:_map.getCenter(),zoom:15});
-        const kept=[ink(),c.style.transform.includes('scale(4)')];
-        _map.fire('moveend'); return kept;
+        const during=ink()&&c.style.transform.includes('scale(4)')&&c.style.opacity==='0';
+        _map._z=15; _map.fire('moveend');
+        const zoomIn=!ink()&&!c.style.transform&&!c.style.opacity;
+        c.getContext('2d').fillRect(100,100,10,10);
+        _map.panBy(5,5);
+        const pan=ink()&&c.style.opacity==='';
+        _map.fire('movestart'); _map._z=13; _map.fire('moveend');
+        const zoomOut=!ink()&&!c.style.transform&&!c.style.opacity;
+        return [during,zoomIn,pan,zoomOut];
     })()""")
-    check('H14 확대 제스처 중 이전 흐름선과 지도 배율 유지', trails==[True,True], trails)
+    check('H14 확대 중 페이드, 확대·축소 직후 잔상 제거, 같은 배율 이동 중 유지', all(trails), trails)
     E("__QA.select(34.882,128.096,'고정 유속 시험')")
     point="""()=>{
         const s=__QA.sel(), v=__QA.flowAt(s.lat,s.lng,__QA.tH());

@@ -1941,16 +1941,18 @@ function flowOffset(view){
 function transformFlow(view,animate=false){
   if(!flowView)return;
   const {k,x,y}=flowOffset(view);
-  cF.style.transition=animate?'transform 250ms cubic-bezier(0,0,0.25,1)':'';
+  cF.style.transition=animate?'transform 250ms cubic-bezier(0,0,0.25,1), opacity 160ms linear':'opacity 160ms linear';
+  if(k!==1)cF.style.opacity='0';
   cF.style.transform=`translate(${x}px,${y}px) scale(${k})`;
 }
-function resizeFlow(){
+function resizeFlow(view=flowCamera()){
   if(!flowView)flowView=flowCamera();
-  const view=flowCamera(), {k,x,y}=flowOffset(view);
+  const {k,x,y}=flowOffset(view);
   const dpr=Math.min(2,window.devicePixelRatio||1);
   const changed=k!==1||Math.abs(x)>0.01||Math.abs(y)>0.01||W!==view.w||H!==view.h||DPR!==dpr;
   if(changed){
-    const copy=showFlow&&W>0&&H>0;
+    // 배율이 바뀌면 이전 픽셀을 확대하지 않는다. 같은 배율의 이동만 이어 그린다.
+    const copy=showFlow&&k===1&&W>0&&H>0;
     if(copy){
       flowCopy.width=cF.width; flowCopy.height=cF.height;
       flowCopy.getContext('2d').drawImage(cF,0,0);
@@ -1973,6 +1975,7 @@ function resizeFlow(){
   }
   cF.style.transition='';
   cF.style.transform='';
+  cF.style.opacity='';
 }
 let parts=[];
 function okSpot(x,y){if(!isWater(x,y))return false;return !!flowDraw(x,y,tH());}
@@ -1988,7 +1991,7 @@ function stepFlow(now){
   if(SIM.view.length&&SIM.wantT!==sT())simTimeChanged();
   if(cF.style.transform)resizeFlow();
   if(!showFlow)return;
-  xF.globalCompositeOperation='destination-in';xF.fillStyle=`rgba(0,0,0,${Math.exp(-dt/0.55)})`;xF.fillRect(0,0,W,H);xF.globalCompositeOperation='source-over';
+  xF.globalCompositeOperation='destination-in';xF.fillStyle=`rgba(0,0,0,${Math.exp(-dt/0.4)})`;xF.fillRect(0,0,W,H);xF.globalCompositeOperation='source-over';
   simFramePrep();
   const th=tH(), CP=COLORS.map(()=>new Path2D()), DP=COLORS.map(()=>new Path2D());
   for(const p of parts){
@@ -2013,7 +2016,11 @@ map.on('movestart zoomstart',()=>{moving=true;clearTimeout(maskTimer);++maskId;}
 map.on('move',()=>{if(moving)transformFlow(flowCamera());});
 map.on('zoomanim',e=>transformFlow(flowCamera(e.center,e.zoom),true));
 map.on('moveend',()=>{
-  moving=false;transformFlow(flowCamera());buildMask();requestReal();windRequest();drawRocks();
+  moving=false;buildMask();
+  const view=flowCamera();
+  if(flowView&&view.z!==flowView.z)resizeFlow(view);
+  else transformFlow(view);
+  requestReal();windRequest();drawRocks();
   drawTidal();tideEnsure();updateTideChips();cfEnsure();
 });
 map.on('resize',()=>{transformFlow(flowCamera());buildMask();});
