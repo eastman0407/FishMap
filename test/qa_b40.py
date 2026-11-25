@@ -54,7 +54,7 @@ exec(src+'''
     check('N4 펴면 M2가 카드 아래(겹침 없음), 가로 두 개라 입질 버튼과도 안 겹침', w4[2]<=sd2[0]<=w4[2]+12 and sd2[1]<fab, [w4,sd2,fab])
     E("document.querySelector('#tideChip').textContent='🌊 '+'아주긴관측소이름'.repeat(8)+' · 만조 05:26'"); pg.wait_for_timeout(200)
     lc=E("(()=>{const e=document.querySelector('#tideChip');return [e.scrollWidth>e.clientWidth,Math.round(e.getBoundingClientRect().height)];})()"); w5=E(R)
-    check('N5 아주 긴 글: 카드 폭 그대로, 한 줄로 … 자르기', lc[0] and lc[1]<=32 and w5[:2]==w4[:2], [lc,w5])
+    check('N5 아주 긴 글은 카드 폭을 유지하면서 같은 페이지에서 줄바꿈', not lc[0] and lc[1]>32 and w5[:2]==w4[:2], [lc,w5])
     E("__QA.updateTideChips()")
     TE='⚙⚠⛴🌬🗑🗺🛰🌡🌧☀☁'
     def bad(t): return [m.group(0)+'?' for m in re.finditer('['+TE+'](?!️)',t)]
@@ -80,7 +80,10 @@ exec(src+'''
       const T={gx,gy,solid:ch}, open={gx,gy,solid:new Uint8Array(gx*gy)};
       const a=__QA.anchorCells(T,{cx:17,cy:20,vE:0,vN:1.5},94), b=__QA.anchorCells(open,{cx:17,cy:20,vE:0,vN:1.5},94), c=__QA.anchorCells(T,{cx:17,cy:20,vE:0,vN:0},94);
       return [a.length, a.filter(z=>z[1]<1).length, b.length, c.length, Math.min(...a.map(z=>z[0]%gx)), Math.max(...a.map(z=>z[0]%gx))];})()""")
-    check('N10 좁은 물길(폭 6칸): 폭 전체 × 앞뒤 2칸 = 30칸(가장자리 0.8), 넓은 바다·멈춤은 3×3', ac[0]==30 and ac[1]==10 and ac[2]==9 and ac[3]==9 and ac[4]==15 and ac[5]==20, ac)
+    check('N10 연결된 수로 안에서만 보정하고 한 칸에서만 가중치 최대', ac[0]>30 and ac[1]==ac[0]-1 and ac[2]>ac[0] and ac[3]==ac[0] and ac[4:]==[15,20], ac)
+    diagnostic=E("__QA.runDiag()")
+    check('항내 진단에 기본·항내 벡터, 예보 시각, 지점 앞뒤 포함',
+          all(k in diagnostic for k in ['항내 추정 시각','기본 예보','-250m','250m',' · 기본 ',' · 항내 ','위성 수온 표시']), diagnostic[:220])
     # N11~N14(예전 M8 끌기)는 build-41 REQ-70에서 방식이 바뀌어 qa_b41로 옮김
     check('N15 스크립트 오류 없음', not errs, errs[:2])
     br.close()

@@ -1048,7 +1048,6 @@ function requestReal(){
       if(RD.staleMin)toast(`인터넷이 안 돼서 저장된 예보를 보여줘요 (${staleText(RD.staleMin)} 받은 자료)`,4000);
       apply(items);
       if(sel){computeEvents();updateUI();}
-      computeViewScale();
     }catch(e){ if(id===RD.reqId)toast('실제 조류를 못 불러왔어요: '+e.message,5000); }
     finally{ if(id===RD.reqId){RD.loading=false;RD.prog='';if(SIM.view.length)simTimeChanged(true);updateBadge();} }
   },350);
@@ -1296,7 +1295,7 @@ const bearing=(e,n)=>(Math.atan2(e,n)*180/Math.PI+360)%360;
 const dirName=d=>DIRS[Math.round(d/22.5)%16];
 const stateOf=s=>Math.abs(s)<0.12?['정조','s']:(s>0?['창조','f']:['낙조','e']);
 // ── 유속 색: 낚시 기준 고정 단계 (11-14 사용자 결정, 빨강 시작 기본 2.0노트 = 낚시 어려움, ⚙️에서 변경) ──
-// 예전: 화면마다 색 범위가 자동으로 바뀌어 '빨강'의 뜻이 화면마다 달랐음 → 고정. 약한 흐름은 색 대신 움직임 속도로 구분(VIEW.G)
+// 예전: 화면마다 색 범위가 자동으로 바뀌어 '빨강'의 뜻이 화면마다 달랐음 → 고정. 움직임은 유속에 비례
 const COLORS=['#3b6ea8','#3fa7c9','#4fd1c5','#9be15d','#f6c445','#f29a3d','#e53935'];
 const COLOR_NAMES=['거의 정조','약함','적당','조금 셈','셈','매우 셈','낚시 어려움'];
 const RED={kn:2.0};
@@ -1323,7 +1322,7 @@ function syncSpeedSettings(){
   input.value=speedNumber(RED.kn);
 }
 function redBreaks(R){return [0.3,0.6,1.0,1.0+(R-1)*0.4,1.0+(R-1)*0.7,R];}
-const VIEW={breaks:redBreaks(2.0),G:1};
+const VIEW={breaks:redBreaks(2.0)};
 const bucket=v=>{const B=VIEW.breaks;for(let k=0;k<B.length;k++)if(v<B[k])return k;return B.length;};
 const speedName=v=>COLOR_NAMES[bucket(v)];
 $('#legendBar').innerHTML=COLORS.map(c=>`<span style="background:${c}"></span>`).join('');
@@ -1334,24 +1333,6 @@ function drawLegend(){
   $('#legendTicks').innerHTML=`<span>0</span><span>${legendSpeed(B[1])}</span><span>${legendSpeed(B[2])}</span><span style="color:var(--tRedTick,#ff8a80)">${legendSpeed(B[5])}+</span>`;
   $('#legendTitle').textContent=`유속 (${currentUnitLabel()}) · 빨강=낚시 어려움`;
 }
-// 약한 흐름도 움직임이 보이게 이동 속도만 화면에 맞춰 조절 (색은 고정)
-let viewScaleTimer=null;
-function computeViewScale(){
-  clearTimeout(viewScaleTimer);
-  viewScaleTimer=setTimeout(()=>{
-    const th=tH(), sp=[];
-    for(let yy=0;yy<14;yy++)for(let xx=0;xx<22;xx++){
-      const ll=map.containerPointToLatLng([(xx+0.5)*W/22,(yy+0.5)*H/14]);
-      const v=flowAt(ll.lat,ll.lng,th);
-      if(v)sp.push(Math.hypot(v.vE,v.vN));
-    }
-    if(sp.length<10)return;
-    sp.sort((a,b)=>a-b);
-    const p50=Math.max(0.02,sp[Math.floor(sp.length*0.5)]), p95=Math.max(0.03,sp[Math.floor(sp.length*0.95)]);
-    VIEW.G=p95<1.1?Math.min(3,0.4/Math.max(0.06,p50)):1;
-  },400);
-}
-
 // ================= 시간 =================
 const t0=new Date(); t0.setHours(0,0,0,0);
 // H-14(11-22): 지금 = 실제 시각(분). 예전엔 10분으로 반올림해 몇 분 늦거나 빨랐음
@@ -1443,7 +1424,7 @@ const SIMDB={db:null,ok:true,open(){if(SIMDB.db||!SIMDB.ok||!window.indexedDB)re
     c.onsuccess=()=>{const cur=c.result;if(cur){all.push([cur.key,cur.value.at]);if(Date.now()-cur.value.at>maxDays*86400000){cur.delete();n++;}cur.continue();}
       else{const live=all.filter(a=>Date.now()-a[1]<=maxDays*86400000).sort((a,b)=>a[1]-b[1]);for(let i=0;i<live.length-maxN;i++){st.delete(live[i][0]);n++;}res(n);}};
     c.onerror=()=>res(n);}catch(e){res(n);}});}};
-const simKey=(T,t,h)=>`${T.key}|${t0.getTime()+t*60000}|${h}`;
+const simKey=(T,t,h)=>`v68|${T.key}|${t0.getTime()+t*60000}|${h}`;
 const q16=a=>{const o=new Int16Array(a.length);for(let i=0;i<a.length;i++)o[i]=Math.max(-32767,Math.min(32767,Math.round(a[i]*1e5)));return o;};
 const f16=a=>{const o=new Float32Array(a.length);for(let i=0;i<a.length;i++)o[i]=a[i]/1e5;return o;};
 const simCache=new Map(), simDomCache=new Map();
@@ -1452,7 +1433,7 @@ const WORKER_SRC=`
 const EX=[0,1,0,-1,0,1,-1,-1,1],EY=[0,0,1,0,-1,1,1,-1,-1],WT=[4/9,1/9,1/9,1/9,1/9,1/36,1/36,1/36,1/36],OPP=[0,3,4,1,2,7,8,5,6];
 const WARM=1800, WARM_SEED=900, AVG=800; let S=null, timer=null;
 function feq(f,i,r,u,v){const u2=1.5*(u*u+v*v),o=i*9;for(let q=0;q<9;q++){const e=3*(EX[q]*u+EY[q]*v);f[o+q]=WT[q]*r*(1+e+0.5*e*e-u2);}}
-function step(){const {gx,gy,N,solid,ux,uy}=S;let f=S.f,f2=S.f2;const inv=1/S.tau,tau=S.tau,K0=S.kfr,FX=S.fwx,FY=S.fwy,KZ=S.kz;
+function step(){const {gx,gy,N,solid,ux,uy}=S;let f=S.f,f2=S.f2;const inv=1/S.tau,tau=S.tau,K0=S.kfr,FX=S.fwx,FY=S.fwy,KZ=S.kz,a=S.anchor;
  for(let k=0;k<S.bcIdx.length;k++){const nb=S.bcNb[k];
   if(S.bcIn[k]||nb<0)feq(f,S.bcIdx[k],1,S.bcU[k],S.bcV[k]); else feq(f,S.bcIdx[k],1,ux[nb],uy[nb]);}
  for(let i=0;i<N;i++){if(solid[i])continue;const o=i*9;let r=0,mx=0,my=0;
@@ -1461,7 +1442,10 @@ function step(){const {gx,gy,N,solid,ux,uy}=S;let f=S.f,f2=S.f2;const inv=1/S.ta
   let u=mx/r,v=my/r;const sp=u*u+v*v;if(sp>0.03){const s=Math.sqrt(0.03/sp);u*=s;v*=s;}
   ux[i]=u;uy[i]=v;
   // 바람이 미는 힘(FX,FY) - 바닥 마찰(K*u): 넓은 바다에선 바람 표층류 속도로 수렴, 항 안에선 벽 때문에 순환이 생김
-  const K=KZ?K0+KZ[i]:K0, ue=u+tau*(FX-K*u), ve=v+tau*(FY-K*v), u2=1.5*(ue*ue+ve*ve);
+  const K=KZ?K0+KZ[i]:K0;
+  const w=a?a.rate[i]:0;
+  const fx=w?w*(a.east[i]-u):0, fy=w?w*(a.south[i]-v):0;
+  const ue=u+tau*(FX-K*u+fx), ve=v+tau*(FY-K*v+fy), u2=1.5*(ue*ue+ve*ve);
   for(let q=0;q<9;q++){const e=3*(EX[q]*ue+EY[q]*ve);f[o+q]+=(WT[q]*r*(1+e+0.5*e*e-u2)-f[o+q])*inv;}}
  for(let y=0;y<gy;y++)for(let x=0;x<gx;x++){const i=y*gx+x;if(solid[i])continue;const o=i*9;
   for(let q=0;q<9;q++){const nx=x+EX[q],ny=y+EY[q];if(nx<0||ny<0||nx>=gx||ny>=gy)continue;const j=ny*gx+nx;
@@ -1478,7 +1462,7 @@ function run(){timer=null;if(!S)return;const t=performance.now();
  if(S.steps%150<20||S.steps<400)send(false);
  timer=setTimeout(run,0);}
 onmessage=e=>{const m=e.data;
- if(m.type==='init'){const N=m.gx*m.gy;S={id:m.id,gx:m.gx,gy:m.gy,N,solid:m.solid,bcIdx:m.bcIdx,bcNb:m.bcNb,bcIn:m.bcIn,bcU:m.bcU,bcV:m.bcV,tau:0.58,fwx:m.fwx||0,fwy:m.fwy||0,kfr:m.kfr||0,kz:m.kz||null,
+ if(m.type==='init'){const N=m.gx*m.gy;S={id:m.id,gx:m.gx,gy:m.gy,N,solid:m.solid,bcIdx:m.bcIdx,bcNb:m.bcNb,bcIn:m.bcIn,bcU:m.bcU,bcV:m.bcV,tau:0.58,fwx:m.fwx||0,fwy:m.fwy||0,kfr:m.kfr||0,kz:m.kz||null,anchor:m.anchor||null,
    f:new Float32Array(N*9),f2:new Float32Array(N*9),ux:new Float32Array(N),uy:new Float32Array(N),au:new Float32Array(N),av:new Float32Array(N),steps:0,avgN:0};
    S.warm=m.u0?WARM_SEED:WARM;
    if(m.u0){for(let i=0;i<N;i++)if(!S.solid[i])feq(S.f,i,1,m.u0[i],m.v0[i]);} // 성긴 단계 결과에서 출발 (이어서 계산)
@@ -1663,16 +1647,45 @@ function nestAt(lat,lon,parents=SIM.par){
       const w=(dx?fx-X:1-(fx-X))*(dy?fy-Y:1-(fy-Y))+1e-6; su+=T.cur.u[i]/T.cur.scale*w; sv+=-T.cur.v[i]/T.cur.scale*w; sw+=w;}
     if(sw>0.3)return {vE:su/sw,vN:sv/sw,real:true,nest:true};}
   return null;}
-// REQ-66: 지점 값을 넣을 칸 [칸 번호, 비율]. 흐름 방향(격자 y는 아래로)과 직각으로 걸어 양쪽 육지를 찾음
-function anchorCells(T,a,cellM){const sp=Math.hypot(a.vE,a.vN), out=[], seen=new Set(), gx=T.gx, gy=T.gy;
-  const add=(x,y,f)=>{if(x<1||y<1||x>=gx-1||y>=gy-1)return; const i=y*gx+x; if(T.solid[i]||seen.has(i))return; seen.add(i); out.push([i,f]);};
-  const three=()=>{for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)add(a.cx+dx,a.cy+dy,1); return out;};
-  if(sp<0.05)return three();
-  const ex=a.vE/sp, ey=-a.vN/sp, px=-ey, py=ex, L=Math.max(3,Math.round(800/cellM));
-  const reach=sgn=>{for(let k=1;k<=L;k++){const x=Math.round(a.cx+px*k*sgn), y=Math.round(a.cy+py*k*sgn); if(x<0||y<0||x>=gx||y>=gy)return -1; if(T.solid[y*gx+x])return k-1;} return -1;};
-  const r1=reach(1), r2=reach(-1); if(r1<0||r2<0)return three(); // 한쪽이라도 800m 안에 육지 없으면 넓은 바다 → 예전처럼
-  for(let t=-2;t<=2;t++)for(let k=-r2;k<=r1;k++){const edge=(k===r1||k===-r2)&&(r1+r2)>=2; add(Math.round(a.cx+ex*t+px*k),Math.round(a.cy+ey*t+py*k),edge?0.8:1);}
-  return out.length?out:three();}
+// 인접한 바다 셀을 따라 지점 예보의 영향력을 낮춘다.
+function anchorCells(T,a,cellM){
+  const {gx,gy,solid}=T, start=a.cy*gx+a.cx, radius=600;
+  if(a.cx<1||a.cy<1||a.cx>=gx-1||a.cy>=gy-1||solid[start])return [];
+  const queue=[start], seen=new Set(queue), cells=[];
+  let begin=0, distance=0;
+  while(begin<queue.length&&distance<radius){
+    const end=queue.length, u=distance/radius;
+    const weight=(1-u)**4*(4*u+1);
+    for(;begin<end;begin++){
+      const i=queue[begin], x=i%gx, y=Math.floor(i/gx);
+      cells.push([i,weight]);
+      for(const [nx,ny] of [[x-1,y],[x+1,y],[x,y-1],[x,y+1]]){
+        if(nx<1||nx>=gx-1||ny<1||ny>=gy-1)continue;
+        const next=ny*gx+nx;
+        if(solid[next]||seen.has(next))continue;
+        seen.add(next);queue.push(next);
+      }
+    }
+    distance+=cellM;
+  }
+  return cells;
+}
+function stationForcing(T,stations,cellM,scale){
+  if(!stations.length)return null;
+  const size=T.gx*T.gy;
+  const rate=new Float32Array(size), east=new Float32Array(size), south=new Float32Array(size);
+  for(const a of stations){
+    for(const [i,w] of anchorCells(T,a,cellM)){
+      rate[i]+=w; east[i]+=a.vE*scale*w; south[i]-=a.vN*scale*w;
+    }
+  }
+  for(let i=0;i<size;i++){
+    if(!rate[i])continue;
+    east[i]/=rate[i]; south[i]/=rate[i];
+    rate[i]=0.008*Math.min(1,rate[i]);
+  }
+  return {rate,east,south};
+}
 // 구역 가장자리 물 칸에 넣을 바깥 흐름(실제 예보) → {bcU,bcV,bcIn,scale}
 // 바깥 예보가 없는 경계 칸은 '물이 자유롭게 드나드는 열린 경계'로 둠 (예전: 평균값을 지어서 넣음)
 function simBC(T,th){
@@ -1705,18 +1718,10 @@ function simBC(T,th){
   for(let q=0;q<n;q++){bcU[q]=vE[q]*scale;bcV[q]=-vN[q]*scale;
     bcIn[q]=has[q]&&(T.bcNb[q]<0||bcU[q]*T.bcN[q*2]+bcV[q]*T.bcN[q*2+1]>=0)?1:0;
     if(!has[q]&&T.bcNb[q]<0)bcIn[q]=1;} // 예보 없음 + 안쪽도 막힘 → 멈춘 물(0)
-  // 구역 안의 조류예보 지점(큰 예보가 없는 곳만) → 그 둘레 3x3칸을 지점 예보 값으로 고정 (REQ-53)
-  const ai=[],au=[],av=[];
-  // REQ-66: 좁은 물길이면(흐름과 직각으로 양쪽 800m 안에 육지) 그 물길 폭 전체 × 흐름 방향 앞뒤 2칸에 지점 값, 아니면 둘레 3×3칸
-  const cellM=156543.03*Math.cos(map.unproject([T.ox,T.oy],T.lv).lat*Math.PI/180)/Math.pow(2,T.lv)*SC;
-  T.chan=0;
-  for(const a of AN){const cells=anchorCells(T,a,cellM); if(cells.length>9)T.chan++;
-    for(const [i,f] of cells){ai.push(i);au.push(a.vE*scale*f);av.push(-a.vN*scale*f);}}
-  if(ai.length){const m=n+ai.length, idx=new Int32Array(m), nb=new Int32Array(m), U=new Float32Array(m), V=new Float32Array(m), I=new Uint8Array(m);
-    idx.set(T.bcIdx); nb.set(T.bcNb); U.set(bcU); V.set(bcV); I.set(bcIn);
-    for(let k=0;k<ai.length;k++){idx[n+k]=ai[k];nb[n+k]=-1;U[n+k]=au[k];V[n+k]=av[k];I[n+k]=1;}
-    return {bcU:U,bcV:V,bcIn:I,idx,nb,scale,fwx,fwy,kfr};}
-  return {bcU,bcV,bcIn,scale,fwx,fwy,kfr};
+  const lat=map.unproject([T.ox,T.oy],T.lv).lat;
+  const cellM=156543.03*Math.cos(lat*Math.PI/180)*SC/2**T.lv;
+  const anchor=stationForcing(T,AN,cellM,scale);
+  return {bcU,bcV,bcIn,scale,fwx,fwy,kfr,anchor};
 }
 // '자료 부족' 칸: 예보 점에서 멀어(약 3km+) 예보만으로는 값을 알 수 없던 곳 → 계산은 하되 흐리게·카드에 표시
 const FS=3; // 3칸(단계16에서 약 70m)마다 판별
@@ -1725,7 +1730,11 @@ function simFar(T,th){const fx=Math.ceil(T.gx/FS), fy=Math.ceil(T.gy/FS), far=ne
   T.far=far; T.fx=fx; T.farVer=RD.ver;}
 // 경계값 지문: 바깥 흐름·바람이 같으면 같은 값 → 예전 계산 결과를 그대로 다시 씀
 function bcHash(b,T){let h=2166136261;const add=v=>{h=Math.imul(h^(Math.round(v*1e5)|0),16777619);};
-  for(let q=0;q<b.bcU.length;q++){add(b.bcU[q]);add(b.bcV[q]);add(b.bcIn[q]);} add(b.scale*100);add(b.fwx*1e3);add(b.fwy*1e3);if(T&&T.kz)add(T.kzSum);return h>>>0;}
+  for(let q=0;q<b.bcU.length;q++){add(b.bcU[q]);add(b.bcV[q]);add(b.bcIn[q]);} add(b.scale*100);add(b.fwx*1e3);add(b.fwy*1e3);if(T&&T.kz)add(T.kzSum);
+  if(b.anchor)for(let i=0;i<b.anchor.rate.length;i++){
+    if(b.anchor.rate[i]){add(i);add(b.anchor.rate[i]);add(b.anchor.east[i]);add(b.anchor.south[i]);}
+  }
+  return h>>>0;}
 // 시간이 바뀌거나 자료가 바뀌면: 화면 구역마다 저장 결과 확인 → 없는 구역만 계산 줄에 세움
 async function loadTileForcing(T){
   const a=map.unproject([T.ox,T.oy],T.lv), b=map.unproject([T.ox+DOM,T.oy+DOM],T.lv);
@@ -1804,7 +1813,7 @@ function simPump(){
   const q=SIM.queue.shift(), T=q.tile, id=++simJob, b=q.b; SIM.job={id,tile:T,h:q.h,t:q.t,scale:b.scale};
   SIM.jobsRun=(SIM.jobsRun||0)+1;
   // 늘 같은 출발점에서 계산 (같은 구역·같은 예보면 같은 결과)
-  simWorker.postMessage({type:'init',id,gx:T.gx,gy:T.gy,solid:T.solid,bcIdx:b.idx||T.bcIdx,bcNb:b.nb||T.bcNb,bcIn:b.bcIn,bcU:b.bcU,bcV:b.bcV,fwx:b.fwx,fwy:b.fwy,kfr:b.kfr,kz:T.kz||null});
+  simWorker.postMessage({type:'init',id,gx:T.gx,gy:T.gy,solid:T.solid,bcIdx:T.bcIdx,bcNb:T.bcNb,bcIn:b.bcIn,bcU:b.bcU,bcV:b.bcV,fwx:b.fwx,fwy:b.fwy,kfr:b.kfr,kz:T.kz||null,anchor:b.anchor});
   SIM.lastTile=T.key;
 }
 // 화면 좌표(px)의 추정 흐름(노트). undefined=계산 구역 밖, null=육지
@@ -1926,30 +1935,32 @@ function resizeFlow(){
 }
 let parts=[];
 function okSpot(x,y){if(!isWater(x,y))return false;return !!flowDraw(x,y,tH());}
-function spawn(p){for(let k=0;k<12;k++){p.x=Math.random()*W;p.y=Math.random()*H;if(okSpot(p.x,p.y))break;}p.age=0;p.max=40+Math.random()*60;}
-const PXK=0.55;
-function stepFlow(){
+function spawn(p){for(let k=0;k<12;k++){p.x=Math.random()*W;p.y=Math.random()*H;if(okSpot(p.x,p.y))break;}p.age=0;p.max=2+Math.random()*2.5;}
+// 화면 표시 기준: 1 m/s = 16 CSS px/s. 물리 예보와 범례에는 적용하지 않는다.
+const flowDistance=(kn,seconds)=>kn*(1.852/3.6)*16*seconds;
+let flowFrameAt=null;
+function stepFlow(now){
+  const dt=flowFrameAt===null?1/60:Math.max(0,Math.min(0.05,(now-flowFrameAt)/1000));
+  flowFrameAt=now;
+  if(!dt)return;
   if(moving||maskState==='loading')return;
   if(SIM.view.length&&SIM.wantT!==sT())simTimeChanged();
   if(cF.style.transform)resizeFlow();
   if(!showFlow)return;
-  xF.globalCompositeOperation='destination-in';xF.fillStyle='rgba(0,0,0,0.9)';xF.fillRect(0,0,W,H);xF.globalCompositeOperation='source-over';
-  const useSim=!!simLevel(); simFramePrep();
-  const th=tH(), CP=COLORS.map(()=>new Path2D()), DP=COLORS.map(()=>new Path2D()), K=useSim?PXK*3:PXK;
+  xF.globalCompositeOperation='destination-in';xF.fillStyle=`rgba(0,0,0,${Math.exp(-dt/0.55)})`;xF.fillRect(0,0,W,H);xF.globalCompositeOperation='source-over';
+  simFramePrep();
+  const th=tH(), CP=COLORS.map(()=>new Path2D()), DP=COLORS.map(()=>new Path2D());
   for(const p of parts){
-    p.age++;
+    p.age+=dt;
     if(p.age>p.max||!isWater(p.x,p.y)){spawn(p);continue;}
     const v=flowDraw(p.x,p.y,th);
     if(!v){spawn(p);continue;}
     const sp=Math.hypot(v.vE,v.vN);
-    // 약한 흐름도 움직임이 보이도록 이동 거리만 키움 (색은 실제 세기 그대로)
-    const g=useSim&&sp>1e-6?1.2*Math.sqrt(sp)/sp:VIEW.G;
-    const nx=p.x+v.vE*K*g, ny=p.y-v.vN*K*g;
+    const nx=p.x+flowDistance(v.vE,dt), ny=p.y-flowDistance(v.vN,dt);
     if(!isWater(nx,ny)){spawn(p);continue;}
     const path=(v.low?DP:CP)[bucket(sp)];
     path.moveTo(p.x,p.y);path.lineTo(nx,ny);
     p.x=nx; p.y=ny;
-    if(nx<0||ny<0||nx>W||ny>H)p.age=1e9;
   }
   xF.lineWidth=1.5; xF.lineCap='round';
   xF.globalAlpha=1; CP.forEach((path,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(path);});
@@ -1962,7 +1973,7 @@ map.on('move',()=>{if(moving)transformFlow(flowCamera());});
 map.on('zoomanim',e=>transformFlow(flowCamera(e.center,e.zoom),true));
 map.on('moveend',()=>{
   moving=false;transformFlow(flowCamera());buildMask();requestReal();windRequest();drawRocks();
-  drawTidal();tideEnsure();updateTideChips();computeViewScale();cfEnsure();
+  drawTidal();tideEnsure();updateTideChips();cfEnsure();
 });
 map.on('resize',()=>{transformFlow(flowCamera());buildMask();});
 $('#flowBtn').onclick=e=>{showFlow=!showFlow;$('#flowBtn').classList.toggle('on',showFlow);if(!showFlow)xF.clearRect(0,0,W,H);};
@@ -3145,12 +3156,32 @@ function rockNextChange(d){
 
 
 // ================= 진단 (실제 데이터 모양 측정 → 공유) =================
+function diagVector(v){
+  if(v?.pend)return '계산 중';
+  if(!v)return '값 없음';
+  const sp=Math.hypot(v.vE,v.vN)*1.852/3.6;
+  return sp.toFixed(2)+' m/s'+(sp>=0.01?' '+bearing(v.vE,v.vN).toFixed(0)+'°':'');
+}
+function diagCurrentLine(label,p,th,reference){
+  const v=reference||baseAt(p.lat,p.lng,th), mag=v?Math.hypot(v.vE,v.vN):0;
+  const east=mag>0.001?v.vE/mag:0, north=mag>0.001?v.vN/mag:1;
+  return [label+' (흐름 방향 기준, 값 없으면 남북):',...[-250,0,250].map(m=>{
+    const lat=p.lat+m*north/111195;
+    const lon=p.lng+m*east/(111195*Math.cos(p.lat*Math.PI/180));
+    const world=map.project([lat,lon],FIELD_LEVEL);
+    const est=simLevel()?currentAtWorld(world.x,world.y,lat,lon,th):null;
+    const owner=currentTileAt(Math.floor((world.x-(DOM-STRIDE)/2)/STRIDE),Math.floor((world.y-(DOM-STRIDE)/2)/STRIDE));
+    const cell=owner?.solid&&owner.solid[Math.floor((world.y-owner.oy)/SC)*owner.gx+Math.floor((world.x-owner.ox)/SC)];
+    return `  ${m}m (${lat.toFixed(5)},${lon.toFixed(5)}) · 격자 ${owner?.key||'-'} ${cell===1?'육지':cell===0?'바다':''} · 기본 ${diagVector(baseAt(lat,lon,th))} · 항내 ${est?.est?diagVector(est):'-'}`;
+  })];
+}
 async function runDiag(){
   const o=[], c=map.getCenter(), z=map.getZoom(), th=tH();
   const ver=(()=>{try{return NATIVE&&NATIVE.appVersion?NATIVE.appVersion():('웹 '+(window.__WEBVER||''))}catch(e){return '?'}})();
   o.push(`[바다흐름지도 진단] v${ver} ${new Date().toLocaleString('ko-KR')}`);
   o.push(`상태: ${RD.loading?'조류 받는 중 '+(RD.prog||''):'받기 끝'}, 배지="${$('.samplebadge').textContent}", 항내추정 ${SIMMODE.on?'ON':'OFF'}(${SIM.on?(SIM.done?'계산완료':'계산중'):'꺼짐'}, 단계 ${SIM.sz||'-'} ${SIM.on?simLevelText():''})`);
   o.push(`화면: 확대 ${z.toFixed(1)}, 중심 ${c.lat.toFixed(4)},${c.lng.toFixed(4)}, 크기 ${W}x${H}`);
+  o.push(`예보 선택 시각: ${fmt(tMin)} · 항내 추정 시각 ${fmt(sT())} · 배경 지도 ${mode} · 위성 수온 표시 ${SST.ov?'있음':'없음'}`);
   // 1) 바다/육지 판별
   let wpct='-';
   if(mask){let w=0;for(let i=0;i<mask.length;i++)w+=mask[i];wpct=(w/mask.length*100).toFixed(0)+'%';}
@@ -3189,14 +3220,28 @@ async function runDiag(){
   o.push(`추천 종류: ${[...recKinds()].map(k=>KIND_NAME[k]).join('·')} · 섬 다리 판별 ${REC.kindSrc==='pre'?'미리 넣은 지도 자료('+(REC.preDate||'-')+')':REC.kindSrc==='osm'?'지도 자료(OSM)':REC.kindSrc==='guess'?'추정(지도 자료 못 받음'+(REC.ovpErr?': '+REC.ovpErr:'')+')':'-'} · 직접 바꾼 섬 ${Object.keys(islOv()).length}곳`);
   if(REC.ovpRaw)o.push('  └ 지도 서버 마지막 응답: '+REC.ovpRaw);
   o.push(`조류예보 지점: ${CF.on?'켬':'끔'} · ${CF.st?CF.st.length:0}곳${CF.scan?' (찾는 중 '+CF.prog+'/'+CF_CODES.length+')':''} · 받은 지점 ${[...CF.ser.values()].filter(x=>x.t&&x.t.length).length}곳 · 호출 ${CF.calls}번, 마지막 결과 ${CF.last||'-'}${CF.err?' · ⚠️ '+CF.err:''}`);
-  o.push(`수심: ${DEPTH.on?'켬':'끔'} · 호출 ${DEPTH.calls}번, 마지막 결과 ${DEPTH.last||'-'} · 반영된 구역 ${[...SIM.tiles.values()].filter(t=>t.kz).length}곳 · 기준 점 쓴 구역 ${[...SIM.tiles.values()].filter(t=>t.anchors).length}곳 · 물길 전체 적용 ${[...SIM.tiles.values()].reduce((x,t)=>x+(t.chan||0),0)}곳`);
+  o.push(`수심: ${DEPTH.on?'켬':'끔'} · 호출 ${DEPTH.calls}번, 마지막 결과 ${DEPTH.last||'-'} · 반영된 구역 ${[...SIM.tiles.values()].filter(t=>t.kz).length}곳 · 기준 점 쓴 구역 ${[...SIM.tiles.values()].filter(t=>t.anchors).length}곳`);
   o.push(`조석 방식: ${pref('tideMode','auto')==='hl'?'예전 관측소 고정':tbUse()?'TideBED(좌표 보정)':'TideBED 실패 → 예전 관측소 (30분)'} · TideBED 호출 ${TB.calls}번, 마지막 결과 ${TB.last||'-'}${TB.why?' · 실패 이유 '+TB.why:''}`); if(TB.raw)o.push('  └ TideBED 마지막 응답: '+TB.raw); o.push(`주소 찾기(브이월드): 마지막 결과 ${ADDR.last} · 저장 ${ADDR.cache.size}곳`);
   o.push(`조석: 관측소 ${TIDE.st?TIDE.st.length:0}곳${TIDE.scan?' (찾는 중 '+TIDE.prog+')':''}${TIDE.lastCode?' · 관측소 마지막 결과 '+TIDE.lastCode:''}, 지금 ${TIDE.cur?stLabel(TIDE.cur.st)+'('+TIDE.cur.st.c+', 약 '+TIDE.cur.st.km.toFixed(1)+'km)':'-'}, 만조·간조(오늘) ${TIDE.cur?tideExtremes(TIDE.cur.ser,tideDay(),tideDay()+DAY).length:0}개`+(TIDE.err?' · ⚠️ '+TIDE.err:''));
   {const cr=(pref('cleanRes','')||'').split(','), ca=+(pref('cleanAt','0'))||0;
    o.push(`지난 자료 청소: ${ca?new Date(ca).toLocaleString('ko-KR'):'아직 안 함'}`+(ca?` · ${cr[0]||0}개 ${Math.round((+cr[1]||0)/1024)}KB 지움, 계산 결과 ${pref('cleanSim','0')}개`:''));}
-  // 화면 격자 25곳 중 흐름값 있는 곳
-  let has=0,sea=0;for(let yy=0;yy<5;yy++)for(let xx=0;xx<5;xx++){const ll=map.containerPointToLatLng([(xx+.5)*W/5,(yy+.5)*H/5]);if(!isWater((xx+.5)*W/5,(yy+.5)*H/5))continue;sea++;if(baseAt(ll.lat,ll.lng,th))has++;}
-  o.push(`화면 25곳 중 바다 ${sea}곳, 그중 흐름값 있음 ${has}곳`);
+  let baseCount=0, estimateCount=0, waiting=0, sea=0;
+  for(let yy=0;yy<5;yy++)for(let xx=0;xx<5;xx++){
+    const x=(xx+.5)*W/5,y=(yy+.5)*H/5;
+    if(!isWater(x,y))continue;
+    sea++;
+    const {lat,lng}=map.containerPointToLatLng([x,y]);
+    if(baseAt(lat,lng,th))baseCount++;
+    const v=flowAt(lat,lng,th);
+    if(v?.pend)waiting++; else if(v?.est)estimateCount++;
+  }
+  o.push(`화면 표본 25곳: 바다 ${sea}곳 · 기본 예보 ${baseCount}곳 · 항내 추정 ${estimateCount}곳 · 계산 중 ${waiting}곳`);
+  o.push(...diagCurrentLine('선택 지점 또는 지도 중심',sel||c,th));
+  const nearest=cfNear(c.lat,c.lng,th,5000);
+  if(nearest){
+    o.push(`가까운 조류예보 지점: ${nearest.s.n} · ${diagVector(nearest.v)}`);
+    o.push(...diagCurrentLine('조류예보 지점 앞뒤', {lat:nearest.s.la,lng:nearest.s.lo},th,nearest.v));
+  }
   // 3) 실제 API 직접 측정 (작은 구역 2개, 저장 안 함)
   for(const half of [0.01,0.05]){
     const b={s:+(c.lat-half).toFixed(4),n:+(c.lat+half).toFixed(4),w:+(c.lng-half).toFixed(4),e:+(c.lng+half).toFixed(4)};
@@ -3525,7 +3570,7 @@ function tideSummary(){
 
 // ================= 시간 컨트롤 =================
 let playing=false, frame=0;
-const setT=m=>{const [a,b]=TR(); tMin=Math.max(a,Math.min(b,m));updateUI();computeViewScale();cfDrawSoon();updateWxChip();};
+const setT=m=>{const [a,b]=TR(); tMin=Math.max(a,Math.min(b,m));updateUI();cfDrawSoon();updateWxChip();};
 let cfDrawT=null; const cfDrawSoon=()=>{if(cfDrawT)return;cfDrawT=setTimeout(()=>{cfDrawT=null;cfDraw();},250);};
 $('#slider').addEventListener('input',e=>{NOWF.on=false;setT(+e.target.value);});
 $('#nowBtn').onclick=()=>{if(VDAY.k)vdaySet(0); NOWF.on=true;setT(nowMin());};
@@ -3928,9 +3973,9 @@ MULSYS.v=pref('mulSys','auto'); mulApply();
 $('#mulSeg').onclick=e=>{const b=e.target.closest('button'); if(!b)return; MULSYS.v=b.dataset.m; setPref('mulSys',MULSYS.v); mulApply(); updateUI(); haptic('tick');};
 
 // ================= 시작 =================
-function loop(){frame++;
+function loop(now=performance.now()){frame++;
   if(playing){tMin+=0.5;if(tMin>=TR()[1]){tMin=TR()[1];playing=false;$('#play').textContent='▶';}if(frame%6===0)updateUI();}
-  stepFlow(); requestAnimationFrame(loop);}
+  stepFlow(now); requestAnimationFrame(loop);}
 window.addEventListener('resize',()=>map.invalidateSize());
 resizeFlow(); drawFavPins(); updateUI(); loop();
 map.on('moveend',updateCenterName);
