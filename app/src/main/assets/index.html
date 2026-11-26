@@ -345,9 +345,10 @@ html[data-theme=light]{--t-we:#b3261e;--b0f2638:#e7f0f7}
 @keyframes locPulse{0%{transform:scale(.9);opacity:.6}70%{transform:scale(1.12);opacity:0}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){#locBtn.locating::after{animation:none;opacity:.6}}
 #ncPages[hidden],#ncDots[hidden]{display:none!important}
-.ncslide{align-items:flex-start}.ncpg{flex-wrap:wrap;gap:4px 8px}.ncpg[inert]{height:0;overflow:hidden}
-.ncgrp{min-width:0;max-width:100%;flex-wrap:wrap;gap:4px 8px}
-.nowcard .ncpg>.tchip,.nowcard .ncpg>.windchip,.nowcard .ncgrp>.tchip{padding:3px 6px;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+/* 지금 카드 칩: 값이 바뀌어도 카드 크기가 안 흔들리게 — 한 줄 고정(줄바꿈 금지), 넘치면 줄바꿈 대신 줄어듦 */
+.ncslide{align-items:center}.ncpg{flex-wrap:nowrap;gap:4px 6px;align-items:center}.ncpg[inert]{height:0;overflow:hidden}
+.ncgrp{min-width:0;flex-wrap:nowrap;gap:5px;flex:0 1 auto}
+.nowcard .ncpg>.tchip,.nowcard .ncpg>.windchip,.nowcard .ncgrp>.tchip{padding:3px 6px;min-width:0;flex:0 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
 .ncdots{height:8px}.ncdots i{width:8px;height:8px;border:1px solid var(--muted);background:transparent}
 .ncdots i.on{border-color:var(--accent);background:var(--accent)}
 .crosshair:before,.crosshair:after{outline:1px solid #18252a;box-shadow:none}
