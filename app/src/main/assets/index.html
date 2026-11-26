@@ -325,10 +325,11 @@ html[data-theme=light]{--t-we:#b3261e;--b0f2638:#e7f0f7}
 .crosshair{position:absolute;top:50%;left:50%;pointer-events:none;z-index:450}.crosshair:before,.crosshair:after{content:"";position:absolute;background:white;box-shadow:0 0 2px #18252a}.crosshair:before{width:11px;height:1px;left:-5px}.crosshair:after{height:11px;width:1px;top:-5px}
 .side.under .ibtn{min-width:46px;width:auto;padding:0 5px}.side .ibtn small{font-size:calc(12px*var(--fs))}
 .ncdots{justify-content:center;height:5px}.ncdots i{width:5px;height:5px;flex:none;border-radius:50%}
-#layerPanel .lgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#layerPanel .lgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 #layerPanel .lcell{display:block;min-width:0}#layerPanel .lcell small{display:none}
 /* 큰 글씨·좁은 폭에서도 테두리가 안 닿게: 반경 축소·내용 넘침 숨김·글자 줄 간격 허용 (검토 8) */
-#layerPanel .lcell .ibtn{width:100%;min-height:44px;display:flex;gap:4px;font-size:calc(14px*var(--fs));border-radius:10px;overflow:hidden;padding:6px 8px;white-space:normal;line-height:1.2;text-align:center}
+/* 토글 버튼이 흰 시트 위에서 붙어 보이지 않게 옅은 바탕색을 줘 또렷이 분리 (검토 8 후속) */
+#layerPanel .lcell .ibtn{width:100%;min-height:44px;display:flex;gap:4px;font-size:calc(14px*var(--fs));border-radius:10px;overflow:hidden;padding:6px 8px;white-space:normal;line-height:1.2;text-align:center;background:var(--panel2);border-color:var(--line)}
 #layerPanel .lcell .ibtn::after{content:"꺼짐";font-size:calc(12px*var(--fs));position:static;transform:none;width:auto;height:auto;color:var(--muted)}
 #layerPanel .lcell .ibtn.on::after{content:"켜짐";color:var(--accent)}
 #infoDown{width:auto;min-width:44px;font-size:calc(13px*var(--fs))}
