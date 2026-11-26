@@ -15,8 +15,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 .mapbox{position:relative;flex:1;min-height:0}
 #map{position:absolute;inset:0;background:var(--b0d2638,#0d2638)}
 .flow-clip{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:450}
-#flow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:450;transform-origin:0 0;opacity:.82}
-#flow canvas{position:absolute;inset:0;width:100%;height:100%}
+#flow{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:450;transform-origin:0 0}
 /* 상단 검색 */
 .top{position:absolute;top:10px;left:10px;right:10px;z-index:1050;display:flex;gap:8px}
 .search{flex:1;position:relative}
@@ -279,7 +278,7 @@ html[data-theme=light] .ibtn,html[data-theme=light] .biteFab{background:rgba(255
 /* 밤낚시: 붉은 화면 — 지도·창·그림 글자까지 밝기만 남기고 붉게 거름. 흐름선과 범례 색 막대는 색 뜻(유속)을 지키려고 거르지 않고 조금 흐리게 */
 html[data-theme=night]{--nightF:grayscale(1) brightness(.55) sepia(1) saturate(12) hue-rotate(-40deg);background:var(--b000,#000)}
 html[data-theme=night] #map,html[data-theme=night] .mapbox>:not(#map):not(.flow-clip):not(.legend),html[data-theme=night] .sheet,html[data-theme=night] .panel,html[data-theme=night] .legend>:not(.bar){filter:var(--nightF)}
-html[data-theme=night] #flow{opacity:.6} html[data-theme=night] .legend{background:var(--b140505,#140505)}
+html[data-theme=night] #flow{opacity:.8} html[data-theme=night] .legend{background:var(--b140505,#140505)}
 #nightBtn.on{border:2px solid #ff5a4d;background:var(--b3a0d0a,#3a0d0a)}
 .torchBtn{position:absolute;right:14px;bottom:92px;z-index:1000;width:54px;height:54px;border-radius:50%;border:2px solid #ff5a4d;background:var(--b1a0707,#1a0707);color:var(--tff6b5e,#ff6b5e);font-size:calc(24px*var(--fs));display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
 .torchBtn.on{background:#ff5a4d;box-shadow:0 0 18px #ff5a4d}.torchBtn[hidden]{display:none}
@@ -379,7 +378,7 @@ html[data-theme=light] .nowcard .ncpg>.tchip,html[data-theme=light] .nowcard .nc
 <div class="app">
   <div class="mapbox">
     <div id="map"></div>
-    <div class="flow-clip"><div id="flow" aria-hidden="true"><canvas></canvas><canvas></canvas></div></div>
+    <div class="flow-clip"><canvas id="flow"></canvas></div>
 
     <div class="top">
       <form class="search" id="sform" autocomplete="off">
@@ -1347,7 +1346,7 @@ const dirName=d=>DIRS[Math.round(d/22.5)%16];
 const stateOf=s=>Math.abs(s)<0.12?['정조','s']:(s>0?['창조','f']:['낙조','e']);
 // ── 유속 색: 낚시 기준 고정 단계 (11-14 사용자 결정, 빨강 시작 기본 2.0노트 = 낚시 어려움, ⚙️에서 변경) ──
 // 예전: 화면마다 색 범위가 자동으로 바뀌어 '빨강'의 뜻이 화면마다 달랐음 → 고정. 움직임은 유속에 비례
-const COLORS=['#255b9e','#0587b7','#13b7ad','#9be15d','#f6c445','#f29a3d','#e53935'];
+const COLORS=['#3b6ea8','#3fa7c9','#4fd1c5','#9be15d','#f6c445','#f29a3d','#e53935'];
 const COLOR_NAMES=['거의 정조','약함','적당','조금 셈','셈','매우 셈','낚시 어려움'];
 const RED={kn:2.0};
 // 예보·저장 기록·색 경계는 노트로 유지하고 화면과 CSV에서만 환산한다.
@@ -1934,32 +1933,9 @@ function flowDraw(x,y,th){
   return v&&!v.pend?{...v,c:1}:null;
 }
 // ================= 흐름선 애니메이션 =================
-const cF=$('#flow'), flowCanvases=[...cF.querySelectorAll('canvas')];
-const flowContexts=flowCanvases.map(canvas=>canvas.getContext('2d'));
-let W=0,H=0,DPR=1, showFlow=true, moving=false;
-// 두 캔버스를 번갈아 그린다. 오래된 쪽 전체가 서서히 사라진 뒤 픽셀을 지운다.
-// build-77: 꼬리가 너무 짧아 방향을 읽기 어렵던 것을 늘림(250→420ms, 최대 약 840ms). 누적 회색은 캔버스 전체 삭제로 막는 방식은 그대로.
-const FLOW_TRAIL_MS=420;
-let flowTrailAt=null, flowFront=0;
-function clearFlowTrails(){
-  flowContexts.forEach(ctx=>ctx.clearRect(0,0,W,H));
-  flowTrailAt=null;
-}
-function flowTrailContext(now){
-  const elapsed=now-flowTrailAt;
-  if(flowTrailAt===null||elapsed>=2*FLOW_TRAIL_MS){
-    if(flowTrailAt!==null)clearFlowTrails();
-    flowTrailAt=now;
-  }else if(elapsed>=FLOW_TRAIL_MS){
-    flowFront=1-flowFront;
-    flowTrailAt+=FLOW_TRAIL_MS;
-    flowContexts[flowFront].clearRect(0,0,W,H);
-  }
-  const recent=flowCanvases[flowFront], old=flowCanvases[1-flowFront];
-  recent.style.zIndex='1'; recent.style.opacity='1';
-  old.style.zIndex='0'; old.style.opacity=String(Math.max(0,1-(now-flowTrailAt)/FLOW_TRAIL_MS));
-  return flowContexts[flowFront];
-}
+// 유속 시현(그리는 방식)은 build-65 방식으로 되돌림(11-26 사용자 지시): 촘촘한 밀도 + 지수 감쇠 꼬리 + 1.5px + 옛 색.
+// 계산(방정식)·완료된 결과만 표시(flowDraw의 pend 처리)는 그대로 둔다. 움직임은 주사율 무관(dt 기준) 유지.
+const cF=$('#flow'), xF=cF.getContext('2d'); let W=0,H=0,DPR=1, showFlow=true, moving=false;
 // Keep the completed trails anchored to the same map coordinates through a gesture.
 let flowView=null;
 const flowCopy=document.createElement('canvas');
@@ -1976,8 +1952,7 @@ function flowOffset(view){
 function transformFlow(view,animate=false){
   if(!flowView)return;
   const {k,x,y}=flowOffset(view);
-  cF.style.transition=animate?'transform 250ms cubic-bezier(0,0,0.25,1), opacity 160ms linear':'opacity 160ms linear';
-  if(k!==1)cF.style.opacity='0';
+  cF.style.transition=animate?'transform 250ms cubic-bezier(0,0,0.25,1)':'';
   cF.style.transform=`translate(${x}px,${y}px) scale(${k})`;
 }
 function resizeFlow(view=flowCamera()){
@@ -1986,41 +1961,32 @@ function resizeFlow(view=flowCamera()){
   const dpr=Math.min(2,window.devicePixelRatio||1);
   const changed=k!==1||Math.abs(x)>0.01||Math.abs(y)>0.01||W!==view.w||H!==view.h||DPR!==dpr;
   if(changed){
-    // 배율이 바뀌면 이전 픽셀을 확대하지 않는다. 같은 배율의 이동만 이어 그린다.
+    // 배율이 바뀌면 이전 픽셀을 확대하지 않는다(build-74). 같은 배율의 이동만 이어 그린다.
     const copy=showFlow&&k===1&&W>0&&H>0;
+    if(copy){flowCopy.width=cF.width; flowCopy.height=cF.height; flowCopy.getContext('2d').drawImage(cF,0,0);}
     W=view.w; H=view.h; DPR=dpr;
-    flowCanvases.forEach((canvas,i)=>{
-      if(copy){
-        flowCopy.width=canvas.width; flowCopy.height=canvas.height;
-        flowCopy.getContext('2d').drawImage(canvas,0,0);
-      }
-      canvas.width=W*DPR; canvas.height=H*DPR;
-      const ctx=flowContexts[i];
-      ctx.setTransform(DPR,0,0,DPR,0,0);
-      if(copy)ctx.drawImage(flowCopy,x,y,flowView.w,flowView.h);
-    });
-    if(copy)flowCopy.width=0;
-    else flowTrailAt=null;
+    cF.width=W*DPR; cF.height=H*DPR;
+    xF.setTransform(DPR,0,0,DPR,0,0);
+    if(copy){xF.drawImage(flowCopy,x,y,flowView.w,flowView.h); flowCopy.width=0;}
     for(const p of parts){
       p.x=p.x*k+x; p.y=p.y*k+y;
       if(p.x<0||p.y<0||p.x>=W||p.y>=H||(k<1&&Math.random()>k*k))spawn(p);
     }
-    const n=Math.round(Math.min(1500,W*H/280));
+    const n=Math.round(Math.min(2200,W*H/180));
     if(parts.length>n)parts.length=n;
     while(parts.length<n){const p={};spawn(p);p.age=Math.random()*p.max;parts.push(p);}
     flowView=view;
   }
   cF.style.transition='';
   cF.style.transform='';
-  cF.style.opacity='';
 }
 let parts=[];
 function okSpot(x,y){if(!isWater(x,y))return false;return !!flowDraw(x,y,tH());}
-function spawn(p){for(let k=0;k<12;k++){p.x=Math.random()*W;p.y=Math.random()*H;if(okSpot(p.x,p.y))break;}p.age=0;p.max=2+Math.random()*2.5;p.sk=Math.random()<0.4;}
-// 화면 표시 기준: 1 m/s = 16 CSS px/s. 물리 예보와 범례에는 적용하지 않는다.
-const flowDistance=(kn,seconds)=>kn*(1.852/3.6)*16*seconds;
-// 확대 단계별 굵기(대기 지시): 넓게 볼수록 굵게, 확대할수록 가늘게. 10↓ 1.75 / 13 1.35 / 16↑ 1.0, 그 사이 선형.
-function flowWidth(){const z=map.getZoom(); if(z<=10)return 1.75; if(z>=16)return 1.0; return z<=13?1.75+(z-10)*(1.35-1.75)/3:1.35+(z-13)*(1.0-1.35)/3;}
+function spawn(p){for(let k=0;k<12;k++){p.x=Math.random()*W;p.y=Math.random()*H;if(okSpot(p.x,p.y))break;}p.age=0;p.max=2+Math.random()*2.5;}
+// 화면 표시용 이동(build-65 방식): 약한 물살도 움직임이 보이도록 √속도로 보정해 길게 흐르게 한다(색·예보값은 그대로).
+// dt 기준이라 60fps에서 build-65와 같고 120Hz에서도 같은 속도. PXK*3 = build-65의 계수.
+const PXK=0.55;
+function flowStep(vE,vN,sp,dt){const g=sp>1e-6?1.2*Math.sqrt(sp)/sp:0, s=PXK*3*g*dt*60; return [vE*s, vN*s];}
 let flowFrameAt=null;
 function stepFlow(now){
   const dt=flowFrameAt===null?1/60:Math.max(0,Math.min(0.05,(now-flowFrameAt)/1000));
@@ -2031,8 +1997,9 @@ function stepFlow(now){
     if(cF.style.transform)resizeFlow();
   }
   if(!showFlow)return;
-  const xF=flowTrailContext(now);
   if(!ready||!dt)return;
+  // 꼬리: 지수 감쇠로 끝을 가늘게(build-65 방식). 주사율 무관 — 60fps에서 프레임당 약 0.9 유지.
+  xF.globalCompositeOperation='destination-in'; xF.fillStyle='rgba(0,0,0,'+Math.exp(-dt/0.16)+')'; xF.fillRect(0,0,W,H); xF.globalCompositeOperation='source-over';
   simFramePrep();
   const th=tH(), CP=COLORS.map(()=>new Path2D()), DP=COLORS.map(()=>new Path2D());
   for(const p of parts){
@@ -2041,21 +2008,16 @@ function stepFlow(now){
     const v=flowDraw(p.x,p.y,th);
     if(!v){spawn(p);continue;}
     const sp=Math.hypot(v.vE,v.vN);
-    const nx=p.x+flowDistance(v.vE,dt), ny=p.y-flowDistance(v.vN,dt);
+    const [dx,dy]=flowStep(v.vE,v.vN,sp,dt);
+    const nx=p.x+dx, ny=p.y-dy;
     if(!isWater(nx,ny)){spawn(p);continue;}
-    const bk=bucket(sp);
-    // 거의 정조(첫 색 구간) 입자는 약 40%를 그리지 않아 바다가 파란 먼지로 덮이는 느낌을 줄인다. (검토 6)
-    if(!(bk===0&&p.sk)){const path=(v.low?DP:CP)[bk];path.moveTo(p.x,p.y);path.lineTo(nx,ny);}
+    const path=(v.low?DP:CP)[bucket(sp)];
+    path.moveTo(p.x,p.y); path.lineTo(nx,ny);
     p.x=nx; p.y=ny;
   }
-  const lw=flowWidth();
-  xF.lineCap='round';
-  xF.globalAlpha=1;
-  CP.forEach((path,k)=>{xF.lineWidth=lw;xF.strokeStyle=COLORS[k];xF.stroke(path);});
-  // 자료 부족 흐름은 흐리게 고정(.45). 주사율과 무관. (REQ-36)
-  xF.globalAlpha=0.45;
-  xF.lineWidth=Math.max(1,lw*0.8);
-  DP.forEach((path,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(path);});
+  xF.lineWidth=1.5; xF.lineCap='round';
+  xF.globalAlpha=1; CP.forEach((path,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(path);});
+  xF.globalAlpha=0.35; DP.forEach((path,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(path);}); // 자료 부족(추정만)
   xF.globalAlpha=1;
 }
 
@@ -2071,7 +2033,7 @@ map.on('moveend',()=>{
   drawTidal();tideEnsure();updateTideChips();cfEnsure();
 });
 map.on('resize',()=>{transformFlow(flowCamera());buildMask();});
-$('#flowBtn').onclick=e=>{showFlow=!showFlow;$('#flowBtn').classList.toggle('on',showFlow);if(!showFlow)clearFlowTrails();};
+$('#flowBtn').onclick=e=>{showFlow=!showFlow;$('#flowBtn').classList.toggle('on',showFlow);if(!showFlow)xF.clearRect(0,0,W,H);};
 
 
 // ================= 간출암·노출암 (국립해양조사원 전자해도 자료, 앱에 내장) =================

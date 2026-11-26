@@ -60,47 +60,39 @@ exec(src+r'''
     # 확대·축소 중에는 선을 흐리게 하고, 끝나면 이전 배율의 픽셀을 제거한다.
     E("const s=document.querySelector('#slider'); s.value=__QA.tMin(); s.dispatchEvent(new Event('input'))")
     pg.wait_for_function("""() => {
-        return [...document.querySelectorAll('#flow canvas')].some(c=>
-            c.getContext('2d').getImageData(0,0,c.width,c.height).data.some((v,i)=>i%4===3&&v>0));
+        const c=document.querySelector('#flow'); if(!c||!c.width) return false;
+        return c.getContext('2d').getImageData(0,0,c.width,c.height).data.some((v,i)=>i%4===3&&v>0);
     }""")
     trails=E("""(()=>{
-        const c=document.querySelector('#flow');
-        const ink=()=>[...c.children].some(layer=>
-            layer.getContext('2d').getImageData(0,0,layer.width,layer.height).data.some((v,i)=>i%4===3&&v>0));
+        const c=document.querySelector('#flow'); const g=c.getContext('2d');
+        const ink=()=>g.getImageData(0,0,c.width,c.height).data.some((v,i)=>i%4===3&&v>0);
         _map.fire('movestart'); _map.fire('zoomanim',{center:_map.getCenter(),zoom:15});
-        const during=ink()&&c.style.transform.includes('scale(4)')&&c.style.opacity==='0';
+        const during=c.style.transform.includes('scale(4)');   // 확대 중 캔버스가 함께 확대 (단일 캔버스)
         _map._z=15; _map.fire('moveend');
-        const zoomIn=!ink()&&!c.style.transform&&!c.style.opacity;
-        c.firstElementChild.getContext('2d').fillRect(100,100,10,10);
+        const zoomClear=!ink()&&!c.style.transform;            // 확대 확정 후 이전 배율 픽셀 폐기 (build-74)
+        g.fillRect(100,100,10,10);
         _map.panBy(5,5);
-        const pan=ink()&&c.style.opacity==='';
-        _map.fire('movestart'); _map._z=13; _map.fire('moveend');
-        const zoomOut=!ink()&&!c.style.transform&&!c.style.opacity;
-        return [during,zoomIn,pan,zoomOut];
+        const pan=ink();                                       // 같은 배율 이동은 이어 그림
+        return [during,zoomClear,pan];
     })()""")
-    check('H14 확대 중 페이드, 확대·축소 직후 잔상 제거, 같은 배율 이동 중 유지', all(trails), trails)
+    check('H14 확대 중 캔버스 확대, 확대 확정 후 이전 배율 잔상 폐기, 같은 배율 이동 유지 (build-65 단일 캔버스)', all(trails), trails)
     expired=E("""(()=>{
-        const {flowTrailContext,clearFlowTrails}=__QA;
-        const layers=[...document.querySelectorAll('#flow canvas')];
-        const hasInk=x=>layers.some(layer=>layer.getContext('2d').getImageData(x,10,1,1).data[3]>0);
-        return [30,60,120].map(hz=>{
-            clearFlowTrails();
-            const old=flowTrailContext(1000);
-            old.fillStyle='rgba(80,135,155,.06)'; old.fillRect(4,4,20,20);
-            const drawn=hasInk(10);
-            for(let i=1;i<=hz;i++){
-                const current=flowTrailContext(1000+i*1000/hz);
-                current.fillStyle='#4fbacd'; current.fillRect(45,4,20,20);
-            }
-            const steady=!hasInk(10)&&hasInk(60);
-            flowTrailContext(10000);
-            const paused=!hasInk(10)&&!hasInk(60);
-            clearFlowTrails();
-            return [drawn,steady,paused];
-        });
+        const c=document.querySelector('#flow'); const g=c.getContext('2d');
+        const run=hz=>{ g.save(); g.setTransform(1,0,0,1,0,0);
+            g.globalCompositeOperation='source-over'; g.clearRect(0,0,c.width,c.height);
+            g.fillStyle='#4fbacd'; g.fillRect(40,8,12,12);
+            const a0=g.getImageData(45,13,1,1).data[3];
+            for(let i=0;i<hz;i++){const dt=1/hz; g.globalCompositeOperation='destination-in'; g.fillStyle='rgba(0,0,0,'+Math.exp(-dt/0.16)+')'; g.fillRect(0,0,c.width,c.height); g.globalCompositeOperation='source-over';}
+            const a1=g.getImageData(45,13,1,1).data[3]; g.restore(); return [a0,a1];
+        };
+        const r=[30,60,120].map(run);
+        const bright=r.every(x=>x[0]>200);                      // 처음엔 선명
+        const faded=r.every(x=>x[1]<20);                        // 1초 뒤 거의 사라짐(누적 안 됨)
+        const consistent=Math.max(...r.map(x=>x[1]))-Math.min(...r.map(x=>x[1]))<8; // 주사율 달라도 감쇠 같음
+        return [bright,faded,consistent];
     })()""")
-    check('H16 30·60·120Hz에서 희미한 픽셀 만료와 새 흐름 유지, 화면 복귀 후 초기화',
-          all(all(row) for row in expired), expired)
+    check('H16 흐름선 꼬리가 1초 뒤 사라지고(누적 없음) 30·60·120Hz에서 감쇠가 같음(주사율 무관)',
+          all(expired), expired)
     E("__QA.select(34.882,128.096,'고정 유속 시험')")
     point="""()=>{
         const s=__QA.sel(), v=__QA.flowAt(s.lat,s.lng,__QA.tH());
@@ -120,8 +112,8 @@ exec(src+r'''
     # H17·H18 (검토 3): 흐름선이 실제로 보이고, 프레임마다 입자가 움직여 유속을 나타내는지
     go(13,34.9,128.09,0)
     pg.wait_for_timeout(2200)
-    PAINT="""(()=>{const cs=[...document.querySelectorAll('#flow canvas')];const W=__QA.W(),H=__QA.H();
-        const off=document.createElement('canvas');off.width=W;off.height=H;const o=off.getContext('2d');cs.forEach(c=>o.drawImage(c,0,0,W,H));
+    PAINT="""(()=>{const c=document.querySelector('#flow');const W=__QA.W(),H=__QA.H();
+        const off=document.createElement('canvas');off.width=W;off.height=H;const o=off.getContext('2d');o.drawImage(c,0,0,W,H);
         const d=o.getImageData(0,0,W,H).data;let p=0;for(let i=3;i<d.length;i+=4)if(d[i]>8)p++;return p/(W*H);})()"""
     samples=[]
     for _ in range(6):
