@@ -19,12 +19,17 @@ const field=stationForcing(tile,[station],47,0.07);
 assert.ok(field.rate[idx(27,15)]<0.01);
 assert.ok(Math.abs(field.east[idx(30,15)]-.07)<1e-7);
 assert.equal(field.rate[idx(27,23)],0);
-const distance=eval(html.match(/const flowDistance=(.*);/)[1]);
-for(const fps of [30,60,120]){
-  assert.ok(Math.abs(fps*distance(0.5*3.6/1.852,1/fps)-8)<1e-9);
-  assert.ok(Math.abs(fps*distance(3.6/1.852,1/fps)-16)<1e-9);
+// 흐름선 이동(build-65 방식 flowStep): √속도 보정 + dt 기준이라 주사율이 달라도 초당 이동량이 같다.
+const PXK=eval(html.match(/const PXK=([0-9.]+)/)[1]);
+const flowStep=eval('('+html.match(/function flowStep\(vE,vN,sp,dt\)\{[\s\S]*?\}/)[0]+')');
+for(const [vE,vN,sp] of [[0.5,0,0.5],[-0.3,0.4,0.5],[0.08,0,0.08]]){
+  const ref=60*flowStep(vE,vN,sp,1/60)[0];
+  for(const fps of [30,120]) assert.ok(Math.abs(fps*flowStep(vE,vN,sp,1/fps)[0]-ref)<1e-9);
 }
-console.log('통과: 물길 안 점진적 보정, 방파제 너머 차단, 주사율과 무관한 이동량');
+// 약한 물살이 빠른 물살보다 상대적으로 더 움직인다(√ 보정: 느린 물도 보이게)
+const slow=flowStep(0.1,0,0.1,1/60)[0]/0.1, fast=flowStep(1,0,1,1/60)[0]/1;
+assert.ok(slow>fast);
+console.log('통과: 물길 안 점진적 보정, 방파제 너머 차단, 주사율과 무관한 이동량(flowStep)');
 
 // Run the production solver with and without a station on the same channel.
 const vm=require('node:vm');
