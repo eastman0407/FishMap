@@ -29,7 +29,7 @@ exec(src+'''
     check('U1 오른쪽 버튼은 🔴·◎·📅·☰ 4개 (+ 위 ★) — build-49 U-4, build-62 🔴 추가', side==['nightBtn','locBtn','planBtn','layersBtn'] and E("!!document.querySelector('.top #favBtn')"), side)
     E("document.querySelector('#layersBtn').click()")
     ids=E("[...document.querySelectorAll('#layerPanel .ibtn')].map(b=>b.id)")
-    check('U2 보기 시트에 켜고 끄는 도구 6개 + 맨 아래 ⚙️ 설정 줄 (build-50 U-20)', E("document.querySelector('#layerPanel').classList.contains('show')") and ids==['layerBtn','flowBtn','windBtn','simBtn','rockBtn','sstBtn'] and E("!!document.querySelector('#layerPanel .lsep + #setBtn.lrow')"), ids)
+    check('U2 보기 시트에 켜고 끄는 도구 6개 + 맨 아래 ⚙️ 설정 줄 (build-50 U-20, build-69 낚시 포인트 토글 반영)', E("document.querySelector('#layerPanel').classList.contains('show')") and ids==['flowBtn','windBtn','simBtn','rockBtn','fishingLayerBtn','sstBtn'] and E("!!document.querySelector('#layerPanel .lsep + #setBtn.lrow')"), ids)
     pg.screenshot(path='/tmp/ui_layer.png')
     on0=E("document.querySelector('#flowBtn').classList.contains('on')"); E("document.querySelector('#flowBtn').click()"); on1=E("document.querySelector('#flowBtn').classList.contains('on')")
     E("document.querySelector('#flowBtn').click()")

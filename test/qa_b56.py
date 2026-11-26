@@ -117,6 +117,22 @@ exec(src+r'''
         data.append([E('('+point+')()'),E("__QA.SIM.sz")])
     check('H15 같은 지점·시각에서 13→15→13단계 유속·방향과 정밀 구역 고정',
           bool(keys) and all(ks==keys and math.dist(v,v13)<1e-6 for v,ks in data), [v13,data])
+    # H17·H18 (검토 3): 흐름선이 실제로 보이고, 프레임마다 입자가 움직여 유속을 나타내는지
+    go(13,34.9,128.09,0)
+    pg.wait_for_timeout(2200)
+    PAINT="""(()=>{const cs=[...document.querySelectorAll('#flow canvas')];const W=__QA.W(),H=__QA.H();
+        const off=document.createElement('canvas');off.width=W;off.height=H;const o=off.getContext('2d');cs.forEach(c=>o.drawImage(c,0,0,W,H));
+        const d=o.getImageData(0,0,W,H).data;let p=0;for(let i=3;i<d.length;i+=4)if(d[i]>8)p++;return p/(W*H);})()"""
+    samples=[]
+    for _ in range(6):
+        samples.append(E(PAINT)); pg.wait_for_timeout(120)
+    painted=max(samples)
+    check('H17 흐름선이 화면에 보임 (칠해진 픽셀 ≥ 0.3%)', painted>=0.003, f'{round(painted*100,2)}%')
+    p0=E("__QA.parts().slice(0,40).map(p=>[Math.round(p.x),Math.round(p.y)])")
+    pg.wait_for_timeout(350)
+    p1=E("__QA.parts().slice(0,40).map(p=>[Math.round(p.x),Math.round(p.y)])")
+    moved=sum(1 for a,b in zip(p0,p1) if a!=b)
+    check('H18 입자가 프레임마다 이동 (움직임으로 유속 표현, REQ-37·U-64)', moved>=20, f'{moved}/40 이동')
     check('H13 스크립트 오류 없음', not errs, errs[:2])
     print(f"결과: {sum(res)}/{len(res)}")
     br.close()
