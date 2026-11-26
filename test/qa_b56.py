@@ -17,13 +17,17 @@ exec(src+r'''
     E("const s=document.querySelector('#slider');s.value=620;s.dispatchEvent(new Event('input'))")
     go(13,34.882,128.096,0)
     s13,f13=run(lambda:E("document.querySelector('#simBtn').classList.contains('on')||document.querySelector('#simBtn').click()"))
-    check('H1 계산 전 임시 흐름선을 표시하지 않음', all(v is None for v in s13[0]), s13[0])
-    check('H2 완료한 값만 표시하며 기다리는 중의 방향이 최종값과 같음',
-          all(f13) and all(v is None or v==f13[i] for row in s13 for i,v in enumerate(row)),f13)
+    # build-80: 계산 중엔 빈 바다가 아니라 예보 방향을 흰 선으로 보여준다(4번째 값 pend=true). 완료되면 색(pend=false)으로 바뀐다.
+    forecast_shown=any(all(v is not None for v in row) and any(v[3] for v in row if v) for row in s13)
+    check('H1 계산 중에도 예보 방향(흰 선)을 표시 — 빈 바다 아님', forecast_shown, s13[0])
+    check('H2 계산이 끝나면 완료된 항내 결과(색)로 바뀜', all(v is not None and v[3]==False for v in f13), f13)
     for z,lat,lon in [(15,34.882,128.096),(12,34.882,128.096),(13,34.896,128.112),(13,34.882,128.096)]:
         snaps,final=run(lambda:go(z,lat,lon,0),12)
-        check(f'확대 {z}, 이동 {lat}/{lon}: 매 표본의 같은 지점 유속·유향 유지',
-              final==f13 and all(row==f13 for row in snaps),final)
+        # 완료된 값은 확대·이동해도 동일(방향 고정), 계산 중이라도 화면이 비지 않는다(예보 방향 표시)
+        completed_stable=all(v[:3]==f13[i][:3] for row in snaps for i,v in enumerate(row) if v and v[3]==False)
+        no_blank=all(any(v is not None for v in row) for row in snaps)
+        check(f'확대 {z}, 이동 {lat}/{lon}: 완료값 유속·유향 고정 + 계산 중 빈 화면 없음',
+              final==f13 and completed_stable and no_blank, final)
     no_roms=E("""(()=>{
         const keep=__QA.ROMS.mem; __QA.ROMS.mem=new Map();
         try{
@@ -69,13 +73,13 @@ exec(src+r'''
         _map.fire('movestart'); _map.fire('zoomanim',{center:_map.getCenter(),zoom:15});
         const during=c.style.transform.includes('scale(4)');   // 확대 중 캔버스가 함께 확대 (단일 캔버스)
         _map._z=15; _map.fire('moveend');
-        const zoomClear=!ink()&&!c.style.transform;            // 확대 확정 후 이전 배율 픽셀 폐기 (build-74)
+        const zoomKeep=ink()&&!c.style.transform;              // 확대 확정 후에도 이전 흐름선이 남아 끊기지 않음(연속 전환, build-80)
         g.fillRect(100,100,10,10);
         _map.panBy(5,5);
-        const pan=ink();                                       // 같은 배율 이동은 이어 그림
-        return [during,zoomClear,pan];
+        const pan=ink();                                       // 같은 배율 이동도 이어 그림
+        return [during,zoomKeep,pan];
     })()""")
-    check('H14 확대 중 캔버스 확대, 확대 확정 후 이전 배율 잔상 폐기, 같은 배율 이동 유지 (build-65 단일 캔버스)', all(trails), trails)
+    check('H14 확대 중 캔버스 확대 + 확대 후에도 흐름선 이어짐(끊김 없음) + 같은 배율 이동 유지', all(trails), trails)
     expired=E("""(()=>{
         const c=document.querySelector('#flow'); const g=c.getContext('2d');
         const run=hz=>{ g.save(); g.setTransform(1,0,0,1,0,0);

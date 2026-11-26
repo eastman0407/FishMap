@@ -1929,7 +1929,15 @@ function currentAtWorld(x,y,lat,lon,th){
 }
 function flowDraw(x,y,th){
   const ll=map.containerPointToLatLng([x,y]);
-  const v=simLevel()?currentAtWorld(simFrame.x0+x*simFrame.k,simFrame.y0+y*simFrame.k,ll.lat,ll.lng,th):baseAt(ll.lat,ll.lng,th);
+  if(simLevel()){
+    const v=currentAtWorld(simFrame.x0+x*simFrame.k,simFrame.y0+y*simFrame.k,ll.lat,ll.lng,th);
+    if(v&&!v.pend)return {...v,c:1};
+    // 항내 계산 중: 빈 바다로 두지 않고 '예보 방향'을 흰 선으로 보여준다(build-65 방식).
+    // 예보 방향(baseAt)은 고정 블록·회차라 확대·이동해도 안 흔들려 뒤집힘 문제를 일으키지 않는다.
+    if(v&&v.pend){const b=baseAt(ll.lat,ll.lng,th); return b?{...b,c:1,computing:true}:null;}
+    return null;
+  }
+  const v=baseAt(ll.lat,ll.lng,th);
   return v&&!v.pend?{...v,c:1}:null;
 }
 // ================= 흐름선 애니메이션 =================
@@ -1961,18 +1969,21 @@ function resizeFlow(view=flowCamera()){
   const dpr=Math.min(2,window.devicePixelRatio||1);
   const changed=k!==1||Math.abs(x)>0.01||Math.abs(y)>0.01||W!==view.w||H!==view.h||DPR!==dpr;
   if(changed){
-    // 배율이 바뀌면 이전 픽셀을 확대하지 않는다(build-74). 같은 배율의 이동만 이어 그린다.
-    const copy=showFlow&&k===1&&W>0&&H>0;
+    // 확대·축소가 끝나도 끊기지 않게: 이전 흐름선을 배율에 맞춰 복사해 깔고, 새 점이 그 위에 그려지며
+    // 지수 감쇠 꼬리가 늘어난 이전 픽셀을 약 0.3초 안에 지운다(잠깐 살짝 늘어나 보이되 빈 화면 없음).
+    const copy=showFlow&&W>0&&H>0;
     if(copy){flowCopy.width=cF.width; flowCopy.height=cF.height; flowCopy.getContext('2d').drawImage(cF,0,0);}
     W=view.w; H=view.h; DPR=dpr;
     cF.width=W*DPR; cF.height=H*DPR;
     xF.setTransform(DPR,0,0,DPR,0,0);
-    if(copy){xF.drawImage(flowCopy,x,y,flowView.w,flowView.h); flowCopy.width=0;}
+    if(copy){xF.drawImage(flowCopy,x,y,flowView.w*k,flowView.h*k); flowCopy.width=0;}
     for(const p of parts){
       p.x=p.x*k+x; p.y=p.y*k+y;
       if(p.x<0||p.y<0||p.x>=W||p.y>=H||(k<1&&Math.random()>k*k))spawn(p);
     }
-    const n=Math.round(Math.min(2200,W*H/180));
+    // 확대할수록 점이 나뉘며 촘촘해진다: 넓게 볼 땐 기본, 확대할수록 더 많은 점으로 세밀한 물길을 드러낸다(성능 상한 3600).
+    const z=map.getZoom(), zf=Math.max(1,Math.min(1.8,1+(z-11)*0.2));
+    const n=Math.round(Math.min(3600,W*H/180*zf));
     if(parts.length>n)parts.length=n;
     while(parts.length<n){const p={};spawn(p);p.age=Math.random()*p.max;parts.push(p);}
     flowView=view;
@@ -2001,7 +2012,7 @@ function stepFlow(now){
   // 꼬리: 지수 감쇠로 끝을 가늘게(build-65 방식). 주사율 무관 — 60fps에서 프레임당 약 0.9 유지.
   xF.globalCompositeOperation='destination-in'; xF.fillStyle='rgba(0,0,0,'+Math.exp(-dt/0.16)+')'; xF.fillRect(0,0,W,H); xF.globalCompositeOperation='source-over';
   simFramePrep();
-  const th=tH(), CP=COLORS.map(()=>new Path2D()), DP=COLORS.map(()=>new Path2D());
+  const th=tH(), CP=COLORS.map(()=>new Path2D()), DP=COLORS.map(()=>new Path2D()), WP=new Path2D();
   for(const p of parts){
     p.age+=dt;
     if(p.age>p.max||!isWater(p.x,p.y)){spawn(p);continue;}
@@ -2011,13 +2022,15 @@ function stepFlow(now){
     const [dx,dy]=flowStep(v.vE,v.vN,sp,dt);
     const nx=p.x+dx, ny=p.y-dy;
     if(!isWater(nx,ny)){spawn(p);continue;}
-    const path=(v.low?DP:CP)[bucket(sp)];
+    const path=v.computing?WP:(v.low?DP:CP)[bucket(sp)];
     path.moveTo(p.x,p.y); path.lineTo(nx,ny);
     p.x=nx; p.y=ny;
   }
   xF.lineWidth=1.5; xF.lineCap='round';
   xF.globalAlpha=1; CP.forEach((path,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(path);});
   xF.globalAlpha=0.35; DP.forEach((path,k)=>{xF.strokeStyle=COLORS[k];xF.stroke(path);}); // 자료 부족(추정만)
+  // 항내 계산 중: 예보 방향을 흰 선으로(밝은 바탕 지도면 어둡게). 계산이 끝나면 색으로 바뀜.
+  xF.globalAlpha=0.7; xF.strokeStyle=(mode==='street'?'#2b3742':'#ffffff'); xF.stroke(WP);
   xF.globalAlpha=1;
 }
 
