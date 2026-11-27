@@ -6,6 +6,7 @@
   python3 tools/team/team.py new    T-001 "제목" --to gpt    # 작업지시서 만들기
   python3 tools/team/team.py ask    --to gpt --task team/tasks/T-001.md \
           --ctx app/src/main/assets/index.html:1200-1350 [--ctx 파일 ...] [--hard | --model M]
+  python3 tools/team/team.py codex  --task team/tasks/T-001.md [--hard]   # GPT를 구독(Codex CLI)으로, 읽기 전용
   python3 tools/team/team.py apply  team/out/T-001.gpt.1.md [--dry]
 
 API 키는 환경변수(OPENAI_API_KEY / XAI_API_KEY) 또는 세션 프록시가 넣어 준다.
@@ -148,6 +149,43 @@ def cmd_apply(args):
     print(f"블록 {len(blocks)}개 {'확인' if args.dry else '적용'} 완료")
 
 
+def cmd_codex(args):
+    """ChatGPT 구독 로그인(Codex CLI)으로 GPT에게 맡긴다. 저장소는 읽기 전용, 결과는 SEARCH/REPLACE 블록."""
+    import shutil, subprocess
+    if not shutil.which("codex"):
+        sys.exit("codex 없음: npm i -g @openai/codex 후 codex login --device-auth")
+    st = subprocess.run(["codex", "login", "status"], capture_output=True, text=True)
+    if "Logged in" not in (st.stdout + st.stderr):
+        sys.exit("Codex 로그인 필요: codex login --device-auth (세션마다 다시 로그인)")
+    m = CFG["codex"]
+    task_path = ROOT / args.task
+    prompt = ((HERE / "system_prompt.md").read_text(encoding="utf-8")
+              + "\n\n저장소는 현재 폴더다. 필요한 코드는 직접 찾아 읽어라(읽기만, 파일 수정 금지). "
+              "SEARCH 부분은 실제 파일 내용 그대로 복사한다.\n\n# 작업지시서\n"
+              + task_path.read_text(encoding="utf-8"))
+    if args.feedback:
+        prompt += "\n\n## 이전 제출에 대한 총괄(Claude) 피드백\n" + (ROOT / args.feedback).read_text(encoding="utf-8")
+    OUT.mkdir(parents=True, exist_ok=True)
+    n = 1
+    while (OUT / f"{task_path.stem}.codex.{n}.md").exists():
+        n += 1
+    out = OUT / f"{task_path.stem}.codex.{n}.md"
+    model = args.model or (m["model_hard"] if args.hard else m["model"])
+    t0 = time.time()
+    r = subprocess.run(["codex", "exec", "-m", model, "-s", "read-only", "--ephemeral",
+                        "-C", str(ROOT), "-o", str(out), prompt],
+                       stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=CFG["timeout_sec"])
+    tok = re.findall(r"tokens used\s*\n\s*([\d,]+)", r.stdout + r.stderr)
+    if r.returncode != 0 or not out.exists():
+        sys.exit(f"[Codex] 실패(code {r.returncode}): {(r.stderr or r.stdout)[-800:]}")
+    out.write_text(f"<!-- Codex model={model} sec={time.time() - t0:.0f} tokens={tok[-1] if tok else '?'} -->\n"
+                   + out.read_text(encoding="utf-8"), encoding="utf-8")
+    print(f"[Codex {model}] 답변 저장: {out.relative_to(ROOT)}  ({time.time() - t0:.0f}초, 토큰 {tok[-1] if tok else '?'})")
+    print(f"블록 {len(parse_blocks(out.read_text(encoding='utf-8')))}개")
+    if subprocess.run(["git", "-C", str(ROOT), "status", "--porcelain", "--", "app"], capture_output=True, text=True).stdout.strip():
+        print("경고: app/ 아래에 변경이 있음 — Codex가 건드렸는지 git diff로 확인할 것")
+
+
 def cmd_new(args):
     TASKS.mkdir(parents=True, exist_ok=True)
     p = TASKS / f"{args.id}.md"
@@ -179,6 +217,8 @@ def main():
     a.add_argument("--ctx", action="append"); a.add_argument("--model"); a.add_argument("--feedback")
     a.add_argument("--hard", action="store_true", help="어려운 작업: 상급 모델(model_hard) 사용")
     a.set_defaults(f=cmd_ask)
+    k = sub.add_parser("codex"); k.add_argument("--task", required=True); k.add_argument("--hard", action="store_true")
+    k.add_argument("--model"); k.add_argument("--feedback"); k.set_defaults(f=cmd_codex)
     b = sub.add_parser("apply"); b.add_argument("answer"); b.add_argument("--dry", action="store_true"); b.set_defaults(f=cmd_apply)
     c = sub.add_parser("new"); c.add_argument("id"); c.add_argument("title"); c.add_argument("--to", required=True); c.set_defaults(f=cmd_new)
     d = sub.add_parser("models"); d.add_argument("--to", required=True); d.set_defaults(f=cmd_models)
