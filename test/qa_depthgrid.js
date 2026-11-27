@@ -74,8 +74,9 @@ t('인접 바다 셀 중간점은 두 값 사이', () => {
 
 // 6) 간출/육지경계 음수 수심도 그대로 보간 (부호 안 바뀜)
 t('수심 부호 유지(양수=깊이)', () => {
-  const sea = G.data.filter(v => v != null && v !== G.land);
-  assert.ok(Math.max(...sea) > 20, '깊은 곳이 양수여야 함');
+  let mx = -Infinity;
+  for (const v of G.data) if (v != null && v !== G.land && v > mx) mx = v;
+  assert.ok(mx > 20, '깊은 곳이 양수여야 함');
 });
 
 // ── simDepthFromGrid(격자→바닥 마찰 kz) 직접 검증 (헤드리스 sim 워커 없이) ──
