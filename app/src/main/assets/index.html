@@ -574,6 +574,7 @@ html[data-theme=light] .nowcard .ncpg>.tchip,html[data-theme=light] .nowcard .nc
     <div class="namebox" style="margin-top:12px"><label style="font-size:calc(14px*var(--fs));display:flex;align-items:center;gap:8px"><input type="checkbox" id="tbChk" style="width:auto;height:auto"> 조석을 이 자리 좌표로 보정 (TideBED) <span style="font-size:calc(12px*var(--fs));color:var(--muted)">(끄면 예전 관측소 방식)</span></label></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:calc(14px*var(--fs));display:flex;align-items:center;gap:8px"><input type="checkbox" id="cfChk" style="width:auto;height:auto"> 조류예보 지점 표시 <span style="font-size:calc(12px*var(--fs));color:var(--muted)">(보라색 화살표 · 10단계 이상)</span></label></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:calc(14px*var(--fs));display:flex;align-items:center;gap:8px"><input type="checkbox" id="depthChk" style="width:auto;height:auto"> ⚓ 항내 추정에 수심 반영 <span style="font-size:calc(12px*var(--fs));color:var(--muted)">(가장 확대한 단계)</span></label></div>
+    <div class="namebox" style="margin-top:12px"><label style="font-size:calc(14px*var(--fs));display:flex;align-items:center;gap:8px"><input type="checkbox" id="preChk" style="width:auto;height:auto"> ⏩ 다음 시각 미리 계산 <span style="font-size:calc(12px*var(--fs));color:var(--muted)">(쉴 때 앞 12시간 치, 시간 막대가 바로 뜸)</span></label></div>
     <div class="namebox" style="margin-top:12px"><label style="font-size:calc(14px*var(--fs));display:flex;align-items:center;gap:8px"><input type="checkbox" id="tidalChk" style="width:auto;height:auto"> 갯벌 범위 점선 표시 <span style="font-size:calc(12px*var(--fs));color:var(--muted)">(11단계 이상 · 일부 지역만)</span></label></div>
       </div></details>
       <details class="sgrp" id="grpTest"><summary><span>🧪 시험·진단</span><em>문제 생길 때</em></summary><div class="sbody">
@@ -781,10 +782,10 @@ function nget(url,maxAge){
 const CLEAN_RULES='roms:11520,tide:11520,wind:4320,misc:43200,legacy:0';
 function cleanOld(force){
   try{ const last=+(pref('cleanAt','0'))||0; if(!force&&Date.now()-last<20*3600000)return null;
-    if(!NATIVE){WEBCACHE.clean(CLEAN_RULES).then(r=>{setPref('cleanAt',String(Date.now()));setPref('cleanRes',r);});SIMDB.clean(8,300).then(n=>setPref('cleanSim',String(n)));return null;} // 웹: 브라우저 저장소 청소
+    if(!NATIVE){WEBCACHE.clean(CLEAN_RULES).then(r=>{setPref('cleanAt',String(Date.now()));setPref('cleanRes',r);});SIMDB.clean(8,600).then(n=>setPref('cleanSim',String(n)));return null;} // 웹: 브라우저 저장소 청소
     if(!NATIVE.cleanCache)return null;
     const r=NATIVE.cleanCache(CLEAN_RULES).split(','); setPref('cleanAt',String(Date.now())); setPref('cleanRes',r.join(','));
-    SIMDB.clean(8,300).then(n=>setPref('cleanSim',String(n))); // 저장된 항내 계산 결과도 8일 지나면 삭제
+    SIMDB.clean(8,600).then(n=>setPref('cleanSim',String(n))); // 저장된 항내 계산 결과도 8일 지나면 삭제
     return {n:+r[0],bytes:+r[1]};
   }catch(e){return null;}
 }
@@ -1464,7 +1465,9 @@ const FIELD_LEVEL=15; // 고정 지리 격자. 남해에서 한 칸 약 47m
 const SIMMODE={on:false, MIN:REAL_MIN_ZOOM};
 function simLevel(){return simWorker&&SIMMODE.on&&map.getZoom()>=SIMMODE.MIN?FIELD_LEVEL:0;}
 const NEST_LV=16, NEST_PARENT=14;
-const SIM={par:[],focus:[],sz:16,on:false,ready:false,done:false,wantT:-1,pendingAt:0,lastSend:0,tiles:new Map(),view:[],fb:[],queue:[],job:null,u:null};
+const SIM={par:[],focus:[],sz:16,on:false,ready:false,done:false,wantT:-1,pendingAt:0,lastSend:0,tiles:new Map(),view:[],fb:[],queue:[],job:null,u:null,pre:[],preGen:-1};
+// (B) 다음 시각 미리 계산: 쉬는 동안 지금 구역을 앞 시각들로 계산해 저장 → 시간 막대 밀면 즉시. 물리 계산은 그대로, 시각만 바꿔 더 돌림
+const PRE={on:true,hours:12,done:0,total:0};
 // ── 4) 계산 결과 폰에 저장 (앱 안 저장소 IndexedDB): 열쇠 = 구역|예보 시각|경계값 지문 → 다시 켜도 본 곳은 바로
 //     값은 16비트 정수로 줄여 저장(구역 1개 약 120KB), 8일 지나면 '지난 자료 청소' 때 삭제, 최대 300개
 const SIMDB={db:null,ok:true,open(){if(SIMDB.db||!SIMDB.ok||!window.indexedDB)return Promise.resolve(SIMDB.db);
@@ -1529,6 +1532,8 @@ onmessage=e=>{const m=e.data;
 let simWorker=null, simJob=0;
 try{simWorker=new Worker(URL.createObjectURL(new Blob([WORKER_SRC],{type:'text/javascript'})));}catch(e){simWorker=null;}
 if(simWorker)simWorker.onmessage=e=>{const m=e.data, J=SIM.job; if(!J||m.id!==J.id)return;
+  // (B) 미리 계산 잡: 화면(T.cur)·simCache 안 건드리고 저장만. 끝나면 다음 미리 계산으로
+  if(J.pre){ if(m.done){ SIMDB.put(simKey(J.tile,J.t,J.h),{u:q16(m.u),v:q16(m.v),scale:J.scale,at:Date.now()}); SIM.job=null; simStatus(); simPump(); } return; }
   // H-11: 끝난 결과는 폰에 저장할 때와 똑같이 줄인 값(q16→f16)으로 화면에도 씀 → 다시 켜도 테두리 지문(h)이 같아 저장 결과를 찾음
   if(m.done){m.u=f16(q16(m.u)); m.v=f16(q16(m.v));}
   const T=J.tile;
@@ -1587,7 +1592,8 @@ function simViewTiles(lv){
 function simStatus(){const V=SIM.view.map(k=>SIM.tiles.get(k)).filter(t=>t&&t.state!=='skip'&&t.state!=='failed'&&!t.nodata);
   const tS=sT(); SIM.on=V.length>0; SIM.ready=V.some(t=>t.cur&&t.cur.t===tS&&t.cur.done); SIM.done=SIM.on&&V.every(t=>t.cur&&t.cur.t===tS&&t.cur.done);
   SIM.rough=false; if(SIM.on&&!SIM.done&&(SIM.fb||[]).some(k=>{const T=SIM.tiles.get(k);return T&&T.cur&&T.cur.t===tS&&T.cur.done;})){SIM.ready=true;SIM.rough=true;}
-  const c=V.find(t=>t.cur); SIM.u=c?c.cur.u:null;}
+  const c=V.find(t=>t.cur); SIM.u=c?c.cur.u:null;
+  if(PRE.on&&SIM.done&&!SIM.job&&!SIM.queue.length&&!moving)simPrefetchPump();} // 볼 것 다 끝나면 다음 시각 미리 계산
 // 확대·이동이 멈추고 0.8초 그대로일 때만 계산 시작 (두 손가락 확대 중간 단계 헛계산 방지)
 let simEnsureTimer=null, simMaskWorkers=0;
 function simBuildNext(){
@@ -1603,7 +1609,7 @@ function simEnsureSoon(){clearTimeout(simEnsureTimer);simEnsureTimer=setTimeout(
 function simFocusChanged(){if(!moving&&simLevel()&&!SIM.view.length)simEnsure();}
 function simEnsure(){
   const lv=simLevel();
-  if(!simWorker||!lv){ SIM.par=[]; SIM.fb=[]; SIM.focus=[]; if(SIM.view.length){SIM.gen=(SIM.gen||0)+1;SIM.view=[];SIM.queue=[];SIM.job=null;SIM.lastTile=null;simJob++;if(simWorker)simWorker.postMessage({type:'stop'});simStatus();updateBadge();} return; }
+  if(!simWorker||!lv){ SIM.par=[]; SIM.fb=[]; SIM.focus=[]; if(SIM.view.length){SIM.gen=(SIM.gen||0)+1;SIM.view=[];SIM.queue=[];SIM.pre=[];SIM.job=null;SIM.lastTile=null;simJob++;if(simWorker)simWorker.postMessage({type:'stop'});simStatus();updateBadge();} return; }
   const {view,focus,parents}=simRegions(lv);
   SIM.sz=lv; SIM.view=[...view.keys()]; SIM.par=[...parents.keys()]; SIM.focus=focus.map(t=>t.key);
   // 다른 단계에서 이미 계산해 둔, 화면에 걸치는 구역 → 계산 중 '대략 표시'
@@ -1646,7 +1652,7 @@ async function simBuildTile(T){
       if(Y>0&&solid[c-gx]&&!seen[c-gx]){seen[c-gx]=1;st.push(c-gx);} if(Y<gy-1&&solid[c+gx]&&!seen[c+gx]){seen[c+gx]=1;st.push(c+gx);}}
     if(!edge&&comp.length<6)for(const c of comp)solid[c]=0;}
   // 육지 보강: 번들 격자가 육지(-9999)로 표시한 칸을 벽으로 (OSM이 놓친 해안선·간출지 메움)
-  if(DGRID.landMask){const GR=await depthGridLoad(); if(GR&&simTileInGrid(T,GR)){
+  if(DGRID.landMask){const GR=await depthGridReady(); if(GR&&simTileInGrid(GR,T)){await simDepthEnsureBlocks(GR,T);
     for(let i=0;i<N;i++){if(solid[i])continue; const X=i%gx,Y=(i/gx)|0, ll=map.unproject([ox+(X+0.5)*SC,oy+(Y+0.5)*SC],lv);
       if(depthGridIsLand(GR,ll.lat,ll.lng))solid[i]=1;}}}
   let water=0; for(let i=0;i<N;i++)if(!solid[i])water++;
@@ -1664,24 +1670,47 @@ async function simBuildTile(T){
 // 구역의 보통 수심보다 얕은 칸일수록 마찰을 키워 물이 느려지고, 깊은 골(물길)로 흐름이 모이게 함. 가장 확대한 단계(16)에서만
 const DEPTH={on:true,calls:0,last:'',cache:new Map(),URL:'https://apis.data.go.kr/1192136/waterDepth/GetWaterDepthApiService'};
 const findKey=(o,k)=>{if(!o||typeof o!=='object')return undefined;if(k in o)return o[k];for(const v of Object.values(o)){const r=findKey(v,k);if(r!==undefined)return r;}return undefined;};
-// ── 번들 수심 격자 (BADA2024 150m, 평균해수면 기준). 오프라인·즉시. API 호출을 대신함 ──
-// data[i*ncols+j]: 수심(m, 양수=깊이) | -9999(육지) | null(모름). 남서쪽이 (lat0,lon0), 행은 북쪽으로 증가.
-const DGRID={data:undefined,load:null,landMask:true};
-async function depthGridLoad(){if(DGRID.data!==undefined)return DGRID.data;
-  if(!DGRID.load)DGRID.load=loadAsset('depth_grid.json').then(g=>DGRID.data=(g&&g.data&&g.ncols)?g:false).catch(()=>DGRID.data=false);
-  return DGRID.load;}
-function simTileInGrid(T,G){const c=map.unproject([T.ox+DOM/2,T.oy+DOM/2],T.lv);
-  return c.lng>=G.lon0&&c.lng<=G.lon0+G.ncols*G.dlon&&c.lat>=G.lat0&&c.lat<=G.lat0+G.nrows*G.dlat;}
-function depthGridCell(G,lat,lon){const j=Math.round((lon-G.lon0)/G.dlon-0.5),i=Math.round((lat-G.lat0)/G.dlat-0.5);
-  if(i<0||j<0||i>=G.nrows||j>=G.ncols)return undefined; return G.data[i*G.ncols+j];}
-function depthGridIsLand(G,lat,lon){return depthGridCell(G,lat,lon)===G.land;}
-// 가장자리 땅·모름 칸은 빼고 이중선형 보간. 유효 이웃이 없으면 null
-function depthGridDepth(G,lat,lon){const fc=(lon-G.lon0)/G.dlon-0.5,fr=(lat-G.lat0)/G.dlat-0.5,
-  j0=Math.floor(fc),i0=Math.floor(fr),tx=fc-j0,ty=fr-i0; let s=0,w=0;
+// ── 번들 수심 격자 (BADA2024 150m, 평균해수면). 전국을 0.5°쯤 블록 타일로 쪼개 보는 곳만 메모리에 ──
+// 전역 격자: 원점(glon0,glat0)·간격(dlon,dlat). 전역 셀 I행 J열. 블록 bx=⌊J/bc⌋,by=⌊I/br⌋. 셀=수심(m)|-9999(육지).
+// index.json: {glon0,glat0,dlon,dlat,bc,br,land, tiles:["bx_by",…]}. 타일: {bx,by,bc,br,data:[bc*br]}
+const DGRID={on:true,landMask:true,index:undefined,indexLoad:null,blocks:new Map(),loadingB:new Map(),order:[],MAXB:16,gridCells:0};
+async function depthGridReady(){if(DGRID.index!==undefined)return DGRID.index;
+  if(!DGRID.indexLoad)DGRID.indexLoad=loadAsset('depth/index.json')
+    .then(x=>DGRID.index=(x&&x.tiles&&x.dlon)?(x.set=new Set(x.tiles),x):false).catch(()=>DGRID.index=false);
+  return DGRID.indexLoad;}
+const blkKeyOf=(G,I,J)=>Math.floor(J/G.bc)+'_'+Math.floor(I/G.br);
+// 블록 비동기 로드(있으면)·LRU 캐시. 자료 없는 블록은 null로 기억
+function blkEnsure(G,key){
+  if(DGRID.blocks.has(key))return Promise.resolve(DGRID.blocks.get(key));
+  if(!G.set.has(key)){DGRID.blocks.set(key,null);return Promise.resolve(null);}
+  if(DGRID.loadingB.has(key))return DGRID.loadingB.get(key);
+  const pr=loadAsset('depth/'+key+'.json').then(t=>{
+    DGRID.blocks.set(key,(t&&t.data)?t:null); DGRID.order.push(key);
+    while(DGRID.order.length>DGRID.MAXB){const old=DGRID.order.shift(); if(old!==key&&!DGRID.loadingB.has(old))DGRID.blocks.delete(old);}
+    DGRID.loadingB.delete(key); return DGRID.blocks.get(key);
+  }).catch(()=>{DGRID.blocks.set(key,null);DGRID.loadingB.delete(key);return null;});
+  DGRID.loadingB.set(key,pr); return pr;}
+// 전역 셀(I,J) 값 — 로드 안 됐거나 범위 밖이면 undefined
+function cellAt(G,I,J){if(I<0||J<0)return undefined;
+  const t=DGRID.blocks.get(blkKeyOf(G,I,J)); if(!t)return undefined;
+  const li=I-t.by*G.br, lj=J-t.bx*G.bc; if(li<0||lj<0||li>=G.br||lj>=G.bc)return undefined;
+  return t.data[li*G.bc+lj];}
+function depthGridIsLand(G,lat,lon){const J=Math.round((lon-G.glon0)/G.dlon-0.5),I=Math.round((lat-G.glat0)/G.dlat-0.5);
+  return cellAt(G,I,J)===G.land;}
+// 가장자리 땅 칸은 빼고 이중선형 보간(블록 경계도 전역 인덱스로 이어짐). 유효 이웃 없으면 null
+function depthGridDepth(G,lat,lon){const fc=(lon-G.glon0)/G.dlon-0.5,fr=(lat-G.glat0)/G.dlat-0.5,
+  J0=Math.floor(fc),I0=Math.floor(fr),tx=fc-J0,ty=fr-I0; let s=0,w=0;
   for(const [di,dj,ww] of [[0,0,(1-tx)*(1-ty)],[0,1,tx*(1-ty)],[1,0,(1-tx)*ty],[1,1,tx*ty]]){
-    const i=i0+di,j=j0+dj; if(i<0||j<0||i>=G.nrows||j>=G.ncols)continue;
-    const v=G.data[i*G.ncols+j]; if(v==null||v===G.land)continue; s+=v*ww; w+=ww;}
+    const v=cellAt(G,I0+di,J0+dj); if(v==null||v===G.land)continue; s+=v*ww; w+=ww;}
   return w>0.001?s/w:null;}
+// 이 계산 구역(+1셀 여유)을 덮는 블록 키들
+function tileBlocks(G,T){const a=map.unproject([T.ox-SC,T.oy-SC],T.lv), b=map.unproject([T.ox+DOM+SC,T.oy+DOM+SC],T.lv);
+  const J0=Math.floor((a.lng-G.glon0)/G.dlon), J1=Math.floor((b.lng-G.glon0)/G.dlon),
+    I0=Math.floor((b.lat-G.glat0)/G.dlat), I1=Math.floor((a.lat-G.glat0)/G.dlat), keys=new Set();
+  for(let J=J0;J<=J1;J++)for(let I=I0;I<=I1;I++)keys.add(Math.floor(J/G.bc)+'_'+Math.floor(I/G.br));
+  return [...keys];}
+function simTileInGrid(G,T){return tileBlocks(G,T).some(k=>G.set.has(k));}
+async function simDepthEnsureBlocks(G,T){await Promise.all(tileBlocks(G,T).map(k=>blkEnsure(G,k)));}
 // 번들 격자로 바닥 마찰(kz) 만들기 — 기존 API 방식과 같은 공식(수심↓ → 마찰↑ → 깊은 골로 모임)
 function simDepthFromGrid(T,G){
   const N=T.gx*T.gy, hh=new Float32Array(N).fill(NaN), hs=[];
@@ -1698,9 +1727,9 @@ async function simDepthWait(T){if(!DEPTH.on||!CONF.realData||T.lv!==FIELD_LEVEL)
 async function simDepth(T){
   if(!DEPTH.on||!CONF.realData||T.lv!==FIELD_LEVEL)return;
   if(DEPTH.cache.has(T.key)){const c=DEPTH.cache.get(T.key);if(c){T.kz=c.kz;T.kzSum=c.kzSum;T.hmed=c.hmed;}return;}
-  // 번들 격자가 덮는 구역이면 격자로(오프라인·즉시). 아니면 기존 API
-  const GR=await depthGridLoad();
-  if(GR&&simTileInGrid(T,GR)){simDepthFromGrid(T,GR);return;}
+  // 번들 격자(타일)가 덮는 구역이면 격자로(오프라인). 블록 로드 뒤 계산. 아니면 기존 API
+  const GR=await depthGridReady();
+  if(GR&&simTileInGrid(GR,T)){await simDepthEnsureBlocks(GR,T); simDepthFromGrid(T,GR); return;}
   if(T.depthTried)return; T.depthTried=true;
   const a=map.unproject([T.ox,T.oy],T.lv), b=map.unproject([T.ox+DOM,T.oy+DOM],T.lv), r3=v=>(Math.round(v*1000)/1000).toFixed(3);
   const base=`${DEPTH.URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=300&ymin=${r3(b.lat-0.003)}&ymax=${r3(a.lat+0.003)}&xmin=${r3(a.lng-0.003)}&xmax=${r3(b.lng+0.003)}`;
@@ -1845,7 +1874,7 @@ function simTimeChanged(first){
   // 예보를 받는 중이면 기다림: 일부만 받은 테두리로 계산하면 결과가 틀리고 헛계산이 됨 (받기 끝나면 다시 불림)
   if(CONF.realData&&RD.loading){SIM.pendingAt=performance.now();SIM.wantT=-1;return;}
   SIM.wantT=tS; SIM.pendingAt=0; SIM.lastSend=performance.now();
-  const th=tS/60; let missing=false; SIM.queue=[];
+  const th=tS/60; let missing=false; SIM.queue=[]; SIM.pre=[]; // 시각 바뀜 → 미리 계산 목록 버리고 사용자 먼저
   const parDone=k=>{
     const T=SIM.tiles.get(k);
     return !T||T.state==='skip'||T.nodata||
@@ -1898,12 +1927,50 @@ function simTimeChanged(first){
 // (시험 후 제외) 성긴 단계 결과에서 출발하는 '이어서 계산'은 32% 빨랐지만, 출발값에 따라 같은 곳 결과가 최대 40% 달라져서
 // '같은 곳은 언제나 같은 값' 원칙과 충돌 → 항상 같은 출발값(경계 평균의 절반)에서 계산. 대신 폰 저장으로 재계산 자체를 없앰
 function simPump(){
-  if(SIM.job||!SIM.queue.length)return;
+  if(SIM.job)return;
+  if(!SIM.queue.length){simPrefetchPump();return;} // 볼 것 다 끝나면 다음 시각 미리 계산
   const q=SIM.queue.shift(), T=q.tile, id=++simJob, b=q.b; SIM.job={id,tile:T,h:q.h,t:q.t,scale:b.scale};
   SIM.jobsRun=(SIM.jobsRun||0)+1;
   // 늘 같은 출발점에서 계산 (같은 구역·같은 예보면 같은 결과)
   simWorker.postMessage({type:'init',id,gx:T.gx,gy:T.gy,solid:T.solid,bcIdx:T.bcIdx,bcNb:T.bcNb,bcIn:b.bcIn,bcU:b.bcU,bcV:b.bcV,fwx:b.fwx,fwy:b.fwy,kfr:b.kfr,kz:T.kz||null,anchor:b.anchor});
   SIM.lastTile=T.key;
+}
+// ── (B) 다음 시각 미리 계산 ──────────────────────────────────────────
+// 쉴 때만: 지금 보는 구역을 +1h…+12h 치 계산해 폰 저장소에 넣어둠. 화면(T.cur)은 절대 안 건드림(저장만).
+// 사용자가 움직이거나 시각을 바꾸면 simTimeChanged/simEnsure가 SIM.pre를 비우고, 돌던 미리계산 잡은 기존 로직이 취소.
+function simPrefetchPump(){
+  if(!PRE.on||!simWorker||SIM.job||SIM.queue.length)return;
+  if(moving||!SIM.view.length||!SIM.done)return;            // 볼 것이 다 준비됐고 지도 안 움직일 때만
+  if(CONF.realData&&RD.loading)return;
+  if(SIM.pre.length){ simPrefetchStart(); return; }
+  if(SIM.preGen===SIM.gen)return;                            // 이 상태에선 이미 다 만들어 둠
+  simPrefetchBuild();
+}
+function simPrefetchStart(){
+  const q=SIM.pre.shift(), T=q.tile, id=++simJob, b=q.b;
+  SIM.job={id,tile:T,h:q.h,t:q.t,scale:b.scale,pre:true};
+  PRE.done++;
+  simWorker.postMessage({type:'init',id,gx:T.gx,gy:T.gy,solid:T.solid,bcIdx:T.bcIdx,bcNb:T.bcNb,bcIn:b.bcIn,bcU:b.bcU,bcV:b.bcV,fwx:b.fwx,fwy:b.fwy,kfr:b.kfr,kz:T.kz||null,anchor:b.anchor});
+}
+function simPrefetchBuild(){
+  const gen=SIM.preGen=SIM.gen, tS=sT();
+  const keys=[...new Set(SIM.focus.concat(SIM.view))];       // 지금 보는(초점) 구역 위주
+  const cands=[], anSave=new Map();                          // simBC가 T.anchors(진단용)를 바꾸므로 뒤에 원복
+  for(const k of keys){const T=SIM.tiles.get(k); if(T)anSave.set(T,T.anchors);}
+  for(let step=1;step<=PRE.hours;step++){const t=tS+step*60, th=t/60;  // 가까운 시각부터
+    for(const k of keys){const T=SIM.tiles.get(k); if(!T||T.state!=='ready')continue;
+      const b=simBC(T,th); if(!b)continue; const h=bcHash(b,T);
+      if(T.cur&&T.cur.t===t&&T.cur.h===h&&T.cur.done)continue;
+      cands.push({tile:T,b,h,t,step});}}
+  for(const [T,a] of anSave)T.anchors=a;                     // 현재 시각 진단값 원복
+  if(!cands.length)return;
+  // 폰 저장소에 이미 있는 건 빼고(그 시각은 미리 돼 있음), 없는 것만 미리 계산
+  Promise.all(cands.map(q=>SIMDB.get(simKey(q.tile,q.t,q.h)).then(r=>[q,r&&r.u]))).then(rs=>{
+    if(gen!==SIM.gen)return;                                 // 그 사이 화면/시각 바뀌면 버림
+    SIM.pre=rs.filter(([q,has])=>!has).map(([q])=>q);
+    PRE.total=SIM.pre.length; PRE.done=0;
+    simPrefetchPump();
+  });
 }
 // 화면 좌표(px)의 추정 흐름(노트). undefined=계산 구역 밖, null=육지
 // 겹친 구역은 가장자리에서 멀수록 큰 비중으로 섞고, 바깥 가장자리는 예보와 섞어 이어지게
@@ -3336,7 +3403,8 @@ async function runDiag(){
   o.push(`추천 종류: ${[...recKinds()].map(k=>KIND_NAME[k]).join('·')} · 섬 다리 판별 ${REC.kindSrc==='pre'?'미리 넣은 지도 자료('+(REC.preDate||'-')+')':REC.kindSrc==='osm'?'지도 자료(OSM)':REC.kindSrc==='guess'?'추정(지도 자료 못 받음'+(REC.ovpErr?': '+REC.ovpErr:'')+')':'-'} · 직접 바꾼 섬 ${Object.keys(islOv()).length}곳`);
   if(REC.ovpRaw)o.push('  └ 지도 서버 마지막 응답: '+REC.ovpRaw);
   o.push(`조류예보 지점: ${CF.on?'켬':'끔'} · ${CF.st?CF.st.length:0}곳${CF.scan?' (찾는 중 '+CF.prog+'/'+CF_CODES.length+')':''} · 받은 지점 ${[...CF.ser.values()].filter(x=>x.t&&x.t.length).length}곳 · 호출 ${CF.calls}번, 마지막 결과 ${CF.last||'-'}${CF.err?' · ⚠️ '+CF.err:''}`);
-  o.push(`수심: ${DEPTH.on?'켬':'끔'} · 격자 ${DGRID.data?('로드('+DGRID.data.ncols+'×'+DGRID.data.nrows+')'):(DGRID.data===false?'없음':'미로드')}${DEPTH.gridCells?' 칸'+DEPTH.gridCells:''} · API 호출 ${DEPTH.calls}번, 마지막 결과 ${DEPTH.last||'-'} · 반영된 구역 ${[...SIM.tiles.values()].filter(t=>t.kz).length}곳 · 기준 점 쓴 구역 ${[...SIM.tiles.values()].filter(t=>t.anchors).length}곳`);
+  o.push(`수심: ${DEPTH.on?'켬':'끔'} · 격자 ${DGRID.index?('타일'+DGRID.index.tiles.length+'개·로드'+[...DGRID.blocks.values()].filter(Boolean).length):(DGRID.index===false?'없음':'미로드')}${DEPTH.gridCells?'·칸'+DEPTH.gridCells:''} · API 호출 ${DEPTH.calls}번, 마지막 결과 ${DEPTH.last||'-'} · 반영된 구역 ${[...SIM.tiles.values()].filter(t=>t.kz).length}곳 · 기준 점 쓴 구역 ${[...SIM.tiles.values()].filter(t=>t.anchors).length}곳`);
+  o.push(`미리 계산(다음 ${PRE.hours}시간): ${PRE.on?'켬':'끔'} · 해둠 ${PRE.done}/${PRE.total} · 남은 ${SIM.pre.length}개${SIM.job&&SIM.job.pre?' · 지금 미리 계산 중':''}`);
   o.push(`조석 방식: ${pref('tideMode','auto')==='hl'?'예전 관측소 고정':tbUse()?'TideBED(좌표 보정)':'TideBED 실패 → 예전 관측소 (30분)'} · TideBED 호출 ${TB.calls}번, 마지막 결과 ${TB.last||'-'}${TB.why?' · 실패 이유 '+TB.why:''}`); if(TB.raw)o.push('  └ TideBED 마지막 응답: '+TB.raw); o.push(`주소 찾기(브이월드): 마지막 결과 ${ADDR.last} · 저장 ${ADDR.cache.size}곳`);
   o.push(`조석: 관측소 ${TIDE.st?TIDE.st.length:0}곳${TIDE.scan?' (찾는 중 '+TIDE.prog+')':''}${TIDE.lastCode?' · 관측소 마지막 결과 '+TIDE.lastCode:''}, 지금 ${TIDE.cur?stLabel(TIDE.cur.st)+'('+TIDE.cur.st.c+', 약 '+TIDE.cur.st.km.toFixed(1)+'km)':'-'}, 만조·간조(오늘) ${TIDE.cur?tideExtremes(TIDE.cur.ser,tideDay(),tideDay()+DAY).length:0}개`+(TIDE.err?' · ⚠️ '+TIDE.err:''));
   {const cr=(pref('cleanRes','')||'').split(','), ca=+(pref('cleanAt','0'))||0;
@@ -3903,7 +3971,7 @@ function renderFavList(){
 $('#favBtn').onclick=()=>{renderFavList();$('#favImportBox').style.display='none';$('#favPanel').classList.add('show');};
 // 백업: 즐겨찾기를 글(텍스트)로 만들어 카톡·메모 등으로 보내기 → 새 폰/재설치 후 붙여넣어 복원
 // ── 백업 내보내기·가져오기 (REQ-50): 안드로이드 앱 ↔ HTML 버전 사이 옮기기 ──
-const BAK_PREFIX='바다흐름지도-백업:', BAK_PREFS=['theme','fontScale','nightOn','mulSys','dataKey','romsUrl','vworldKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit','currentDisplayUnit','tideMode','cfOn','depthOn','tideSt2','cfSt1','recKinds','islOv','recSort','nowMini','nowView','sstOn'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
+const BAK_PREFIX='바다흐름지도-백업:', BAK_PREFS=['theme','fontScale','nightOn','mulSys','dataKey','romsUrl','vworldKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit','currentDisplayUnit','tideMode','cfOn','depthOn','preCalcOn','tideSt2','cfSt1','recKinds','islOv','recSort','nowMini','nowView','sstOn'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
 function bakMake(){const P={},S={};for(const k of BAK_PREFS){const v=pref(k,null);if(v!=null&&v!=='')P[k]=v;}for(const k of BAK_LS){try{const v=localStorage.getItem(k);if(v)S[k]=v;}catch(e){}}
   return BAK_PREFIX+JSON.stringify({v:1,at:new Date().toISOString(),from:NATIVE?'app':'web',prefs:P,ls:S});}
 function bakApply(txt){txt=String(txt||'').trim(); const i=txt.indexOf('{'); if(i<0)throw new Error('백업 내용이 아니에요');
@@ -4289,6 +4357,9 @@ recLoad().then(updateCenterName);
   DEPTH.on=pref('depthOn','1')==='1'; $('#depthChk').checked=DEPTH.on;
   $('#depthChk').onchange=()=>{DEPTH.on=$('#depthChk').checked; setPref('depthOn',DEPTH.on?'1':'0');
     for(const T of SIM.tiles.values()){T.kz=null;T.kzSum=0;T.depthTried=false;} if(DEPTH.on)for(const T of SIM.tiles.values())if(T.state==='ready')simDepth(T); if(SIM.view.length)simTimeChanged(true);};
+  PRE.on=pref('preCalcOn','1')==='1'; $('#preChk').checked=PRE.on;
+  $('#preChk').onchange=()=>{PRE.on=$('#preChk').checked; setPref('preCalcOn',PRE.on?'1':'0');
+    SIM.pre=[]; SIM.preGen=-1; if(PRE.on)simPrefetchPump();};
   ROCK.on=pref('rockOn','0')==='1'; $('#rockBtn').classList.toggle('on',ROCK.on); drawRocks(); tideEnsure();
   $('#slackLbl').textContent='다음 정조'; // U-6: '물 약해짐' → '다음 정조'
   toast(CONF.realData?'지도를 확대하면 국립해양조사원 실제 조류 예보가 보여요':'지금은 샘플 흐름이에요. ⚙️ 설정에 공공데이터 키를 넣으면 실제 조류로 바뀌어요',4000);
@@ -4296,8 +4367,8 @@ recLoad().then(updateCenterName);
 // U-24 (build-50 2차): 설정 묶음 줄 오른쪽 요약 — 🔑 연결됨/키 필요 · 💾 마지막 백업 날짜 · 🗺️ n개 중 n개 켜짐
 function setSums(){const k=!!ROMS.key(); const e=$('#sumKey'); e.textContent=k?'✅ 연결됨':'키 필요'; e.className=k?'ok':'';
   const lb=pref('lastBak',''); $('#sumBak').textContent=lb?`마지막 백업 ${+lb.slice(5,7)}/${+lb.slice(8,10)}`:'백업 아직 없음';
-  const ids=['tbChk','cfChk','depthChk','tidalChk']; $('#sumMap').textContent=`${ids.length}개 중 ${ids.filter(i=>$('#'+i).checked).length}개 켜짐`;}
-['tbChk','cfChk','depthChk','tidalChk'].forEach(i=>$('#'+i).addEventListener('change',setSums));
+  const ids=['tbChk','cfChk','depthChk','preChk','tidalChk']; $('#sumMap').textContent=`${ids.length}개 중 ${ids.filter(i=>$('#'+i).checked).length}개 켜짐`;}
+['tbChk','cfChk','depthChk','preChk','tidalChk'].forEach(i=>$('#'+i).addEventListener('change',setSums));
 {const _so=$('#setBtn').onclick; $('#setBtn').onclick=function(){const r=_so.apply(this,arguments); setSums(); $('#grpKey').open=!ROMS.key(); return r;};}
 $('#bakOut').addEventListener('click',()=>{setPref('lastBak',new Date().toISOString().slice(0,10)); setSums();});
 

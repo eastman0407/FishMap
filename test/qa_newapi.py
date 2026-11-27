@@ -72,7 +72,7 @@ exec(src+'''
     calls_after=E("window.__cfCalls"); go(13,34.921,128.071,3000)
     check('N11 다시 움직여도 지점 목록을 또 받지 않음', E("window.__cfCalls")-calls_after<=8, [calls_after,E("window.__cfCalls")])
     # 수심 반영 (정밀 단계) — 번들 격자(BADA2024)로 칸마다 바닥 마찰. 격자 경로가 쓰이고 마찰이 깊이에 따라 다른지 확인
-    E("__QA.DGRID.data=undefined;__QA.DGRID.load=null")  # 격자 다시 로드되게
+    E("__QA.DGRID.index=undefined;__QA.DGRID.indexLoad=null;__QA.DGRID.blocks.clear()")  # 격자 다시 로드되게
     go(16,34.898,128.096,500)
     ok=until("__QA.SIM.done&&[...__QA.SIM.tiles.values()].some(t=>t.kz)",120)
     info=E("(()=>{const T=[...__QA.SIM.tiles.values()].find(t=>t.kz);if(!T)return null;let pos=0,cnt=0,mx=0;for(let i=0;i<T.kz.length;i++){if(T.solid[i])continue;cnt++;const k=T.kz[i];if(k>0)pos++;if(k>mx)mx=k;}return [T.hmed,pos,cnt,+mx.toFixed(5),__QA.DEPTH.last];})()")

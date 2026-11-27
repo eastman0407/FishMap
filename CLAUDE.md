@@ -5,7 +5,7 @@
 ## 이 프로젝트가 뭔가
 - **바다흐름지도**: 낚시인을 위한 조류·유속 지도 앱. 위성지도 위에 시간대별 물 흐름(흐름선), 항내 추정 유속, 조석·물때, 바위, 낚시 포인트 등을 보여준다.
 - **형태 두 가지**: ① 안드로이드 앱(WebView, 단일 `app/src/main/assets/index.html`) ② 설치 없이 브라우저로 여는 단일 HTML(공개 웹판).
-- **현재 형상**: `app/build.gradle`의 `versionCode`/`versionName` 참고. 릴리스 번호(build-N)는 GitHub Actions 실행 번호다(versionCode와 다를 수 있음).
+- **현재 형상**: `app/build.gradle`의 `versionName` 참고. 릴리스 번호(build-N)는 GitHub Actions 실행 번호이고, **빌드 때 CI가 `versionCode`를 이 실행 번호로 자동 설정**한다(build.yml) → Play 중복 업로드 방지. build.gradle의 versionCode 값은 자리표시(빌드 시 덮어씀). `versionName`은 사람이 올릴 때만 바꾼다.
 
 ## 핵심 파일
 - `app/src/main/assets/index.html` — 앱 전체(화면·로직·흐름선·계산)가 든 단일 파일(약 400KB). 거의 모든 작업은 여기서 한다.
@@ -40,7 +40,8 @@
 ## 검증(시험)
 - 브라우저 QA: `python3 test/tools/mkqa.py` 로 시험 페이지 만든 뒤 `bash test/tools/run_one.sh <qa_이름>` (가짜 ROMS 서버 + 스텁 Leaflet). 주요: `qa_b56`(흐름선·유향), `qa_flow`, `qa_ui`, `qa_design`, `qa_b69`(포인트), `qa_tidechip`.
 - 물리 단위시험: `node test/qa_current_seam.js`, `node test/qa_current_forcing.js`, `node test/qa_depthgrid.js`(번들 수심 격자 보간·격자→바닥 마찰·육지 벽).
-- 번들 수심: `app/src/main/assets/depth_grid.json`(BADA2024 150m, 평균해수면, 사천·남해). 원자료·격자 소스는 `DB/`(main). 덮는 구역은 격자로(오프라인), 밖은 자연과학용 수심 API. 수심→바닥 마찰(`K=K0+KZ`)은 그대로.
+- 미리 계산(다음 시각): `qa_precalc`(가드·토글·한도600). 쉴 때 앞 12시간 치를 SIMDB에 저장, 화면(`T.cur`)은 안 건드림. ⚙️ `⏩ 다음 시각 미리 계산`(기본 켬).
+- 번들 수심(**전국, 타일식**): `app/src/main/assets/depth/`(`index.json` + `<bx>_<by>.json` 타일, 0.5°블록·150m·평균해수면). 전국 BADA(`DB/BADA2024_v1.1.txt.gz`, LFS)에서 **CI가 `tools/make_depth_tiles.py`로 생성** — 저장소엔 원본만, 타일은 빌드 산출물(gitignore). 전역 격자(원점 glon0/glat0, 셀 I행 J열, 블록 bx=⌊J/bc⌋). 앱은 **보는 구역 블록만** 메모리(LRU 16, `blkEnsure`). 웹 단일 HTML은 `build_web.py`가 **남해안만 임베드**(전국은 못 넣음). 육지 마스크는 BADA 점이 150m 안에 없으면 육지(-9999). 덮는 구역은 격자(오프라인), 밖은 자연과학용 수심 API. 수심→바닥 마찰(`K=K0+KZ`)은 그대로. 로컬 시험은 `make_depth_tiles.py --bbox`로 일부 타일 생성 후.
 - **동시에 두 QA 배치를 돌리지 말 것** — `run_one.sh`가 `pkill chrome`을 해서 서로 죽인다. 순차로.
 - 알려진 기존 실패(수정 전부터, 환경/하네스 문제라 무관): `qa_realshape` R2·R8, `qa_nest` S1(헤드리스 sim 워커 미완료), `qa_tidechip` C3·C9, `qa_levelbadge` L1·L2(배지 이름 노후화).
 

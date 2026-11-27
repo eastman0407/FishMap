@@ -7,3 +7,5 @@ local.properties
 
 # 팀원(GPT·Grok) 원본 답변
 team/out/
+# 수심 타일은 CI에서 생성(원본은 DB/ LFS)
+app/src/main/assets/depth/
