@@ -55,6 +55,7 @@
 - 사용자는 Claude하고만 대화한다. Claude가 총괄(설계·일부 구현·리뷰·통합·배포), **GPT·Grok은 구현 팀원**으로 Claude가 API로 업무를 지시한다.
 - 상세: `docs/팀작업.md`. 도구: `python3 tools/team/team.py` (codex/ask/apply/new/ping/models). GPT는 기본으로 Codex CLI(구독 로그인, 세션마다 `codex login --device-auth`). 지시서는 `team/tasks/`.
 - 유속 계산은 팀원에게 맡기지 않는다. 팀원 코드는 리뷰·QA 통과 후에만 합치고, main 푸시는 Claude만.
+- **일 나누기(11-27 사용자 지시)**: GPT가 기본 구현자(화면·API 파서·시험 코드·문서 기록·코드 리뷰). Claude는 설계·지시서·계산식·리뷰 판단·QA 판정·배포만. Claude 코드도 GPT 리뷰 한 번.
 
 ## 대화 마무리 규칙 (사용자 지시 2026-11-26)
 - 사용자가 **"대화를 마칠게"**(또는 비슷한 종료 신호)라고 하면, 그 세션에서 한 일을 **`docs/PROGRESS.md`에 요약해 갱신하고 커밋·푸시**한다. (무엇을 바꿨는지, 현재 형상, 남은 대기 항목.)
