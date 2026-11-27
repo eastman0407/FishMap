@@ -30,6 +30,8 @@ safe = lambda t: t.replace('</', '<\\/')  # 스크립트 안에서 </script> 끊
 head_old = re.search(r'<link rel="stylesheet" href="lib/leaflet\.min\.css"[^>]*>\s*<script src="lib/leaflet\.min\.js"></script>\s*<script>if\(!window\.L\)[^\n]*</script>', html)
 if not head_old: sys.exit('Leaflet 불러오는 부분을 못 찾음')
 emb = {n: json.load(open(os.path.join(A, n), encoding='utf-8')) for n in ('rocks.json', 'tidal.json', 'sgg.json', 'fishing-spots.json')}
+if os.path.exists(os.path.join(A, 'depth_grid.json')):  # 번들 수심 격자 (BADA2024)
+    emb['depth_grid.json'] = json.load(open(os.path.join(A, 'depth_grid.json'), encoding='utf-8'))
 if os.path.exists(os.path.join(A, 'bridges.json')):  # REQ-60 섬 다리 자료 (CI에서 만듦)
     emb['bridges.json'] = json.load(open(os.path.join(A, 'bridges.json'), encoding='utf-8'))
 new_head = ('<style>' + css + '</style>\n<script>' + safe(js) + '</script>\n'
