@@ -1043,15 +1043,37 @@ function interpAt(S,lat,lon,th){
   if(sw<1e-6)return null;
   return {vE:su/sw, vN:sv/sw, real:true};
 }
-// 표층 수온 (ROMS wtem, ℃) — 반경 1.6R 안 점들을 거리 가중으로 (REQ-58)
+// 표층 수온 (ROMS wtem, ℃) — 거리 가중 평균 (REQ-58)
+// T-001 (창선도): ① 섬·반도를 가로지르는 점은 뺌(번들 전국 수심 타일의 육지 칸으로 판단, 양 끝 300m 안 육지는 해안·항구라 무시)
+// ② 반경은 점이 넉넉하면 약 5.8km(0.053°)로 고정 → 확대 수준에 따라 값이 바뀌지 않게. 모자랄 때만 1.6R까지 넓힘
+const TEMP_RD=0.053, TNB={ver:-1,m:new Map()};
+function tempLand(a1,o1,a2,o2){const G=DGRID.index; if(!G)return false; // 타일 없음·로드 전에는 막지 않음
+  const L=Math.hypot((a2-a1)*111e3,(o2-o1)*111e3*KX), n=Math.ceil(L/75); // 격자 150m의 절반 간격
+  for(let s=1;s<n;s++){const t=s/n; if(Math.min(t,1-t)*L<300)continue; if(depthGridIsLand(G,a1+(a2-a1)*t,o1+(o2-o1)*t))return true;} return false;}
+// 반경 R 안을 덮는 수심 타일이 다 올라왔나 (없으면 불러오기 시작). 자료 없는 블록은 '다 됨'으로 셈
+function tempTilesReady(lat,lon,R){const G=DGRID.index; if(G===undefined){depthGridReady();return false;} if(!G)return true;
+  const J0=Math.floor((lon-R/KX-G.glon0)/G.dlon), J1=Math.floor((lon+R/KX-G.glon0)/G.dlon), I0=Math.floor((lat-R-G.glat0)/G.dlat), I1=Math.floor((lat+R-G.glat0)/G.dlat); let ok=true;
+  for(let bx=Math.floor(J0/G.bc);bx<=Math.floor(J1/G.bc);bx++)for(let by=Math.floor(I0/G.br);by<=Math.floor(I1/G.br);by++){const k=bx+'_'+by;
+    if(!G.set.has(k)||DGRID.blocks.has(k))continue; ok=false; blkEnsure(G,k).then(tempTilesLoaded);}
+  return ok;}
+// 타일이 늦게 올라오면 수온 칩·카드를 한 번 다시 그림 (먼저 그린 값은 섬 판단 없이 계산된 것)
+function tempTilesLoaded(){clearTimeout(TNB.rt); TNB.rt=setTimeout(()=>{try{updateWxChip(); if(sel)updateUI();}catch(e){}},300);}
+// 약 200m 칸마다 '섬에 안 가려진 수온 점' 목록을 기억 (예보 자료가 바뀌면 비움). 타일이 덜 올라왔으면 기억하지 않고 다음에 다시. 가중치는 정확한 좌표로 따로 계산
+function tempNbrs(lat,lon){
+  if(TNB.ver!==RD.ver){TNB.ver=RD.ver;TNB.m.clear();}
+  const key=Math.round(lat*500)+','+Math.round(lon*500); let e=TNB.m.get(key); if(e)return e;
+  const R=RD.R*1.6, ready=tempTilesReady(lat,lon,R+0.01), cl=Math.round(lat*500)/500, co=Math.round(lon*500)/500, bl=Math.floor(lat/RD.R), bo=Math.floor(lon/RD.R); e=[];
+  for(let a=-2;a<=2;a++)for(let b=-2;b<=2;b++){const arr=RD.bins.get((bl+a)+','+(bo+b)); if(!arr)continue;
+    for(const p of arr){if(!p.w)continue; if(Math.hypot(p.lat-lat,(p.lon-lon)*KX)>=R+0.003)continue; if(!tempLand(cl,co,p.lat,p.lon))e.push(p);}}
+  if(ready){if(TNB.m.size>4000)TNB.m.clear(); TNB.m.set(key,e);} return e;}
 function tempAt(lat,lon,th){
   if(!RD.pts.length)return null; const ti=timeIdx(th); if(!ti||ti.out)return null;
-  const R=RD.R*1.6, bl=Math.floor(lat/RD.R), bo=Math.floor(lon/RD.R); let su=0,sw=0;
-  for(let a=-2;a<=2;a++)for(let b=-2;b<=2;b++){const arr=RD.bins.get((bl+a)+','+(bo+b)); if(!arr)continue;
-    for(const p of arr){if(!p.w)continue; const d=Math.hypot(p.lat-lat,(p.lon-lon)*KX)/R; if(d>=1)continue;
-      const j=ti.i,j2=Math.min(j+1,RD.times.length-1); let w=p.w[j]; if(w==null)continue; if(ti.f>0&&p.w[j2]!=null)w+=(p.w[j2]-w)*ti.f;
-      const k=(1-d)**2; su+=w*k; sw+=k;}}
-  return sw>1e-6?su/sw:null;}
+  const nb=tempNbrs(lat,lon), j=ti.i, j2=Math.min(j+1,RD.times.length-1), Rmax=RD.R*1.6;
+  const sum=R=>{let su=0,sw=0,n=0; for(const p of nb){const d=Math.hypot(p.lat-lat,(p.lon-lon)*KX)/R; if(d>=1)continue;
+      let w=p.w[j]; if(w==null)continue; if(ti.f>0&&p.w[j2]!=null)w+=(p.w[j2]-w)*ti.f; const k=(1-d)**2; su+=w*k; sw+=k; n++;}
+    return n?{v:su/sw,n}:null;};
+  const r1=Math.min(TEMP_RD,Rmax), a=sum(r1); if(a&&(a.n>=2||r1>=Rmax))return a.v;
+  const b=Rmax>r1?sum(Rmax):null; return b?b.v:(a?a.v:null);}
 // 하루 사이 수온 변화 (어제 같은 시각과 비교, 예보 밖이면 내일과 비교)
 // 비교 문구 (REQ-59): 어제 같은 시각이 있으면 '어제보다', 없으면 '내일'
 function tempDelta(lat,lon,th){const a=tempAt(lat,lon,th); if(a==null)return null; const y=tempAt(lat,lon,th-24); if(y!=null)return {d:a-y,w:'어제보다'}; const n=tempAt(lat,lon,th+24); return n!=null?{d:n-a,w:'내일'}:null;}
@@ -1211,8 +1233,8 @@ async function dtStations(){
   if(found.length>=10){DTO.st=found;setPref('dtSt1',JSON.stringify(found));} else setPref('dtScanFailAt',String(Date.now()));
   return DTO.st;}
 // 가까운 관측소(30km 안)의 최신 수온·기압 + 3시간 기압 변화
-async function dtObs(lat,lon){
-  const S=await dtStations(); if(!S)return null; let st=null,bd=30000; for(const a of S){const d=distM(lat,lon,a.la,a.lo); if(d<bd){bd=d;st=a;}}
+async function dtObs(lat,lon,st0){ // st0: 관측소를 정해서 물을 때 (수온 섞기)
+  const S=await dtStations(); if(!S)return null; let st=st0||null,bd=st0?distM(lat,lon,st0.la,st0.lo):30000; if(!st0)for(const a of S){const d=distM(lat,lon,a.la,a.lo); if(d<bd){bd=d;st=a;}}
   if(!st)return null;
   const url=`${DT_URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=30&min=60&obsCode=${st.c}`;
   try{const r=await nget(url,20); DTO.calls++; const it=ROMS.findItems(JSON.parse(r.text)); if(!it||!it.length){cacheDrop(url);DTO.last=apiCode(r.text);return null;}
@@ -1223,20 +1245,28 @@ async function dtObs(lat,lon){
 // U-49 (build-54): 찍은 자리 수온 = 예보 + K × (가까운 조위관측소 실측 − 그 자리 예보). 최적 내삽(OI)을 관측소 한 곳으로 줄인 꼴
 // K = 거리무게 exp(−(d/L)²) × σb²/(σb²+σo²) × 시간무게 exp(−Δt/τ). 30km 넘으면 예보만. 위성 수온은 안 섞음. 시작값은 가정 → 아래 기록으로 맞춰 감
 const WT_P={L:15,sb:1.0,so:0.5,tau:1}, WT={obs:new Map(),pend:new Set()};
-function wtNear(lat,lon){const S=DTO.st; if(!S)return null; let st=null,bd=30000; for(const a of S){const d=distM(lat,lon,a.la,a.lo); if(d<bd){bd=d;st=a;}} return st?{st,d:bd}:null;}
+// T-001: 30km 안 관측소 최대 3곳, 섬·반도 건너편(번들 수심 타일 육지로 판단)은 뺌
+function wtNearAll(lat,lon){const S=DTO.st; if(!S)return []; const o=[]; for(const a of S){const d=distM(lat,lon,a.la,a.lo); if(d<30000&&!tempLand(lat,lon,a.la,a.lo))o.push({st:a,d});} return o.sort((x,y)=>x.d-y.d).slice(0,3);}
+function wtNear(lat,lon){return wtNearAll(lat,lon)[0]||null;}
 function wtObsMs(o){const ms=Date.parse(String(o.at).replace(' ','T')+'+09:00'); return isFinite(ms)?ms:null;}
 // 관측−예보 차이를 날마다 저장(최근 60일) → 나중에 L·σ 값을 맞추는 자료
 function wtSaveDiff(o){try{const ms=wtObsMs(o); if(ms==null||o.wtem==null)return; const fs=tempAt(o.la,o.lo,(ms-t0.getTime())/3600000); if(fs==null)return;
   const D=JSON.parse(pref('wtDiff','{}')), day=new Date(ms+9*3600e3).toISOString().slice(0,10); (D[o.sc]=D[o.sc]||{})[day]=[+o.wtem.toFixed(2),+fs.toFixed(2)];
   const cut=new Date(Date.now()-60*86400e3).toISOString().slice(0,10); for(const k in D){for(const d in D[k])if(d<cut)delete D[k][d];}
   setPref('wtDiff',JSON.stringify(D));}catch(e){}}
-function wtEnsure(lat,lon,cb){ if(!CONF.realData)return; dtStations().then(()=>{const n=wtNear(lat,lon); if(!n)return; const c=n.st.c, e=WT.obs.get(c); if(e&&Date.now()-e.at<600000)return; if(WT.pend.has(c))return; WT.pend.add(c);
-  dtObs(lat,lon).then(o=>{WT.pend.delete(c); if(o&&o.wtem!=null){WT.obs.set(c,{o,at:Date.now()}); wtSaveDiff(o); if(cb)cb();} else WT.obs.set(c,{o:null,at:Date.now()-540000});}).catch(()=>{WT.pend.delete(c);});});}
+function wtEnsure(lat,lon,cb){ if(!CONF.realData)return; dtStations().then(()=>{for(const n of wtNearAll(lat,lon)){const c=n.st.c, e=WT.obs.get(c); if(e&&Date.now()-e.at<600000)continue; if(WT.pend.has(c))continue; WT.pend.add(c);
+  dtObs(lat,lon,n.st).then(o=>{WT.pend.delete(c); if(o&&o.wtem!=null){WT.obs.set(c,{o,at:Date.now()}); wtSaveDiff(o); if(cb)cb();} else WT.obs.set(c,{o:null,at:Date.now()-540000});}).catch(()=>{WT.pend.delete(c);});}});}
+// T-001: 관측소마다 무게 w = 거리무게 × 시간무게 × 30km 가장자리 감쇠(25→30km에서 0). 차이는 무게 평균, 세기 K = σ비 × 가장 큰 w
+// → 가장 가까운 관측소가 바뀌는 선에서도 값이 이어짐. 관측소 하나면 예전(U-49)과 같음
 function wtemp(lat,lon,th){const f=tempAt(lat,lon,th); if(f==null)return null; const out={v:f,f,K:0,src:'예보'};
-  const n=wtNear(lat,lon), e=n&&WT.obs.get(n.st.c), o=e&&e.o; if(!o||o.wtem==null)return out;
-  const ms=wtObsMs(o); if(ms==null)return out; const tho=(ms-t0.getTime())/3600000, fs=tempAt(n.st.la,n.st.lo,tho); if(fs==null)return out;
-  const K=Math.exp(-(((n.d/1000)/WT_P.L)**2))*(WT_P.sb**2/(WT_P.sb**2+WT_P.so**2))*Math.exp(-Math.abs(th-tho)/24/WT_P.tau);
-  return {v:f+K*(o.wtem-fs),f,K,src:'섞음',st:n.st.n,km:n.d/1000,obs:o.wtem,fs,dt:th-tho};}
+  const g=WT_P.sb**2/(WT_P.sb**2+WT_P.so**2); let sw=0,sb=0,wm=0,top=null;
+  for(const n of wtNearAll(lat,lon)){const e=WT.obs.get(n.st.c), o=e&&e.o; if(!o||o.wtem==null)continue; const ms=wtObsMs(o); if(ms==null)continue;
+    const tho=(ms-t0.getTime())/3600000, fs=tempAt(n.st.la,n.st.lo,tho); if(fs==null)continue;
+    const w=Math.exp(-(((n.d/1000)/WT_P.L)**2))*Math.exp(-Math.abs(th-tho)/24/WT_P.tau)*Math.min(1,(30000-n.d)/5000);
+    sw+=w; sb+=w*(o.wtem-fs); if(w>wm){wm=w;top={n,o,fs,tho};}}
+  if(!top||sw<1e-12)return out; const K=g*wm, b=sb/sw;
+  return {v:f+K*b,f,K,b,src:'섞음',st:top.n.st.n,km:top.n.d/1000,obs:top.o.wtem,fs:top.fs,dt:th-top.tho,ns:wtNearAll(lat,lon).length};}
+const wtV=(lat,lon,th)=>{const w=wtemp(lat,lon,th); return w?w.v:null;}; // 화면·점수용 수온 값 하나 (T-002: 모든 화면 통일)
 const wtText=(lat,lon,th)=>{const w=wtemp(lat,lon,th); return w?'<span class="dt"> · </span>'+numHtml(`${E_T} ${w.v.toFixed(1)}℃`):'';};
 function fcTempRefresh(){if(!sel)return; $('#fcTemp').innerHTML=wtText(sel.lat,sel.lng,tH()); fcFit(); fcPlace();}
 // 큰 글씨 등으로 버튼 글자가 넘치면 그림 글자를 뺌 (U-43)
@@ -1258,7 +1288,8 @@ function wxIcon(w,th){if(!w)return null; const hr=new Date(t0.getTime()+th*36000
   if(w.sky===1)return {e:night?'🌙':'☀️',t:''}; if(w.sky===3)return {e:'⛅',t:''}; if(w.sky===4)return {e:'☁️',t:''}; return null;}
 function updateWxChip(){
   const wt=$('#wtChip'), wv=$('#wvChip'), sk=$('#skyChip'), wn=$('#warnChip'); if(!wt)return; const c=map.getCenter(), th=tH();
-  const T=tempAt(c.lat,c.lng,th), Tn=T!=null?tempAt(c.lat,c.lng,th+24):null, dd=Tn!=null?Tn-T:null, w=wxAt(th), N=x=>`<b class="num">${x}</b>`;
+  wtEnsure(c.lat,c.lng,updateWxChip);
+  const T=wtV(c.lat,c.lng,th), Tn=T!=null?wtV(c.lat,c.lng,th+24):null, dd=Tn!=null?Tn-T:null, w=wxAt(th), N=x=>`<b class="num">${x}</b>`;
   wt.innerHTML=T!=null?`<span class="emo">${E_T}</span> ${N(T.toFixed(1)+'℃')}${dd!=null?` <span class="dd">내일 ${N(sgn(dd))}</span>`:''}`:''; wt.style.display=T!=null?'inline-block':'none';
   const hasW=w&&w.wav!=null; wv.innerHTML=hasW?`〰 ${N(w.wav.toFixed(1)+'m')}`:''; wv.style.display=hasW?'inline-block':'none';
   const ic=wxIcon(w,th); sk.innerHTML=ic?`<span class="wic emo">${ic.e}</span>${ic.t?' '+ic.t:''}`:''; sk.style.display=ic?'inline-block':'none'; sk.title=ic?(w.pty?ic.t:(SKYW[w.sky]||'')):''; sk.setAttribute('aria-label',ic?(ic.t||SKYW[w.sky]||''):'');
@@ -2264,8 +2295,12 @@ async function sstLoad(force){if(!SST.on)return; const b=sstBox(), key=[b.s,b.n,
   finally{SST.busy=false; if(SST.again){SST.again=false; sstLoad();}}}
 function sstAt(lat,lng){const g=SST.g; if(!g)return null; const iy=g.las.findIndex((v,i)=>i===g.ny-1||Math.abs(g.las[i+1]-lat)>Math.abs(v-lat)), ix=g.los.findIndex((v,i)=>i===g.nx-1||Math.abs(g.los[i+1]-lng)>Math.abs(v-lng));
   if(iy<0||ix<0||lat<g.las[0]-0.02||lat>g.las[g.ny-1]+0.02||lng<g.los[0]-0.02||lng>g.los[g.nx-1]+0.02)return null;
+  const y1=g.las.findIndex(v=>v>=lat), x1=g.los.findIndex(v=>v>=lng), y=y1<0?g.ny-1:y1, x=x1<0?g.nx-1:x1, y0=Math.max(0,y-1), x0=Math.max(0,x-1);
+  const fy=y===y0?0:Math.max(0,Math.min(1,(lat-g.las[y0])/(g.las[y]-g.las[y0]))), fx=x===x0?0:Math.max(0,Math.min(1,(lng-g.los[x0])/(g.los[x]-g.los[x0])));
+  let sum=0,weight=0; for(const [j,wy] of [[y0,1-fy],[y,fy]])for(const [i,wx] of [[x0,1-fx],[x,fx]]){const t=g.v[j*g.nx+i], w=wy*wx; if(isFinite(t)){sum+=t*w; weight+=w;}}
+  if(weight>0)return {t:sum/weight,near:false,day:sstDay(g)};
   for(let r=0;r<=3;r++){let best=null,bd=1e9; for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){const y=iy+dy,x=ix+dx; if(y<0||x<0||y>=g.ny||x>=g.nx)continue; const t=g.v[y*g.nx+x]; if(!isFinite(t))continue; const d=dx*dx+dy*dy; if(d<bd){bd=d;best=t;}}
-    if(best!=null)return {t:best,near:r>0,day:sstDay(g)};}
+    if(best!=null)return {t:best,near:true,day:sstDay(g)};}
   return null;}
 function sstSet(on){SST.on=on; setPref('sstOn',on?'1':'0'); $('#sstBtn').classList.toggle('on',on); SST.warned=false;
   if(on){sstLoad(true); toast('🌡️ 위성 수온: NASA 위성 자료라 1~4일 전 값이에요 · 흰 선 = 0.5℃ 차이(물 경계)',3500); haptic('tick');}
@@ -2722,7 +2757,7 @@ function renderPlanDay(){const R=PLAN.res, d=R&&R.days[PLAN.sel], box=$('#planDa
   const b=R.base, today=tideDay(), k=Math.round((d.d-today)/DAY), now=Date.now();
   const W=d.wins.filter(w=>k>0||w.t>now).sort((x,y)=>(y.gold?1:0)-(x.gold?1:0)||x.s-y.s).slice(0,2), bw=bestWin(d);
   const wins=W.map((w,j)=>`<div class="win">${w.gold?'🌅 ':''}승부 <b>${hhmm(w.s)}~${hhmm(w.t)}</b><small>${w.x.hi?'만조':'간조'} ${hhmm(w.x.ms)} 앞뒤${w.gold?' · '+w.gold+' 겹침':''}${j===0?` · 도착 권장 ${hhmm(w.s-2*3600e3)}~${hhmm(w.s-3600e3)}`:''}</small></div>`).join('')||'<div class="sub" style="margin-top:8px">오늘 남은 승부 시간이 없어요</div>';
-  const fl=bw?winFlow(bw,b.la,b.lo):null, wd=bw?winWind(bw):null, nth=(d.d+12*3600e3-t0.getTime())/3600000, T=tempAt(b.la,b.lo,nth);
+  const fl=bw?winFlow(bw,b.la,b.lo):null, wd=bw?winWind(bw):null, nth=(d.d+12*3600e3-t0.getTime())/3600000, T=wtV(b.la,b.lo,nth);
   const ch=[fl==='after'||fl==null?'🌊 유속 예보 전':`🌊 유속 최대 ${spdText(fl)}`,wd!=null?`💨 바람 최대 ${wd.toFixed(0)}m/s`:'💨 바람 예보 전',T!=null?`${E_T} ${T.toFixed(1)}℃`:'',bw?skyText(((bw.s+bw.t)/2-t0.getTime())/3600000):'',d.sun?`☀️ ${hhmm(d.sun.rise)} / ${hhmm(d.sun.set)}`:'',moonText(d.d,b.la,b.lo,true)].filter(Boolean);
   box.innerHTML=`<div class="pday"><h4>${dstr(d.d)} · ${d.md.name}${d.str?`<small>${d.str.split(' · ')[0]}</small>`:''}</h4>`
     +`<div class="sub">${d.rg!=null?`조차 ${d.rg.toFixed(1)}m · `:''}음력 ${d.md.ld}일 · ${R.st.n} 기준</div>${wins}`
@@ -2764,7 +2799,7 @@ function biteRecord(lat,lng,name){
     phase:ph?ph.name:'',st:TIDE.cur?TIDE.cur.st.n:'',rg:rg!=null?+rg.toFixed(2):null,
     sp:v?+Math.hypot(v.vE,v.vN).toFixed(2):null,dir:v?dirName(bearing(v.vE,v.vN)):'',
     wind:w?+Math.hypot(w.u,w.v).toFixed(1):null,wdir:w?dirName(bearing(-w.u,-w.v)):'',fish:'',memo:'',
-    wt:(()=>{const x=tempAt(lat,lng,th);return x!=null?+x.toFixed(1):null;})(),
+    wt:(()=>{const x=wtV(lat,lng,th);return x!=null?+x.toFixed(1):null;})(),
     wav:(()=>{const x=wxAt(th);return x&&x.wav!=null?x.wav:null;})(), sky:(()=>{const x=wxAt(th);return x&&x.sky?SKYW[x.sky]||'':'';})(),
     rain:(()=>{const x=rain48();return x!=null?Math.round(x):null;})(), ...biteScore(lat,lng,th,v)};
 }
@@ -3023,7 +3058,7 @@ function recScore(sg,winsOf,day0,favs,kindOf,kinds){
       if(!k)continue; ok=true; const sp=su/k; mx=Math.max(mx,sp); const f=fitScore(sp), hr=new Date(w.ms).getHours(), key=f+(hr>=6&&hr<=19?0.05:0)-Math.abs(sp-0.6)*0.05; if(!best||key>best.key)best={f,sp,w,key,st:W.st};} // 그 장소에서 가장 알맞은 시간 (낮·0.6노트 가까운 쪽 먼저)
     if(!ok&&!q.fav)continue; // 즐겨찾기는 유속 예보가 없어도 목록에 넣음
     let rocks=0,gan=0; if(ROCK.data)for(const r of ROCK.data){if(Math.abs(r[0]-la)>0.003||Math.abs(r[1]-lo)>0.004)continue;if(distM(la,lo,r[0],r[1])<=300){rocks++;if(r[2]===1)gan++;}}
-    const bth=best?(best.w.ms-t0.getTime())/3600000:null, T=bth!=null?tempAt(la,lo,bth):null, dT=bth!=null?tempChange(la,lo,bth):null, wx=bth!=null?wxAt(bth):null;
+    const bth=best?(best.w.ms-t0.getTime())/3600000:null, T=bth!=null?wtV(la,lo,bth):null, dT=bth!=null?tempChange(la,lo,bth):null, wx=bth!=null?wxAt(bth):null;
     cand.push({la,lo,best,mx,rocks,gan,dong:q.dong||'',fav:q.fav||null,noflow:!ok,wins:W.wins,st:W.st,isl:q.kind||'',ring:q.ring,T,dT,wav:wx?wx.wav:null});}
   // 수온: 이 지역 해안 가운데값과 비교 (추운 철 15℃ 아래 → 따뜻한 곳, 더운 철 25℃ 위 → 시원한 곳), 하루 1℃ 넘게 바뀌면 감점
   const Ts=cand.filter(c=>!c.fav&&c.T!=null).map(c=>c.T).sort((a,b)=>a-b), Tmed=Ts.length?Ts[Ts.length>>1]:null, r48=rain48();
@@ -3229,7 +3264,7 @@ async function addrOf(la,lo){const k=pref('vworldKey',''); if(!k){ADDR.last='브
   ADDR.cache.set(key,out); return out;}
 function pinPop(c,i,sg){{const t=$('#toast'); if(t){clearTimeout(t._h); t.style.display='none';}} /* U-41: 핀을 눌러 카드가 뜨면 알림 띠는 걷어서 길 안내 버튼을 안 덮음 */ const box=$('#pinPop'), sc=shownScore(c.score), g=scoreGrade(sc), w=c.best&&c.best.w, me=recMe(), km=me?distM(me.lat,me.lng,c.la,c.lo)/1000:null;
   const nm=c.fav||recName(c,sg), dest=c.fav||`${c.dong||sg.n} 낚시 포인트`;
-  const thW=w?(w.s-t0.getTime())/3600000:tH(), spT=c.best?(c.best.f>=1?'알맞음':c.best.sp<0.3?'약함':'셈'):'', spC=c.best?(c.best.f>=1?'f':c.best.sp<0.3?'s':'e'):'s';
+  const thW=w?(w.ms-t0.getTime())/3600000:tH(), spT=c.best?(c.best.f>=1?'알맞음':c.best.sp<0.3?'약함':'셈'):'', spC=c.best?(c.best.f>=1?'f':c.best.sp<0.3?'s':'e'):'s';
   const sub=[c.isl&&!c.fav?KIND_NAME[c.isl]:'',km!=null?`🧭 ${km<10?km.toFixed(1):Math.round(km)}km`:'',c.rocks?`바위 ${c.rocks}개`:'',c.ch>=0.4?'물골':''].filter(Boolean).join(' · ');
   box.innerHTML=`<div class="pp-h"><span class="nm">${'①②③④⑤⑥⑦⑧⑨'[i]||(i+1)+'.'} ${escH(nm)}</span><button class="star" data-a="fav" aria-label="즐겨찾기">☆</button><button class="x" data-a="x" aria-label="닫기">×</button></div>`
     +`<div class="pp-sc"><b class="sc">${sc}점</b><small class="grade g${g.k}">${g.t}</small>${sub?`<span class="pp-l" style="margin:0">${numHtml(sub)}</span>`:''}</div>`
@@ -3398,7 +3433,7 @@ async function runDiag(){
      try{const c=emp[0], r=await ROMS.page(c.b,1,0); o.push(`  └ ${c.key} 지금 새로 물어봄: 결과코드 ${ROMS.findNum(r.raw,/^resultCode$/i)}, 전체 ${r.total??'-'}건, 받음 ${r.items.length}줄`);}
      catch(e){o.push('  └ 새로 물어봄 실패: '+e.message);}
    }}
-  {const w=sel?wtemp(sel.lat,sel.lng,tH()):null; o.push('수온 섞기(U-49): '+(w?`${w.v.toFixed(2)}℃ = 예보 ${w.f.toFixed(2)}`+(w.src==='섞음'?` + K ${w.K.toFixed(2)} × (${w.st} ${w.km.toFixed(1)}km 실측 ${w.obs} − 그 자리 예보 ${w.fs.toFixed(2)}) · 시간차 ${w.dt.toFixed(1)}h`:' (30km 안 관측소 값 없음 → 예보만)'):'찍은 자리 없음 또는 예보 없음')+` · 기록 ${Object.keys(JSON.parse(pref('wtDiff','{}'))).length}곳`);}
+  {const w=sel?wtemp(sel.lat,sel.lng,tH()):null; o.push('수온 섞기(U-49): '+(w?`${w.v.toFixed(2)}℃ = 예보 ${w.f.toFixed(2)}`+(w.src==='섞음'?` + K ${w.K.toFixed(2)} × 차이 ${w.b.toFixed(2)} (가장 무거운 ${w.st} ${w.km.toFixed(1)}km 실측 ${w.obs} − 그 자리 예보 ${w.fs.toFixed(2)}, 관측소 ${w.ns}곳) · 시간차 ${w.dt.toFixed(1)}h`:' (30km 안 관측소 값 없음 → 예보만)'):'찍은 자리 없음 또는 예보 없음')+` · 기록 ${Object.keys(JSON.parse(pref('wtDiff','{}'))).length}곳`);}
   o.push(`날씨 더하기: 수온 칸 ${RD.pts.some(p=>p.w)?'있음':'없음'} · 단기예보 ${WX.data?WX.data.times.length+'시각':'-'} · 지난 비 ${RAIN.st?RAIN.st[1]+' '+(RAIN.obs!=null?RAIN.obs.toFixed(1)+'mm':'-'):'-'} (결과 ${RAIN.last||'-'}) · 관측소 ${DTO.st?DTO.st.length:0}곳 (결과 ${DTO.last||'-'})`);
   o.push(`추천 종류: ${[...recKinds()].map(k=>KIND_NAME[k]).join('·')} · 섬 다리 판별 ${REC.kindSrc==='pre'?'미리 넣은 지도 자료('+(REC.preDate||'-')+')':REC.kindSrc==='osm'?'지도 자료(OSM)':REC.kindSrc==='guess'?'추정(지도 자료 못 받음'+(REC.ovpErr?': '+REC.ovpErr:'')+')':'-'} · 직접 바꾼 섬 ${Object.keys(islOv()).length}곳`);
   if(REC.ovpRaw)o.push('  └ 지도 서버 마지막 응답: '+REC.ovpRaw);
