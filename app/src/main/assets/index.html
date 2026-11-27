@@ -2659,9 +2659,10 @@ function cfVecAt(lat,lon,th,list){ // 가까운 cf 지점 거리가중 평균 �
     const S=CF.ser.get(s.c); if(!S||!S.t||!S.t.length)continue; const v=cfAt(S,ms); if(!v)continue;
     const w=Math.exp(-((d/CFB.L)**2)); su+=v.vE*w; sv+=v.vN*w; sw+=w; if(w>mw)mw=w;}
   return sw>1e-6?{vE:su/sw,vN:sv/sw,w:mw}:null;}
-// 도메인(+여유) 안 cf 지점만 미리 추림 — 경계 칸마다 전체 목록을 돌지 않게
+ // 도메인(+여유) 안 cf 지점만 미리 추림 — 경계 칸마다 전체 목록을 돌지 않게
 function cfLocalStations(a,b){if(!CF.on||!CF.st||!CONF.realData)return null; const o=[],m=CFB.R/111000;
-  for(const s of CF.st)if(s.la>=b.lat-m&&s.la<=a.lat+m&&s.lo>=a.lng-m&&s.lo<=b.lng+m)o.push(s);
+  const lonM=m/Math.max(0.000001,Math.cos(Math.min(89.999999,Math.max(Math.abs(a.lat),Math.abs(b.lat))+m)*Math.PI/180));
+  for(const s of CF.st)if(s.la>=b.lat-m&&s.la<=a.lat+m&&s.lo>=a.lng-lonM&&s.lo<=b.lng+lonM)o.push(s);
   return o.length?o:null;}
 // 경계·시드용 값: ROMS 예보 + cf 보정
 function baseCor(lat,lon,th,list){const v=simBaseAt(lat,lon,th), c=list?cfVecAt(lat,lon,th,list):null;
