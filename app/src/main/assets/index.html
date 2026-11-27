@@ -1652,7 +1652,7 @@ async function simBuildTile(T){
       if(Y>0&&solid[c-gx]&&!seen[c-gx]){seen[c-gx]=1;st.push(c-gx);} if(Y<gy-1&&solid[c+gx]&&!seen[c+gx]){seen[c+gx]=1;st.push(c+gx);}}
     if(!edge&&comp.length<6)for(const c of comp)solid[c]=0;}
   // 육지 보강: 번들 격자가 육지(-9999)로 표시한 칸을 벽으로 (OSM이 놓친 해안선·간출지 메움)
-  if(DGRID.landMask){const GR=await depthGridLoad(); if(GR&&simTileInGrid(T,GR)){
+  if(DGRID.landMask){const GR=await depthGridReady(); if(GR&&simTileInGrid(GR,T)){await simDepthEnsureBlocks(GR,T);
     for(let i=0;i<N;i++){if(solid[i])continue; const X=i%gx,Y=(i/gx)|0, ll=map.unproject([ox+(X+0.5)*SC,oy+(Y+0.5)*SC],lv);
       if(depthGridIsLand(GR,ll.lat,ll.lng))solid[i]=1;}}}
   let water=0; for(let i=0;i<N;i++)if(!solid[i])water++;
@@ -1670,24 +1670,47 @@ async function simBuildTile(T){
 // 구역의 보통 수심보다 얕은 칸일수록 마찰을 키워 물이 느려지고, 깊은 골(물길)로 흐름이 모이게 함. 가장 확대한 단계(16)에서만
 const DEPTH={on:true,calls:0,last:'',cache:new Map(),URL:'https://apis.data.go.kr/1192136/waterDepth/GetWaterDepthApiService'};
 const findKey=(o,k)=>{if(!o||typeof o!=='object')return undefined;if(k in o)return o[k];for(const v of Object.values(o)){const r=findKey(v,k);if(r!==undefined)return r;}return undefined;};
-// ── 번들 수심 격자 (BADA2024 150m, 평균해수면 기준). 오프라인·즉시. API 호출을 대신함 ──
-// data[i*ncols+j]: 수심(m, 양수=깊이) | -9999(육지) | null(모름). 남서쪽이 (lat0,lon0), 행은 북쪽으로 증가.
-const DGRID={data:undefined,load:null,landMask:true};
-async function depthGridLoad(){if(DGRID.data!==undefined)return DGRID.data;
-  if(!DGRID.load)DGRID.load=loadAsset('depth_grid.json').then(g=>DGRID.data=(g&&g.data&&g.ncols)?g:false).catch(()=>DGRID.data=false);
-  return DGRID.load;}
-function simTileInGrid(T,G){const c=map.unproject([T.ox+DOM/2,T.oy+DOM/2],T.lv);
-  return c.lng>=G.lon0&&c.lng<=G.lon0+G.ncols*G.dlon&&c.lat>=G.lat0&&c.lat<=G.lat0+G.nrows*G.dlat;}
-function depthGridCell(G,lat,lon){const j=Math.round((lon-G.lon0)/G.dlon-0.5),i=Math.round((lat-G.lat0)/G.dlat-0.5);
-  if(i<0||j<0||i>=G.nrows||j>=G.ncols)return undefined; return G.data[i*G.ncols+j];}
-function depthGridIsLand(G,lat,lon){return depthGridCell(G,lat,lon)===G.land;}
-// 가장자리 땅·모름 칸은 빼고 이중선형 보간. 유효 이웃이 없으면 null
-function depthGridDepth(G,lat,lon){const fc=(lon-G.lon0)/G.dlon-0.5,fr=(lat-G.lat0)/G.dlat-0.5,
-  j0=Math.floor(fc),i0=Math.floor(fr),tx=fc-j0,ty=fr-i0; let s=0,w=0;
+// ── 번들 수심 격자 (BADA2024 150m, 평균해수면). 전국을 0.5°쯤 블록 타일로 쪼개 보는 곳만 메모리에 ──
+// 전역 격자: 원점(glon0,glat0)·간격(dlon,dlat). 전역 셀 I행 J열. 블록 bx=⌊J/bc⌋,by=⌊I/br⌋. 셀=수심(m)|-9999(육지).
+// index.json: {glon0,glat0,dlon,dlat,bc,br,land, tiles:["bx_by",…]}. 타일: {bx,by,bc,br,data:[bc*br]}
+const DGRID={on:true,landMask:true,index:undefined,indexLoad:null,blocks:new Map(),loadingB:new Map(),order:[],MAXB:16,gridCells:0};
+async function depthGridReady(){if(DGRID.index!==undefined)return DGRID.index;
+  if(!DGRID.indexLoad)DGRID.indexLoad=loadAsset('depth/index.json')
+    .then(x=>DGRID.index=(x&&x.tiles&&x.dlon)?(x.set=new Set(x.tiles),x):false).catch(()=>DGRID.index=false);
+  return DGRID.indexLoad;}
+const blkKeyOf=(G,I,J)=>Math.floor(J/G.bc)+'_'+Math.floor(I/G.br);
+// 블록 비동기 로드(있으면)·LRU 캐시. 자료 없는 블록은 null로 기억
+function blkEnsure(G,key){
+  if(DGRID.blocks.has(key))return Promise.resolve(DGRID.blocks.get(key));
+  if(!G.set.has(key)){DGRID.blocks.set(key,null);return Promise.resolve(null);}
+  if(DGRID.loadingB.has(key))return DGRID.loadingB.get(key);
+  const pr=loadAsset('depth/'+key+'.json').then(t=>{
+    DGRID.blocks.set(key,(t&&t.data)?t:null); DGRID.order.push(key);
+    while(DGRID.order.length>DGRID.MAXB){const old=DGRID.order.shift(); if(old!==key&&!DGRID.loadingB.has(old))DGRID.blocks.delete(old);}
+    DGRID.loadingB.delete(key); return DGRID.blocks.get(key);
+  }).catch(()=>{DGRID.blocks.set(key,null);DGRID.loadingB.delete(key);return null;});
+  DGRID.loadingB.set(key,pr); return pr;}
+// 전역 셀(I,J) 값 — 로드 안 됐거나 범위 밖이면 undefined
+function cellAt(G,I,J){if(I<0||J<0)return undefined;
+  const t=DGRID.blocks.get(blkKeyOf(G,I,J)); if(!t)return undefined;
+  const li=I-t.by*G.br, lj=J-t.bx*G.bc; if(li<0||lj<0||li>=G.br||lj>=G.bc)return undefined;
+  return t.data[li*G.bc+lj];}
+function depthGridIsLand(G,lat,lon){const J=Math.round((lon-G.glon0)/G.dlon-0.5),I=Math.round((lat-G.glat0)/G.dlat-0.5);
+  return cellAt(G,I,J)===G.land;}
+// 가장자리 땅 칸은 빼고 이중선형 보간(블록 경계도 전역 인덱스로 이어짐). 유효 이웃 없으면 null
+function depthGridDepth(G,lat,lon){const fc=(lon-G.glon0)/G.dlon-0.5,fr=(lat-G.glat0)/G.dlat-0.5,
+  J0=Math.floor(fc),I0=Math.floor(fr),tx=fc-J0,ty=fr-I0; let s=0,w=0;
   for(const [di,dj,ww] of [[0,0,(1-tx)*(1-ty)],[0,1,tx*(1-ty)],[1,0,(1-tx)*ty],[1,1,tx*ty]]){
-    const i=i0+di,j=j0+dj; if(i<0||j<0||i>=G.nrows||j>=G.ncols)continue;
-    const v=G.data[i*G.ncols+j]; if(v==null||v===G.land)continue; s+=v*ww; w+=ww;}
+    const v=cellAt(G,I0+di,J0+dj); if(v==null||v===G.land)continue; s+=v*ww; w+=ww;}
   return w>0.001?s/w:null;}
+// 이 계산 구역(+1셀 여유)을 덮는 블록 키들
+function tileBlocks(G,T){const a=map.unproject([T.ox-SC,T.oy-SC],T.lv), b=map.unproject([T.ox+DOM+SC,T.oy+DOM+SC],T.lv);
+  const J0=Math.floor((a.lng-G.glon0)/G.dlon), J1=Math.floor((b.lng-G.glon0)/G.dlon),
+    I0=Math.floor((b.lat-G.glat0)/G.dlat), I1=Math.floor((a.lat-G.glat0)/G.dlat), keys=new Set();
+  for(let J=J0;J<=J1;J++)for(let I=I0;I<=I1;I++)keys.add(Math.floor(J/G.bc)+'_'+Math.floor(I/G.br));
+  return [...keys];}
+function simTileInGrid(G,T){return tileBlocks(G,T).some(k=>G.set.has(k));}
+async function simDepthEnsureBlocks(G,T){await Promise.all(tileBlocks(G,T).map(k=>blkEnsure(G,k)));}
 // 번들 격자로 바닥 마찰(kz) 만들기 — 기존 API 방식과 같은 공식(수심↓ → 마찰↑ → 깊은 골로 모임)
 function simDepthFromGrid(T,G){
   const N=T.gx*T.gy, hh=new Float32Array(N).fill(NaN), hs=[];
@@ -1704,9 +1727,9 @@ async function simDepthWait(T){if(!DEPTH.on||!CONF.realData||T.lv!==FIELD_LEVEL)
 async function simDepth(T){
   if(!DEPTH.on||!CONF.realData||T.lv!==FIELD_LEVEL)return;
   if(DEPTH.cache.has(T.key)){const c=DEPTH.cache.get(T.key);if(c){T.kz=c.kz;T.kzSum=c.kzSum;T.hmed=c.hmed;}return;}
-  // 번들 격자가 덮는 구역이면 격자로(오프라인·즉시). 아니면 기존 API
-  const GR=await depthGridLoad();
-  if(GR&&simTileInGrid(T,GR)){simDepthFromGrid(T,GR);return;}
+  // 번들 격자(타일)가 덮는 구역이면 격자로(오프라인). 블록 로드 뒤 계산. 아니면 기존 API
+  const GR=await depthGridReady();
+  if(GR&&simTileInGrid(GR,T)){await simDepthEnsureBlocks(GR,T); simDepthFromGrid(T,GR); return;}
   if(T.depthTried)return; T.depthTried=true;
   const a=map.unproject([T.ox,T.oy],T.lv), b=map.unproject([T.ox+DOM,T.oy+DOM],T.lv), r3=v=>(Math.round(v*1000)/1000).toFixed(3);
   const base=`${DEPTH.URL}?serviceKey=${encodeURIComponent(ROMS.key())}&type=json&numOfRows=300&ymin=${r3(b.lat-0.003)}&ymax=${r3(a.lat+0.003)}&xmin=${r3(a.lng-0.003)}&xmax=${r3(b.lng+0.003)}`;
@@ -3380,7 +3403,7 @@ async function runDiag(){
   o.push(`추천 종류: ${[...recKinds()].map(k=>KIND_NAME[k]).join('·')} · 섬 다리 판별 ${REC.kindSrc==='pre'?'미리 넣은 지도 자료('+(REC.preDate||'-')+')':REC.kindSrc==='osm'?'지도 자료(OSM)':REC.kindSrc==='guess'?'추정(지도 자료 못 받음'+(REC.ovpErr?': '+REC.ovpErr:'')+')':'-'} · 직접 바꾼 섬 ${Object.keys(islOv()).length}곳`);
   if(REC.ovpRaw)o.push('  └ 지도 서버 마지막 응답: '+REC.ovpRaw);
   o.push(`조류예보 지점: ${CF.on?'켬':'끔'} · ${CF.st?CF.st.length:0}곳${CF.scan?' (찾는 중 '+CF.prog+'/'+CF_CODES.length+')':''} · 받은 지점 ${[...CF.ser.values()].filter(x=>x.t&&x.t.length).length}곳 · 호출 ${CF.calls}번, 마지막 결과 ${CF.last||'-'}${CF.err?' · ⚠️ '+CF.err:''}`);
-  o.push(`수심: ${DEPTH.on?'켬':'끔'} · 격자 ${DGRID.data?('로드('+DGRID.data.ncols+'×'+DGRID.data.nrows+')'):(DGRID.data===false?'없음':'미로드')}${DEPTH.gridCells?' 칸'+DEPTH.gridCells:''} · API 호출 ${DEPTH.calls}번, 마지막 결과 ${DEPTH.last||'-'} · 반영된 구역 ${[...SIM.tiles.values()].filter(t=>t.kz).length}곳 · 기준 점 쓴 구역 ${[...SIM.tiles.values()].filter(t=>t.anchors).length}곳`);
+  o.push(`수심: ${DEPTH.on?'켬':'끔'} · 격자 ${DGRID.index?('타일'+DGRID.index.tiles.length+'개·로드'+[...DGRID.blocks.values()].filter(Boolean).length):(DGRID.index===false?'없음':'미로드')}${DEPTH.gridCells?'·칸'+DEPTH.gridCells:''} · API 호출 ${DEPTH.calls}번, 마지막 결과 ${DEPTH.last||'-'} · 반영된 구역 ${[...SIM.tiles.values()].filter(t=>t.kz).length}곳 · 기준 점 쓴 구역 ${[...SIM.tiles.values()].filter(t=>t.anchors).length}곳`);
   o.push(`미리 계산(다음 ${PRE.hours}시간): ${PRE.on?'켬':'끔'} · 해둠 ${PRE.done}/${PRE.total} · 남은 ${SIM.pre.length}개${SIM.job&&SIM.job.pre?' · 지금 미리 계산 중':''}`);
   o.push(`조석 방식: ${pref('tideMode','auto')==='hl'?'예전 관측소 고정':tbUse()?'TideBED(좌표 보정)':'TideBED 실패 → 예전 관측소 (30분)'} · TideBED 호출 ${TB.calls}번, 마지막 결과 ${TB.last||'-'}${TB.why?' · 실패 이유 '+TB.why:''}`); if(TB.raw)o.push('  └ TideBED 마지막 응답: '+TB.raw); o.push(`주소 찾기(브이월드): 마지막 결과 ${ADDR.last} · 저장 ${ADDR.cache.size}곳`);
   o.push(`조석: 관측소 ${TIDE.st?TIDE.st.length:0}곳${TIDE.scan?' (찾는 중 '+TIDE.prog+')':''}${TIDE.lastCode?' · 관측소 마지막 결과 '+TIDE.lastCode:''}, 지금 ${TIDE.cur?stLabel(TIDE.cur.st)+'('+TIDE.cur.st.c+', 약 '+TIDE.cur.st.km.toFixed(1)+'km)':'-'}, 만조·간조(오늘) ${TIDE.cur?tideExtremes(TIDE.cur.ser,tideDay(),tideDay()+DAY).length:0}개`+(TIDE.err?' · ⚠️ '+TIDE.err:''));

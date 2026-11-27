@@ -41,7 +41,7 @@
 - 브라우저 QA: `python3 test/tools/mkqa.py` 로 시험 페이지 만든 뒤 `bash test/tools/run_one.sh <qa_이름>` (가짜 ROMS 서버 + 스텁 Leaflet). 주요: `qa_b56`(흐름선·유향), `qa_flow`, `qa_ui`, `qa_design`, `qa_b69`(포인트), `qa_tidechip`.
 - 물리 단위시험: `node test/qa_current_seam.js`, `node test/qa_current_forcing.js`, `node test/qa_depthgrid.js`(번들 수심 격자 보간·격자→바닥 마찰·육지 벽).
 - 미리 계산(다음 시각): `qa_precalc`(가드·토글·한도600). 쉴 때 앞 12시간 치를 SIMDB에 저장, 화면(`T.cur`)은 안 건드림. ⚙️ `⏩ 다음 시각 미리 계산`(기본 켬).
-- 번들 수심: `app/src/main/assets/depth_grid.json`(BADA2024 150m, 평균해수면, **남해안 전역** 1280×889 = 여수 동부~거제~통영~남해~사천, 6.8MB). 원자료는 `DB/BADA2024_v1.1.txt.gz`(LFS). 코드는 격자 테두리를 파일 헤더에서 읽어 — 범위 넓히려면 파일만 교체(`scratchpad/build_grid.py` 식). 육지 마스크는 BADA 점이 150m 안에 없으면 육지(-9999). 덮는 구역은 격자로(오프라인), 밖은 자연과학용 수심 API. 수심→바닥 마찰(`K=K0+KZ`)은 그대로.
+- 번들 수심(**전국, 타일식**): `app/src/main/assets/depth/`(`index.json` + `<bx>_<by>.json` 타일, 0.5°블록·150m·평균해수면). 전국 BADA(`DB/BADA2024_v1.1.txt.gz`, LFS)에서 **CI가 `tools/make_depth_tiles.py`로 생성** — 저장소엔 원본만, 타일은 빌드 산출물(gitignore). 전역 격자(원점 glon0/glat0, 셀 I행 J열, 블록 bx=⌊J/bc⌋). 앱은 **보는 구역 블록만** 메모리(LRU 16, `blkEnsure`). 웹 단일 HTML은 `build_web.py`가 **남해안만 임베드**(전국은 못 넣음). 육지 마스크는 BADA 점이 150m 안에 없으면 육지(-9999). 덮는 구역은 격자(오프라인), 밖은 자연과학용 수심 API. 수심→바닥 마찰(`K=K0+KZ`)은 그대로. 로컬 시험은 `make_depth_tiles.py --bbox`로 일부 타일 생성 후.
 - **동시에 두 QA 배치를 돌리지 말 것** — `run_one.sh`가 `pkill chrome`을 해서 서로 죽인다. 순차로.
 - 알려진 기존 실패(수정 전부터, 환경/하네스 문제라 무관): `qa_realshape` R2·R8, `qa_nest` S1(헤드리스 sim 워커 미완료), `qa_tidechip` C3·C9, `qa_levelbadge` L1·L2(배지 이름 노후화).
 
