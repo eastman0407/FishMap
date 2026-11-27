@@ -9,14 +9,15 @@ const tile={gx,gy,solid}, station={cx:27,cy:15,vE:1,vN:0};
 const cells=new Map(anchorCells(tile,station,47));
 const idx=(x,y)=>y*gx+x;
 assert.equal(cells.get(idx(27,15)),1);
-for(let offset=1;offset<=12;offset++){
+for(let offset=1;offset<=12;offset++){ // 반경 1100m≈23칸, 12칸은 안쪽
   assert.ok(cells.get(idx(27+offset,15))<cells.get(idx(26+offset,15)));
   assert.equal(cells.get(idx(27+offset,15)),cells.get(idx(27-offset,15)));
 }
 assert.ok(!cells.has(idx(27,23)));
-assert.ok(!cells.has(idx(40,15)));
+assert.ok(cells.has(idx(40,15)));   // REQ-104: 반경 1100으로 넓어져 13칸(611m)은 이제 포함
+assert.ok(!cells.has(idx(52,15)));  // 25칸(1175m)은 반경 밖
 const field=stationForcing(tile,[station],47,0.07);
-assert.ok(field.rate[idx(27,15)]<0.01);
+assert.ok(field.rate[idx(27,15)]<0.05); // REQ-104: 세기 0.008→0.04
 assert.ok(Math.abs(field.east[idx(30,15)]-.07)<1e-7);
 assert.equal(field.rate[idx(27,23)],0);
 // 흐름선 이동(build-65 방식 flowStep): √속도 보정 + dt 기준이라 주사율이 달라도 초당 이동량이 같다.

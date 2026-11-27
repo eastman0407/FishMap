@@ -1841,7 +1841,7 @@ function nestAt(lat,lon,parents=SIM.par){
   return null;}
 // 인접한 바다 셀을 따라 지점 예보의 영향력을 낮춘다.
 function anchorCells(T,a,cellM){
-  const {gx,gy,solid}=T, start=a.cy*gx+a.cx, radius=600;
+  const {gx,gy,solid}=T, start=a.cy*gx+a.cx, radius=1100; // REQ-104: 600→1100 (좁은 수로 더 멀리 당김)
   if(a.cx<1||a.cy<1||a.cx>=gx-1||a.cy>=gy-1||solid[start])return [];
   const queue=[start], seen=new Set(queue), cells=[];
   let begin=0, distance=0;
@@ -1874,7 +1874,7 @@ function stationForcing(T,stations,cellM,scale){
   for(let i=0;i<size;i++){
     if(!rate[i])continue;
     east[i]/=rate[i]; south[i]/=rate[i];
-    rate[i]=0.008*Math.min(1,rate[i]);
+    rate[i]=0.04*Math.min(1,rate[i]); // REQ-104: 0.008→0.04 (조류예보 지점에 더 강하게 맞춤)
   }
   return {rate,east,south};
 }
@@ -1893,8 +1893,9 @@ function simBC(T,th){
     if(CF.on&&!T.stationsReady)return null;
   }
   const n=T.bcIdx.length, vE=new Float32Array(n), vN=new Float32Array(n), has=new Uint8Array(n); let mx=0.3,got=0;
+  const cfA=map.unproject([T.ox,T.oy],T.lv), cfB=map.unproject([T.ox+DOM,T.oy+DOM],T.lv), cfL=cfLocalStations(cfA,cfB); // REQ-104
   for(let q=0;q<n;q++){const i=T.bcIdx[q],X=i%T.gx,Y=(i/T.gx)|0;
-    const ll=map.unproject([T.ox+(X+0.5)*SC,T.oy+(Y+0.5)*SC],T.lv); const v=(T.parents&&nestAt(ll.lat,ll.lng,T.parents))||simBaseAt(ll.lat,ll.lng,th);
+    const ll=map.unproject([T.ox+(X+0.5)*SC,T.oy+(Y+0.5)*SC],T.lv); const v=(T.parents&&nestAt(ll.lat,ll.lng,T.parents))||baseCor(ll.lat,ll.lng,th,cfL);
     if(v){vE[q]=v.vE;vN[q]=v.vN;has[q]=1;got++;mx=Math.max(mx,Math.hypot(v.vE,v.vN));}}
   if(got<n*0.1)return null; // 바깥 예보가 거의 없으면 계산하지 않음 (지어낸 값 방지)
   const dr=WIND.on?(()=>{const w=windAt(th,T.wind);return w?{vE:w.u*DRIFT*1.9438,vN:w.v*DRIFT*1.9438}:null;})():null;
@@ -2648,6 +2649,24 @@ function cfNearText(lat,lon,th){const n=cfNear(lat,lon,th); if(!n)return ''; con
   return `📍 근처 조류예보 지점 ${n.s.n} ${spdText(sp)} · ${DIR16[Math.round(dg/22.5)%16]}쪽 (${Math.round(n.d/10)*10}m · 실측 기반)`;}
 // ⚓ 계산용: 실제 예보 → 없으면 조류예보 지점
 function simBaseAt(lat,lon,th){return baseAt(lat,lon,th)||(CONF.realData?cfFill(lat,lon,th):null);}
+// REQ-104 (노량 등 좁은 수로): ROMS 격자(~3km)가 수로를 못 담아 조류예보와 반대로 나오는 문제.
+// 항내 계산 '경계값'을 가까운 조류예보 지점(cf)으로 바로잡아 수로가 실제 방향으로 흐르게 한다(섬 건너편 지점은 제외).
+const CFB={L:1800,cap:0.9,R:3000}; // 거리가중 길이(m)·최대 보정 비율·후보 반경
+function cfVecAt(lat,lon,th,list){ // 가까운 cf 지점 거리가중 평균 벡터 + 가장 큰 가중치 w
+  if(!CF.on||!CONF.realData)return null; const L=list||CF.st; if(!L)return null; const ms=t0.getTime()+th*3600e3;
+  let su=0,sv=0,sw=0,mw=0;
+  for(const s of L){const d=distM(lat,lon,s.la,s.lo); if(d>CFB.R)continue; if(tempLand(lat,lon,s.la,s.lo))continue;
+    const S=CF.ser.get(s.c); if(!S||!S.t||!S.t.length)continue; const v=cfAt(S,ms); if(!v)continue;
+    const w=Math.exp(-((d/CFB.L)**2)); su+=v.vE*w; sv+=v.vN*w; sw+=w; if(w>mw)mw=w;}
+  return sw>1e-6?{vE:su/sw,vN:sv/sw,w:mw}:null;}
+// 도메인(+여유) 안 cf 지점만 미리 추림 — 경계 칸마다 전체 목록을 돌지 않게
+function cfLocalStations(a,b){if(!CF.on||!CF.st||!CONF.realData)return null; const o=[],m=CFB.R/111000;
+  for(const s of CF.st)if(s.la>=b.lat-m&&s.la<=a.lat+m&&s.lo>=a.lng-m&&s.lo<=b.lng+m)o.push(s);
+  return o.length?o:null;}
+// 경계·시드용 값: ROMS 예보 + cf 보정
+function baseCor(lat,lon,th,list){const v=simBaseAt(lat,lon,th), c=list?cfVecAt(lat,lon,th,list):null;
+  if(!c)return v; if(!v)return c.w>=0.25?{vE:c.vE,vN:c.vN}:null; // 예보 없는 곳은 cf가 아주 가까울 때만
+  const K=CFB.cap*c.w; return {vE:v.vE+K*(c.vE-v.vE), vN:v.vN+K*(c.vN-v.vN)};}
 // H-12(11-22): 구역 테두리 값은 '구역에 걸치는 예보 받기 칸(0.05°) 안 점'만으로 만든 고정 보간 자료에서 읽음
 //  예전: 지금까지 받아 둔 점 전체로 만든 삼각형 → 넓게 보다 들어온 때와 다시 켠 때 모양이 달라 값이 0.1% 달라짐 → 저장 결과를 못 씀
 //  점은 위도·경도 순으로 정렬(같은 점이면 같은 삼각형), 간격 기준도 그 점들로만, 확대 단계와 무관
