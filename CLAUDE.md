@@ -40,6 +40,7 @@
 ## 검증(시험)
 - 브라우저 QA: `python3 test/tools/mkqa.py` 로 시험 페이지 만든 뒤 `bash test/tools/run_one.sh <qa_이름>` (가짜 ROMS 서버 + 스텁 Leaflet). 주요: `qa_b56`(흐름선·유향), `qa_flow`, `qa_ui`, `qa_design`, `qa_b69`(포인트), `qa_tidechip`.
 - 물리 단위시험: `node test/qa_current_seam.js`, `node test/qa_current_forcing.js`, `node test/qa_depthgrid.js`(번들 수심 격자 보간·격자→바닥 마찰·육지 벽).
+- 미리 계산(다음 시각): `qa_precalc`(가드·토글·한도600). 쉴 때 앞 12시간 치를 SIMDB에 저장, 화면(`T.cur`)은 안 건드림. ⚙️ `⏩ 다음 시각 미리 계산`(기본 켬).
 - 번들 수심: `app/src/main/assets/depth_grid.json`(BADA2024 150m, 평균해수면, 사천·남해). 원자료·격자 소스는 `DB/`(main). 덮는 구역은 격자로(오프라인), 밖은 자연과학용 수심 API. 수심→바닥 마찰(`K=K0+KZ`)은 그대로.
 - **동시에 두 QA 배치를 돌리지 말 것** — `run_one.sh`가 `pkill chrome`을 해서 서로 죽인다. 순차로.
 - 알려진 기존 실패(수정 전부터, 환경/하네스 문제라 무관): `qa_realshape` R2·R8, `qa_nest` S1(헤드리스 sim 워커 미완료), `qa_tidechip` C3·C9, `qa_levelbadge` L1·L2(배지 이름 노후화).
