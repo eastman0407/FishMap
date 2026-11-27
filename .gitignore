@@ -4,3 +4,6 @@ app/build/
 local.properties
 *.iml
 .idea/
+
+# 팀원(GPT·Grok) 원본 답변
+team/out/

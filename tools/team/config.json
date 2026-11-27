@@ -1,0 +1,6 @@
+{
+  "gpt":  {"name": "GPT",  "base": "https://api.openai.com/v1", "model": "gpt-5", "key_env": "OPENAI_API_KEY"},
+  "grok": {"name": "Grok", "base": "https://api.x.ai/v1",       "model": "grok-4", "key_env": "XAI_API_KEY"},
+  "max_context_chars": 240000,
+  "timeout_sec": 900
+}

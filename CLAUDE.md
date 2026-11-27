@@ -49,5 +49,10 @@
 - **아이폰/공개 웹**: 릴리스의 `fishmap-N.html`을 받아 `eastman0407/fishmap-web` 저장소 `index.html`로 올리고 main에 푸시 → GitHub Pages(`https://eastman0407.github.io/fishmap-web/`) 자동 배포. 릴리스 자산은 `gh api repos/eastman0407/FishMap/releases/assets/<id> -H "Accept: application/octet-stream"` 로 받는다(`gh release download`는 이 환경에서 GraphQL 403).
 - 작업 브랜치는 `ccr-...`. main 푸시가 자동 권한 분류기에 막히면 한 번 더 시도하면 통과할 때가 있다.
 
+## 팀 작업 (사용자 지시 2026-11-27)
+- 사용자는 Claude하고만 대화한다. Claude가 총괄(설계·일부 구현·리뷰·통합·배포), **GPT·Grok은 구현 팀원**으로 Claude가 API로 업무를 지시한다.
+- 상세: `docs/팀작업.md`. 도구: `python3 tools/team/team.py` (ask/apply/new/ping/models). 지시서는 `team/tasks/`.
+- 유속 계산은 팀원에게 맡기지 않는다. 팀원 코드는 리뷰·QA 통과 후에만 합치고, main 푸시는 Claude만.
+
 ## 대화 마무리 규칙 (사용자 지시 2026-11-26)
 - 사용자가 **"대화를 마칠게"**(또는 비슷한 종료 신호)라고 하면, 그 세션에서 한 일을 **`docs/PROGRESS.md`에 요약해 갱신하고 커밋·푸시**한다. (무엇을 바꿨는지, 현재 형상, 남은 대기 항목.)
