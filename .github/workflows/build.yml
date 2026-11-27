@@ -45,6 +45,10 @@ jobs:
           pip install -q numpy
           python3 tools/make_depth_tiles.py --src DB/BADA2024_v1.1.txt.gz --out app/src/main/assets/depth
           echo "타일 $(ls app/src/main/assets/depth/*.json | grep -v index | wc -l)개, $(du -sh app/src/main/assets/depth | cut -f1)"
+      - name: versionCode를 빌드 번호로 (Play 중복 업로드 방지)
+        run: |
+          sed -i "s/versionCode .*/versionCode ${{ github.run_number }}/" app/build.gradle
+          grep -E "versionCode|versionName" app/build.gradle
       - name: Build
         run: gradle assembleDebug bundleRelease --no-daemon --stacktrace
       - name: Rename

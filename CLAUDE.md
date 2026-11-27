@@ -5,7 +5,7 @@
 ## 이 프로젝트가 뭔가
 - **바다흐름지도**: 낚시인을 위한 조류·유속 지도 앱. 위성지도 위에 시간대별 물 흐름(흐름선), 항내 추정 유속, 조석·물때, 바위, 낚시 포인트 등을 보여준다.
 - **형태 두 가지**: ① 안드로이드 앱(WebView, 단일 `app/src/main/assets/index.html`) ② 설치 없이 브라우저로 여는 단일 HTML(공개 웹판).
-- **현재 형상**: `app/build.gradle`의 `versionCode`/`versionName` 참고. 릴리스 번호(build-N)는 GitHub Actions 실행 번호다(versionCode와 다를 수 있음).
+- **현재 형상**: `app/build.gradle`의 `versionName` 참고. 릴리스 번호(build-N)는 GitHub Actions 실행 번호이고, **빌드 때 CI가 `versionCode`를 이 실행 번호로 자동 설정**한다(build.yml) → Play 중복 업로드 방지. build.gradle의 versionCode 값은 자리표시(빌드 시 덮어씀). `versionName`은 사람이 올릴 때만 바꾼다.
 
 ## 핵심 파일
 - `app/src/main/assets/index.html` — 앱 전체(화면·로직·흐름선·계산)가 든 단일 파일(약 400KB). 거의 모든 작업은 여기서 한다.
