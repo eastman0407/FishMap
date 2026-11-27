@@ -5,7 +5,7 @@
   python3 tools/team/team.py models --to gpt|grok           # 쓸 수 있는 모델 목록
   python3 tools/team/team.py new    T-001 "제목" --to gpt    # 작업지시서 만들기
   python3 tools/team/team.py ask    --to gpt --task team/tasks/T-001.md \
-          --ctx app/src/main/assets/index.html:1200-1350 [--ctx 파일 ...] [--model M]
+          --ctx app/src/main/assets/index.html:1200-1350 [--ctx 파일 ...] [--hard | --model M]
   python3 tools/team/team.py apply  team/out/T-001.gpt.1.md [--dry]
 
 API 키는 환경변수(OPENAI_API_KEY / XAI_API_KEY) 또는 세션 프록시가 넣어 준다.
@@ -78,7 +78,7 @@ def cmd_ask(args):
     if args.feedback:
         task += "\n\n## 이전 제출에 대한 총괄(Claude) 피드백\n" + (ROOT / args.feedback).read_text(encoding="utf-8")
     body = {
-        "model": args.model or m["model"],
+        "model": args.model or (m["model_hard"] if args.hard else m["model"]),
         "messages": [
             {"role": "system", "content": (HERE / "system_prompt.md").read_text(encoding="utf-8")},
             {"role": "user", "content": "# 작업지시서\n" + task + "\n\n" + ctx},
@@ -94,12 +94,17 @@ def cmd_ask(args):
         n += 1
     out = OUT / f"{stem}.{args.to}.{n}.md"
     usage = res.get("usage", {})
+    price = m.get("price_per_mtok", {}).get(body["model"])
+    cost = ""
+    if price and usage:
+        usd = (usage.get("prompt_tokens", 0) * price[0] + usage.get("completion_tokens", 0) * price[1]) / 1e6
+        cost = f", 추정 ${usd:.3f}"
     out.write_text(
         f"<!-- {m['name']} model={res.get('model', body['model'])} "
         f"sec={time.time() - t0:.0f} usage={json.dumps(usage)} -->\n" + text,
         encoding="utf-8",
     )
-    print(f"[{m['name']}] 답변 저장: {out.relative_to(ROOT)}  ({time.time() - t0:.0f}초, 토큰 {usage})")
+    print(f"[{m['name']}] 답변 저장: {out.relative_to(ROOT)}  ({time.time() - t0:.0f}초, 입력 {usage.get('prompt_tokens')}·출력 {usage.get('completion_tokens')} 토큰{cost})")
     print(f"블록 {len(parse_blocks(text))}개")
 
 
@@ -172,6 +177,7 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("ask"); a.add_argument("--to", required=True); a.add_argument("--task", required=True)
     a.add_argument("--ctx", action="append"); a.add_argument("--model"); a.add_argument("--feedback")
+    a.add_argument("--hard", action="store_true", help="어려운 작업: 상급 모델(model_hard) 사용")
     a.set_defaults(f=cmd_ask)
     b = sub.add_parser("apply"); b.add_argument("answer"); b.add_argument("--dry", action="store_true"); b.set_defaults(f=cmd_apply)
     c = sub.add_parser("new"); c.add_argument("id"); c.add_argument("title"); c.add_argument("--to", required=True); c.set_defaults(f=cmd_new)
