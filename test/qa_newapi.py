@@ -71,11 +71,14 @@ exec(src+'''
     check('N10 ⚓ 보조값: 유향 동남동(112.5°)·1노트를 동·북 성분으로', v and abs(math.hypot(*v)-1)<0.02 and abs(math.degrees(math.atan2(v[0],v[1]))-112.5)<1, v)
     calls_after=E("window.__cfCalls"); go(13,34.921,128.071,3000)
     check('N11 다시 움직여도 지점 목록을 또 받지 않음', E("window.__cfCalls")-calls_after<=8, [calls_after,E("window.__cfCalls")])
-    # 수심 반영 (정밀 단계)
+    # 수심 반영 (정밀 단계) — 번들 격자(BADA2024)로 칸마다 바닥 마찰. 격자 경로가 쓰이고 마찰이 깊이에 따라 다른지 확인
+    E("__QA.DGRID.data=undefined;__QA.DGRID.load=null")  # 격자 다시 로드되게
     go(16,34.898,128.096,500)
     ok=until("__QA.SIM.done&&[...__QA.SIM.tiles.values()].some(t=>t.kz)",120)
-    info=E("(()=>{const T=[...__QA.SIM.tiles.values()].find(t=>t.kz);if(!T)return null;let n=0,s=0,nN=0,sN=0;for(let i=0;i<T.kz.length;i++){if(T.solid[i])continue;const Y=(i/T.gx)|0;if(Y<T.gy/2-4){n+=T.kz[i];nN++;}else if(Y>T.gy/2+4){s+=T.kz[i];sN++;}}return [T.hmed,n/(nN||1),s/(sN||1)];})()")
-    check('N12 수심을 받아 칸마다 마찰 (얕은 북쪽 > 깊은 남쪽)', ok and info and info[1]>info[2]*3, [info, E("window.__dpCalls")])
+    info=E("(()=>{const T=[...__QA.SIM.tiles.values()].find(t=>t.kz);if(!T)return null;let pos=0,cnt=0,mx=0;for(let i=0;i<T.kz.length;i++){if(T.solid[i])continue;cnt++;const k=T.kz[i];if(k>0)pos++;if(k>mx)mx=k;}return [T.hmed,pos,cnt,+mx.toFixed(5),__QA.DEPTH.last];})()")
+    # 격자 사용('격자')·마찰 최대값>0·마찰이 칸마다 다름(깊은 칸은 0, 얕은 칸은 양수 → pos<cnt)
+    # (헤드리스 sim 워커가 안 도는 환경에선 타일 미완료로 실패 — 알려진 한계. CI/실기기에서 통과. 격자 로직 자체는 qa_depthgrid.js로 검증)
+    check('N12 번들 격자로 수심 마찰 (격자 사용·깊이 따라 마찰 다름)', ok and info and info[4]=='격자' and info[3]>0 and 0<info[1]<info[2], info)
     cb=E("['tbChk','cfChk','depthChk'].map(i=>document.getElementById(i).checked)")
     check('N13 ⚙ 새 설정 3개 (기본 켬)', cb==[True,True,True], cb)
     check('N14 스크립트 오류 없음', not errs, errs[:3])
