@@ -545,6 +545,8 @@ html[data-theme=light] .nowcard .ncpg>.tchip,html[data-theme=light] .nowcard .nc
     <div class="namebox"><input id="keyIn" type="password" autocomplete="off" placeholder="공공데이터 인증키"><button class="btn" data-eye="keyIn" aria-label="키 보기·가리기" title="키 보기">👁</button></div>
     <div class="empty" style="padding:10px 0 4px">브이월드 지도 키 (선택 — 비우면 Esri 위성지도)</div>
     <div class="namebox"><input id="vwIn" type="password" autocomplete="off" placeholder="브이월드 인증키"><button class="btn" data-eye="vwIn" aria-label="키 보기·가리기" title="키 보기">👁</button></div>
+    <div class="empty" style="padding:10px 0 4px">수산과학원 수온 키 (선택 — 섬·만 안쪽 실측 보정)</div>
+    <div class="namebox"><input id="nifsIn" type="password" autocomplete="off" placeholder="수산과학원 인증키"><button class="btn" data-eye="nifsIn" aria-label="키 보기·가리기" title="키 보기">👁</button></div>
     <div class="namebox" style="margin-top:12px">
       <button class="btn" id="keySave" style="flex:1;background:var(--accent);color:var(--onAcc,#06221f);border:none;font-weight:700">저장</button>
       <button class="btn" id="keyTest" style="flex:1">연결 시험</button>
@@ -1242,11 +1244,47 @@ async function dtObs(lat,lon,st0){ // st0: 관측소를 정해서 물을 때 (�
     const num=v=>v===''||v==null||!isFinite(+v)?null:+v;
     return {st:st.n,sc:st.c,la:st.la,lo:st.lo,km:+(bd/1000).toFixed(1),at:L.obsrvnDt,wtem:num(L.wtem),atmpr:num(L.atmpr),dp3:P3&&num(L.atmpr)!=null&&num(P3.atmpr)!=null?+(num(L.atmpr)-num(P3.atmpr)).toFixed(1):null};
   }catch(e){return null;}}
+// ── REQ-103 국립수산과학원 실시간 수온(risa OpenAPI, 30분 간격, 전국 한 번에) — 조위관측소와 함께 수온 보정에 씀 ──
+// 창선도 진단(11-27): 강진만 쪽 ROMS 예보가 실측보다 약 3℃ 차갑고(10.4~11.4 vs 남해 강진 14℃) 섬에 안 가려진 조위관측소가 없어 보정이 안 됐음.
+// 키는 수산과학원 홈페이지에서 따로 받음(설정 nifsKey, 매개변수 key=). 자료는 품질처리 전 → 점검중·이상값은 뺌
+const NIFS={URL:'https://www.nifs.go.kr/OpenAPI_json',st:null,stLoad:null,obsAt:0,obsLoad:null,last:'',calls:0,n:0};
+const nifsKey=()=>pref('nifsKey','');
+function nifsItems(o){if(!o||typeof o!=='object')return null;
+  if(Array.isArray(o)){if(o.length&&o[0]&&typeof o[0]==='object'&&('sta_cde' in o[0]))return o; for(const v of o){const r=nifsItems(v);if(r)return r;} return null;}
+  if('sta_cde' in o)return [o]; for(const v of Object.values(o)){const r=nifsItems(v);if(r)return r;} return null;}
+function nifsCode(js){try{return String((js&&js.header&&js.header.resultCode)||findKey(js,'resultCode')||'');}catch(e){return '';}}
+function nifsReset(){NIFS.st=null;NIFS.stLoad=null;NIFS.obsAt=0;NIFS.obsLoad=null;NIFS.last='';NIFS.n=0;setPref('nifsSt1','');
+  for(const k of [...WT.obs.keys()])if(k.startsWith('N:'))WT.obs.delete(k);}
+// 관측소 목록(위치) — 7일 저장. 표층 수온을 재는 곳만
+function nifsParseStations(js){const it=nifsItems(js)||[], o=[];
+  for(const x of it){const la=+x.lat, lo=+x.lon; if(!isFinite(la)||!isFinite(lo)||!la||!lo)continue; if(String(x.sur_tmp_yn||'Y').toUpperCase()==='N')continue;
+    const end=String(x.end_dat||'').replace(/\D/g,''); if(end&&end<new Date().toISOString().slice(0,10).replace(/-/g,''))continue;
+    o.push({c:'N:'+x.sta_cde,la,lo,n:String(x.sta_nam_kor||x.sta_cde),src:'nifs'});} return o;}
+async function nifsStations(){if(!nifsKey())return null; if(NIFS.st)return NIFS.st;
+  try{const c=JSON.parse(pref('nifsSt1','null')); if(c&&c.at&&Date.now()-c.at<7*86400e3&&c.st&&c.st.length){NIFS.st=c.st;return c.st;}}catch(e){}
+  if(!NIFS.stLoad)NIFS.stLoad=(async()=>{const url=`${NIFS.URL}?id=risaCode&key=${encodeURIComponent(nifsKey())}&use_yn=Y`; try{const r=await nget(url,0); NIFS.calls++;
+      const js=JSON.parse(r.text); NIFS.last=nifsCode(js)||('응답 '+r.status); const st=nifsParseStations(js);
+      if(st.length){NIFS.st=st; setPref('nifsSt1',JSON.stringify({at:Date.now(),st}));} else cacheDrop(url);}catch(e){NIFS.last='인터넷·응답 오류'; cacheDrop(url);}
+    finally{NIFS.stLoad=null;} return NIFS.st;})();
+  return NIFS.stLoad;}
+// 최신 관측 한 번에 받아 관측소별 마지막 표층 값만 (WT.obs에 'N:코드'로). 10분 안엔 다시 안 받음
+function nifsParseObs(js,st){const it=nifsItems(js)||[], pos=new Map((st||[]).map(a=>[a.c,a])), best=new Map();
+  for(const x of it){if(String(x.obs_lay)!=='1')continue; if(String(x.repaire_gbn||'1')==='2'||String(x.rpr_yn||'N').toUpperCase()==='Y')continue;
+    const t=+x.wtr_tmp; if(x.wtr_tmp===''||x.wtr_tmp==null||!isFinite(t)||t<=-3||t>=40)continue;
+    const d=String(x.obs_dat||'').replace(/\D/g,''), h=String(x.obs_tim||'').replace(/\D/g,'').padEnd(6,'0'); if(d.length!==8)continue;
+    const at=`${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)} ${h.slice(0,2)}:${h.slice(2,4)}:${h.slice(4,6)}`, c='N:'+x.sta_cde, a=pos.get(c); if(!a)continue;
+    const b=best.get(c); if(!b||at>b.at)best.set(c,{wtem:t,at,la:a.la,lo:a.lo,sc:c,st:a.n});}
+  return best;}
+function nifsObsEnsure(cb){if(!nifsKey()||NIFS.obsLoad||Date.now()-NIFS.obsAt<600000)return;
+  NIFS.obsLoad=(async()=>{try{const st=await nifsStations(); if(!st)return; const url=`${NIFS.URL}?id=risaList&key=${encodeURIComponent(nifsKey())}`, r=await nget(url,10); NIFS.calls++;
+      const js=JSON.parse(r.text); NIFS.last=nifsCode(js)||('응답 '+r.status); const m=nifsParseObs(js,st); if(!m.size)cacheDrop(url); NIFS.obsAt=Date.now(); NIFS.n=m.size;
+      for(const [c,o] of m){WT.obs.set(c,{o,at:Date.now()}); wtSaveDiff(o);} if(m.size&&cb)cb();}
+    catch(e){NIFS.last='인터넷·응답 오류'; NIFS.obsAt=Date.now()-540000;} finally{NIFS.obsLoad=null;}})();}
 // U-49 (build-54): 찍은 자리 수온 = 예보 + K × (가까운 조위관측소 실측 − 그 자리 예보). 최적 내삽(OI)을 관측소 한 곳으로 줄인 꼴
 // K = 거리무게 exp(−(d/L)²) × σb²/(σb²+σo²) × 시간무게 exp(−Δt/τ). 30km 넘으면 예보만. 위성 수온은 안 섞음. 시작값은 가정 → 아래 기록으로 맞춰 감
 const WT_P={L:15,sb:1.0,so:0.5,tau:1}, WT={obs:new Map(),pend:new Set()};
 // T-001: 30km 안 관측소 최대 3곳, 섬·반도 건너편(번들 수심 타일 육지로 판단)은 뺌
-function wtNearAll(lat,lon){const S=DTO.st; if(!S)return []; const o=[]; for(const a of S){const d=distM(lat,lon,a.la,a.lo); if(d<30000&&!tempLand(lat,lon,a.la,a.lo))o.push({st:a,d});} return o.sort((x,y)=>x.d-y.d).slice(0,3);}
+function wtNearAll(lat,lon){const S=(DTO.st||[]).concat(NIFS.st||[]); if(!S.length)return []; const o=[]; for(const a of S){const d=distM(lat,lon,a.la,a.lo); if(d<30000&&!tempLand(lat,lon,a.la,a.lo))o.push({st:a,d});} return o.sort((x,y)=>x.d-y.d).slice(0,3);}
 function wtNear(lat,lon){return wtNearAll(lat,lon)[0]||null;}
 function wtObsMs(o){const ms=Date.parse(String(o.at).replace(' ','T')+'+09:00'); return isFinite(ms)?ms:null;}
 // 관측−예보 차이를 날마다 저장(최근 60일) → 나중에 L·σ 값을 맞추는 자료
@@ -1254,14 +1292,15 @@ function wtSaveDiff(o){try{const ms=wtObsMs(o); if(ms==null||o.wtem==null)return
   const D=JSON.parse(pref('wtDiff','{}')), day=new Date(ms+9*3600e3).toISOString().slice(0,10); (D[o.sc]=D[o.sc]||{})[day]=[+o.wtem.toFixed(2),+fs.toFixed(2)];
   const cut=new Date(Date.now()-60*86400e3).toISOString().slice(0,10); for(const k in D){for(const d in D[k])if(d<cut)delete D[k][d];}
   setPref('wtDiff',JSON.stringify(D));}catch(e){}}
-function wtEnsure(lat,lon,cb){ if(!CONF.realData)return; dtStations().then(()=>{for(const n of wtNearAll(lat,lon)){const c=n.st.c, e=WT.obs.get(c); if(e&&Date.now()-e.at<600000)continue; if(WT.pend.has(c))continue; WT.pend.add(c);
+function wtEnsure(lat,lon,cb){ if(!CONF.realData)return; Promise.all([dtStations(),nifsStations()]).then(()=>{for(const n of wtNearAll(lat,lon)){if(n.st.src==='nifs'){nifsObsEnsure(cb);continue;} const c=n.st.c, e=WT.obs.get(c); if(e&&Date.now()-e.at<600000)continue; if(WT.pend.has(c))continue; WT.pend.add(c);
   dtObs(lat,lon,n.st).then(o=>{WT.pend.delete(c); if(o&&o.wtem!=null){WT.obs.set(c,{o,at:Date.now()}); wtSaveDiff(o); if(cb)cb();} else WT.obs.set(c,{o:null,at:Date.now()-540000});}).catch(()=>{WT.pend.delete(c);});}});}
 // T-001: 관측소마다 무게 w = 거리무게 × 시간무게 × 30km 가장자리 감쇠(25→30km에서 0). 차이는 무게 평균, 세기 K = σ비 × 가장 큰 w
 // → 가장 가까운 관측소가 바뀌는 선에서도 값이 이어짐. 관측소 하나면 예전(U-49)과 같음
 function wtemp(lat,lon,th){const f=tempAt(lat,lon,th); if(f==null)return null; const out={v:f,f,K:0,src:'예보'};
   const g=WT_P.sb**2/(WT_P.sb**2+WT_P.so**2); let sw=0,sb=0,wm=0,top=null;
   for(const n of wtNearAll(lat,lon)){const e=WT.obs.get(n.st.c), o=e&&e.o; if(!o||o.wtem==null)continue; const ms=wtObsMs(o); if(ms==null)continue;
-    const tho=(ms-t0.getTime())/3600000, fs=tempAt(n.st.la,n.st.lo,tho); if(fs==null)continue;
+    if(Date.now()-ms>12*3600e3)continue; // REQ-103: 12시간 넘은 관측은 안 씀(관측소 고장 등)
+    const tho=(ms-t0.getTime())/3600000, fs=tempAt(n.st.la,n.st.lo,tho); if(fs==null||Math.abs(o.wtem-fs)>6)continue; // 6℃ 넘게 어긋나면 센서 이상 의심
     const w=Math.exp(-(((n.d/1000)/WT_P.L)**2))*Math.exp(-Math.abs(th-tho)/24/WT_P.tau)*Math.min(1,(30000-n.d)/5000);
     sw+=w; sb+=w*(o.wtem-fs); if(w>wm){wm=w;top={n,o,fs,tho};}}
   if(!top||sw<1e-12)return out; const K=g*wm, b=sb/sw;
@@ -3433,7 +3472,8 @@ async function runDiag(){
      try{const c=emp[0], r=await ROMS.page(c.b,1,0); o.push(`  └ ${c.key} 지금 새로 물어봄: 결과코드 ${ROMS.findNum(r.raw,/^resultCode$/i)}, 전체 ${r.total??'-'}건, 받음 ${r.items.length}줄`);}
      catch(e){o.push('  └ 새로 물어봄 실패: '+e.message);}
    }}
-  {const w=sel?wtemp(sel.lat,sel.lng,tH()):null; o.push('수온 섞기(U-49): '+(w?`${w.v.toFixed(2)}℃ = 예보 ${w.f.toFixed(2)}`+(w.src==='섞음'?` + K ${w.K.toFixed(2)} × 차이 ${w.b.toFixed(2)} (가장 무거운 ${w.st} ${w.km.toFixed(1)}km 실측 ${w.obs} − 그 자리 예보 ${w.fs.toFixed(2)}, 관측소 ${w.ns}곳) · 시간차 ${w.dt.toFixed(1)}h`:' (30km 안 관측소 값 없음 → 예보만)'):'찍은 자리 없음 또는 예보 없음')+` · 기록 ${Object.keys(JSON.parse(pref('wtDiff','{}'))).length}곳`);}
+  {const w=sel?wtemp(sel.lat,sel.lng,tH()):null; o.push('수온 섞기(U-49): '+(w?`${w.v.toFixed(2)}℃ = 예보 ${w.f.toFixed(2)}`+(w.src==='섞음'?` + K ${w.K.toFixed(2)} × 차이 ${w.b.toFixed(2)} (가장 무거운 ${w.st} ${w.km.toFixed(1)}km 실측 ${w.obs} − 그 자리 예보 ${w.fs.toFixed(2)}, 관측소 ${w.ns}곳) · 시간차 ${w.dt.toFixed(1)}h`:' (30km 안 관측소 값 없음 → 예보만)'):'찍은 자리 없음 또는 예보 없음')+` · 기록 ${Object.keys(JSON.parse(pref('wtDiff','{}'))).length}곳`);
+   o.push(`수산과학원 수온(REQ-103): ${nifsKey()?'키 있음':'키 없음'} · 관측소 ${NIFS.st?NIFS.st.length:0}곳 · 최근 값 ${NIFS.n}곳 · 호출 ${NIFS.calls}번, 마지막 결과 ${NIFS.last||'-'}`);}
   o.push(`날씨 더하기: 수온 칸 ${RD.pts.some(p=>p.w)?'있음':'없음'} · 단기예보 ${WX.data?WX.data.times.length+'시각':'-'} · 지난 비 ${RAIN.st?RAIN.st[1]+' '+(RAIN.obs!=null?RAIN.obs.toFixed(1)+'mm':'-'):'-'} (결과 ${RAIN.last||'-'}) · 관측소 ${DTO.st?DTO.st.length:0}곳 (결과 ${DTO.last||'-'})`);
   o.push(`추천 종류: ${[...recKinds()].map(k=>KIND_NAME[k]).join('·')} · 섬 다리 판별 ${REC.kindSrc==='pre'?'미리 넣은 지도 자료('+(REC.preDate||'-')+')':REC.kindSrc==='osm'?'지도 자료(OSM)':REC.kindSrc==='guess'?'추정(지도 자료 못 받음'+(REC.ovpErr?': '+REC.ovpErr:'')+')':'-'} · 직접 바꾼 섬 ${Object.keys(islOv()).length}곳`);
   if(REC.ovpRaw)o.push('  └ 지도 서버 마지막 응답: '+REC.ovpRaw);
@@ -4006,7 +4046,7 @@ function renderFavList(){
 $('#favBtn').onclick=()=>{renderFavList();$('#favImportBox').style.display='none';$('#favPanel').classList.add('show');};
 // 백업: 즐겨찾기를 글(텍스트)로 만들어 카톡·메모 등으로 보내기 → 새 폰/재설치 후 붙여넣어 복원
 // ── 백업 내보내기·가져오기 (REQ-50): 안드로이드 앱 ↔ HTML 버전 사이 옮기기 ──
-const BAK_PREFIX='바다흐름지도-백업:', BAK_PREFS=['theme','fontScale','nightOn','mulSys','dataKey','romsUrl','vworldKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit','currentDisplayUnit','tideMode','cfOn','depthOn','preCalcOn','tideSt2','cfSt1','recKinds','islOv','recSort','nowMini','nowView','sstOn'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
+const BAK_PREFIX='바다흐름지도-백업:', BAK_PREFS=['theme','fontScale','nightOn','mulSys','dataKey','romsUrl','vworldKey','nifsKey','dirIsFrom','field_dir','field_speed','redKn','rockOn','simMode','tidalOn','windOn','logPins','alertLead','recSgg','todaySgg','speedUnit','currentDisplayUnit','tideMode','cfOn','depthOn','preCalcOn','tideSt2','cfSt1','recKinds','islOv','recSort','nowMini','nowView','sstOn'], BAK_LS=['fishmap.favs.v1','fishmap.log.v1'];
 function bakMake(){const P={},S={};for(const k of BAK_PREFS){const v=pref(k,null);if(v!=null&&v!=='')P[k]=v;}for(const k of BAK_LS){try{const v=localStorage.getItem(k);if(v)S[k]=v;}catch(e){}}
   return BAK_PREFIX+JSON.stringify({v:1,at:new Date().toISOString(),from:NATIVE?'app':'web',prefs:P,ls:S});}
 function bakApply(txt){txt=String(txt||'').trim(); const i=txt.indexOf('{'); if(i<0)throw new Error('백업 내용이 아니에요');
@@ -4074,7 +4114,7 @@ $('#favImport').onclick=()=>{
   saveFavs(cur); renderFavList(); $('#favImportBox').style.display='none';
   toast(add?`${add}개를 추가했어요`:'새로 추가할 게 없어요 (이미 있음)');
 };
-$('#setBtn').onclick=()=>{['keyIn','vwIn'].forEach(i=>{$('#'+i).type='password';}); /* U-21: 열 때마다 키 가림 */ $('#keyIn').value=ROMS.key();$('#urlIn').value=ROMS.url();$('#vwIn').value=pref('vworldKey','');$('#f_dir').value=pref('field_dir','');$('#f_speed').value=pref('field_speed','');
+$('#setBtn').onclick=()=>{['keyIn','vwIn','nifsIn'].forEach(i=>{$('#'+i).type='password';}); /* U-21: 열 때마다 키 가림 */ $('#keyIn').value=ROMS.key();$('#urlIn').value=ROMS.url();$('#vwIn').value=pref('vworldKey','');$('#nifsIn').value=pref('nifsKey','');$('#f_dir').value=pref('field_dir','');$('#f_speed').value=pref('field_speed','');
   $('#dirFrom').checked=pref('dirIsFrom','false')==='true';$('#testOut').textContent='';$('#setPanel').classList.add('show');};
 $('#setClose').onclick=()=>$('#setPanel').classList.remove('show');
 $('#setPanel').addEventListener('click',e=>{if(e.target.id==='setPanel')$('#setPanel').classList.remove('show');});
@@ -4085,6 +4125,7 @@ function rebuildLayers(){
 function saveSettings(){
   const vw0=pref('vworldKey',''); setPref('vworldKey',$('#vwIn').value.trim());
   if(vw0!==$('#vwIn').value.trim())rebuildLayers();
+  const nk0=pref('nifsKey',''); setPref('nifsKey',$('#nifsIn').value.trim()); if(nk0!==pref('nifsKey','')&&typeof nifsReset==='function')nifsReset();
   setPref('dataKey',$('#keyIn').value.trim()); setPref('romsUrl',$('#urlIn').value.trim()===ROMS.DEF_URL?'':$('#urlIn').value.trim());
   setPref('field_dir',$('#f_dir').value.trim()); setPref('field_speed',$('#f_speed').value.trim()); setPref('dirIsFrom',$('#dirFrom').checked?'true':'false');
   ROMS.mem.clear(); if(NATIVE)NATIVE.clearCache(); else WEBCACHE.clear(); setPref('tideScanFailAt2','0'); setPref('tideSt2',''); TIDE.st=null; TIDE.err='';
@@ -4400,7 +4441,7 @@ recLoad().then(updateCenterName);
   toast(CONF.realData?'지도를 확대하면 국립해양조사원 실제 조류 예보가 보여요':'지금은 샘플 흐름이에요. ⚙️ 설정에 공공데이터 키를 넣으면 실제 조류로 바뀌어요',4000);
 })();
 // U-24 (build-50 2차): 설정 묶음 줄 오른쪽 요약 — 🔑 연결됨/키 필요 · 💾 마지막 백업 날짜 · 🗺️ n개 중 n개 켜짐
-function setSums(){const k=!!ROMS.key(); const e=$('#sumKey'); e.textContent=k?'✅ 연결됨':'키 필요'; e.className=k?'ok':'';
+function setSums(){const k=!!ROMS.key(); const e=$('#sumKey'); e.textContent=(k?'✅ 연결됨':'키 필요')+(pref('nifsKey','')?' · 수산과학원':''); e.className=k?'ok':'';
   const lb=pref('lastBak',''); $('#sumBak').textContent=lb?`마지막 백업 ${+lb.slice(5,7)}/${+lb.slice(8,10)}`:'백업 아직 없음';
   const ids=['tbChk','cfChk','depthChk','preChk','tidalChk']; $('#sumMap').textContent=`${ids.length}개 중 ${ids.filter(i=>$('#'+i).checked).length}개 켜짐`;}
 ['tbChk','cfChk','depthChk','preChk','tidalChk'].forEach(i=>$('#'+i).addEventListener('change',setSums));

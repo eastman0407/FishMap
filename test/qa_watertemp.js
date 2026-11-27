@@ -17,8 +17,9 @@ const RD = { pts: [], bins: new Map(), R: 0.033, ver: 1, times: [0] };
 const DGRID = { index: G, blocks: new Map() }; const depthGridReady = () => {}; const blkEnsure = () => Promise.resolve(null);
 for (const key of G.tiles) DGRID.blocks.set(key, JSON.parse(fs.readFileSync(path.join(TILES_DIR, key + '.json'), 'utf8')));
 const timeIdx = () => ({ i: 0, f: 0, out: false });
-const t0 = new Date(Date.UTC(2026, 10, 27, 3, 0, 0)); // 12:00 KST
-const DTO = { st: [] }, WT = { obs: new Map(), pend: new Set() };
+const t0 = new Date(Math.floor(Date.now() / 3600e3) * 3600e3); // 지금 정시 (관측 12시간 제한 때문에 실제 시각 기준)
+const KST = new Date(t0.getTime() + 9 * 3600e3).toISOString().slice(0, 19).replace('T', ' '); // 같은 시각 'YYYY-MM-DD HH:MM:SS'
+const DTO = { st: [] }, WT = { obs: new Map(), pend: new Set() }, NIFS = { st: null };
 const distM = (a1, o1, a2, o2) => { const r = Math.PI / 180, x = (o2 - o1) * r * Math.cos((a1 + a2) / 2 * r), y = (a2 - a1) * r; return Math.hypot(x, y) * 6371e3; };
 const SST = { g: null }; const sstDay = () => '11/26';
 eval(cut('const blkKeyOf=', '// 블록 비동기 로드').replace('const blkKeyOf', 'var blkKeyOf')); eval(cut('function cellAt(', '// 가장자리 땅 칸은'));
@@ -28,6 +29,7 @@ eval(cut('function wtNearAll(', 'function wtObsMs('));
 eval(cut('function wtObsMs(', '// 관측−예보 차이를'));
 eval(cut('function wtemp(', 'const wtText='));
 eval(cut('function sstAt(', 'function sstSet('));
+eval(cut('function nifsItems(', 'function nifsCode(')); eval(cut('function nifsParseStations(', 'async function nifsStations(')); eval(cut('function nifsParseObs(', 'function nifsObsEnsure('));
 
 let pass = 0, fail = 0;
 const t = (name, fn) => { try { const r = fn(); pass++; console.log('  OK  ' + name + (r ? ' — ' + r : '')); }
@@ -81,7 +83,7 @@ t('계단 수온(강진만 13℃ / 그 밖 16℃)에서 동쪽 바다는 16℃ �
 console.log('[B] 관측소 보정: 경계 계단 없음');
 setPts(() => 15, [33.65, 33.95, 127.95, 128.45]); rebin(0.033); // 타일 밖(육지 판단 없음) 균일 15℃
 const ST = (c, la, lo) => ({ c, la, lo, n: c });
-const obs = (st, v) => WT.obs.set(st.c, { o: { wtem: v, at: '2026-11-27 12:00', la: st.la, lo: st.lo, sc: st.c }, at: Date.now() });
+const obs = (st, v, at = KST) => WT.obs.set(st.c, { o: { wtem: v, at, la: st.la, lo: st.lo, sc: st.c }, at: Date.now() });
 const A = ST('A', 33.80, 128.05), B = ST('B', 33.80, 128.35);
 t('관측소 하나: 예전(U-49) 식과 같음', () => {
   DTO.st = [A]; WT.obs.clear(); obs(A, 17);
@@ -99,6 +101,42 @@ t('섬 건너편 관측소는 안 씀(창선 동쪽 바다 ↔ 강진만 안쪽 
   setPts(() => 15); rebin(0.033);
   const W = ST('W', 34.905, 127.935); DTO.st = [W]; WT.obs.clear(); obs(W, 18);
   assert.ok(!isLand(W.la, W.lo)); const w = wtemp(34.880, 128.090, 0); assert.equal(w.src, '예보', '섬 너머 관측소를 섞음');
+});
+
+const offTile = () => { setPts(() => 15, [33.65, 33.95, 127.95, 128.45]); rebin(0.033); };
+t('12시간 넘은 관측은 안 씀', () => {
+  offTile(); DTO.st = [A]; WT.obs.clear(); obs(A, 17, new Date(t0.getTime() - 13 * 3600e3 + 9 * 3600e3).toISOString().slice(0, 19).replace('T', ' '));
+  assert.equal(wtemp(33.80, 128.12, 0).src, '예보');
+});
+t('예보와 6℃ 넘게 어긋난 관측(센서 이상 의심)은 안 씀', () => { offTile(); DTO.st = [A]; WT.obs.clear(); obs(A, 22); assert.equal(wtemp(33.80, 128.12, 0).src, '예보'); });
+
+console.log('[N] 국립수산과학원 실시간 수온(REQ-103)');
+// risaCode / risaList 응답 모양(명세 필드 그대로). 값은 시험용
+const D8 = KST.slice(0, 10).replace(/-/g, '');
+const risaCode = { header: { resultCode: '00', resultMsg: 'OK' }, body: { item: [
+  { gru_nam: 'S', sta_cde: 'GJ001', sta_nam_kor: '남해 강진(시험)', lat: '34.880', lon: '127.930', sur_tmp_yn: 'Y', end_dat: '' },
+  { gru_nam: 'S', sta_cde: 'OLD01', sta_nam_kor: '폐지', lat: '34.9', lon: '128.0', sur_tmp_yn: 'Y', end_dat: '2020-01-01' },
+  { gru_nam: 'S', sta_cde: 'BOT01', sta_nam_kor: '저층만', lat: '34.9', lon: '128.1', sur_tmp_yn: 'N' }] } };
+const hh = KST.slice(11, 16);
+const risaList = { header: { resultCode: '00' }, body: { item: [
+  { sta_cde: 'GJ001', sta_nam_kor: '남해 강진(시험)', obs_dat: KST.slice(0, 10), obs_tim: hh, obs_lay: '1', wtr_tmp: '14.0', repaire_gbn: '1', rpr_yn: 'N' },
+  { sta_cde: 'GJ001', obs_dat: KST.slice(0, 10), obs_tim: '00:00', obs_lay: '1', wtr_tmp: '13.1', repaire_gbn: '1', rpr_yn: 'N' },
+  { sta_cde: 'GJ001', obs_dat: KST.slice(0, 10), obs_tim: hh, obs_lay: '3', wtr_tmp: '12.0', repaire_gbn: '1', rpr_yn: 'N' }] } };
+let NST;
+t('관측소 목록: 위치 있고 표층 재는 곳만, 끝난 곳 빼고', () => { NST = nifsParseStations(risaCode); assert.equal(NST.length, 1); assert.equal(NST[0].c, 'N:GJ001'); assert.equal(NST[0].src, 'nifs'); });
+t('관측값: 표층·가장 최근 것만, 시각은 KST 문자열', () => {
+  const m = nifsParseObs(risaList, NST), o = m.get('N:GJ001'); assert.equal(m.size, 1); assert.equal(o.wtem, 14); assert.equal(o.at.slice(0, 16), KST.slice(0, 16)); });
+t('점검중·이상값은 뺌', () => {
+  const bad = { body: { item: [{ sta_cde: 'GJ001', obs_dat: D8, obs_tim: hh, obs_lay: '1', wtr_tmp: '14', repaire_gbn: '2' }, { sta_cde: 'GJ001', obs_dat: D8, obs_tim: hh, obs_lay: '1', wtr_tmp: '45' }] } };
+  assert.equal(nifsParseObs(bad, NST).size, 0); });
+t('창선도 재현: 강진만 쪽 예보가 3℃ 차가워도 수산과학원 실측으로 바로잡힘', () => {
+  setPts((la, lo) => (lo < 127.99 && la < 34.93) ? 11.0 : 15.2); rebin(0.033); // 강진만 쪽 예보 11℃(진단의 10.4~11.4), 바깥 15.2
+  DTO.st = []; NIFS.st = NST; WT.obs.clear();
+  const p3 = [34.848, 127.965], before = wtemp(p3[0], p3[1], 0).v;
+  for (const [c, o] of nifsParseObs(risaList, NST)) WT.obs.set(c, { o, at: Date.now() });
+  const w = wtemp(p3[0], p3[1], 0); NIFS.st = null;
+  assert.equal(w.src, '섞음'); assert.ok(w.v > 13 && w.v < 14.2, String(w.v));
+  return `③ 지족해협 쪽 ${before.toFixed(1)}℃ → ${w.v.toFixed(1)}℃ (실측 14℃, ${w.km.toFixed(1)}km, K ${w.K.toFixed(2)})`;
 });
 
 console.log('[D] 위성 수온 칸 보간');
