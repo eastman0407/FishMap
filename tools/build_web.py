@@ -30,8 +30,24 @@ safe = lambda t: t.replace('</', '<\\/')  # 스크립트 안에서 </script> 끊
 head_old = re.search(r'<link rel="stylesheet" href="lib/leaflet\.min\.css"[^>]*>\s*<script src="lib/leaflet\.min\.js"></script>\s*<script>if\(!window\.L\)[^\n]*</script>', html)
 if not head_old: sys.exit('Leaflet 불러오는 부분을 못 찾음')
 emb = {n: json.load(open(os.path.join(A, n), encoding='utf-8')) for n in ('rocks.json', 'tidal.json', 'sgg.json', 'fishing-spots.json')}
-if os.path.exists(os.path.join(A, 'depth_grid.json')):  # 번들 수심 격자 (BADA2024)
-    emb['depth_grid.json'] = json.load(open(os.path.join(A, 'depth_grid.json'), encoding='utf-8'))
+# 번들 수심 격자(타일식, BADA2024): 웹 단일 HTML엔 전국을 다 못 넣으므로 남해안 범위만 임베드.
+# 앱(APK)은 assets/depth 전체를 그때그때 읽음. 웹은 임베드한 타일만 쓰고 나머지는 수심 없음.
+_DEPTH = os.path.join(A, 'depth')
+if os.path.exists(os.path.join(_DEPTH, 'index.json')):
+    WB = (127.0, 33.9, 129.4, 35.3)  # 웹 임베드 범위(남해안): W,S,E,N
+    idx = json.load(open(os.path.join(_DEPTH, 'index.json'), encoding='utf-8'))
+    glon0, glat0, dlon, dlat, bc, br = idx['glon0'], idx['glat0'], idx['dlon'], idx['dlat'], idx['bc'], idx['br']
+    keep = []
+    for key in idx['tiles']:
+        bx, by = map(int, key.split('_'))
+        tw, te = glon0 + bx * bc * dlon, glon0 + (bx + 1) * bc * dlon
+        ts, tn = glat0 + by * br * dlat, glat0 + (by + 1) * br * dlat
+        if te >= WB[0] and tw <= WB[2] and tn >= WB[1] and ts <= WB[3]:
+            keep.append(key)
+    webidx = dict(idx); webidx['tiles'] = keep
+    emb['depth/index.json'] = webidx
+    for key in keep:
+        emb['depth/' + key + '.json'] = json.load(open(os.path.join(_DEPTH, key + '.json'), encoding='utf-8'))
 if os.path.exists(os.path.join(A, 'bridges.json')):  # REQ-60 섬 다리 자료 (CI에서 만듦)
     emb['bridges.json'] = json.load(open(os.path.join(A, 'bridges.json'), encoding='utf-8'))
 new_head = ('<style>' + css + '</style>\n<script>' + safe(js) + '</script>\n'

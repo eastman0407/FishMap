@@ -4,3 +4,6 @@ app/build/
 local.properties
 *.iml
 .idea/
+
+# 수심 타일은 CI에서 생성(원본은 DB/ LFS)
+app/src/main/assets/depth/

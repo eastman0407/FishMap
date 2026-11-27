@@ -10,7 +10,9 @@ base="SIM,RD,VIEW,CONF,TIDE,WIND,FOLLOW,EV:()=>EV,sel:()=>sel,tMin:()=>tMin,flow
 extra=' '.join(open(os.path.join(T,'tools/qa_exports.txt')).read().split())
 L.insert(i,"window.__QA={"+base+extra+"};")
 open(os.path.join(OUT,'index.html'),'w').write('\n'.join(L))
-for f in ('sgg.json','rocks.json','tidal.json','fishing-spots.json','depth_grid.json'):
+for f in ('sgg.json','rocks.json','tidal.json','fishing-spots.json'):
     if os.path.exists(os.path.join(A,f)): shutil.copy(os.path.join(A,f),OUT)
+if os.path.isdir(os.path.join(A,'depth')):  # 번들 수심 타일 (있으면)
+    d=os.path.join(OUT,'depth'); shutil.rmtree(d,ignore_errors=True); shutil.copytree(os.path.join(A,'depth'),d)
 shutil.copy(os.path.join(T,'leaflet_stub.js'),os.path.join(OUT,'stub.js'))
 print('시험 페이지 준비:',OUT)
